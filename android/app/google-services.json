@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "68201275359",
+    "project_id": "wordn3rd-7bd5d",
+    "storage_bucket": "wordn3rd-7bd5d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:68201275359:android:98d2f8380b530578dd6e6a",
+        "android_client_info": {
+          "package_name": "com.clairsaint.wordn3rd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkiYFzIVnz3kxtERgmJh1ggXo5F04AaCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

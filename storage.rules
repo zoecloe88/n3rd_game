@@ -1,0 +1,63 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to validate image MIME types
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|gif|webp)');
+    }
+    
+    // Helper function to validate file size (5MB for images, 10MB for other content)
+    function isValidImageSize() {
+      return request.resource.size <= 5 * 1024 * 1024; // 5MB
+    }
+    
+    function isValidContentSize() {
+      return request.resource.size <= 10 * 1024 * 1024; // 10MB
+    }
+    
+    // User profile images - authenticated users can upload/read their own
+    // Validation: Must be JPEG image, max 5MB
+    match /users/{userId}/profile_image.jpg {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      request.resource.contentType == 'image/jpeg' &&
+                      isValidImageSize();
+    }
+    
+    // User-generated content - authenticated users can upload/read their own
+    // Validation: Images max 5MB, other content max 10MB
+    match /users/{userId}/content/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      (
+                        // Images: validate type and 5MB limit
+                        (isValidImageType() && isValidImageSize()) ||
+                        // Other content: 10MB limit, no type restriction (for flexibility)
+                        (!isValidImageType() && isValidContentSize())
+                      );
+    }
+    
+    // Feedback images - authenticated users can upload feedback images
+    // Validation: Images only, max 5MB
+    match /feedback/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      isValidImageType() &&
+                      isValidImageSize();
+    }
+    
+    // Public assets - read-only for all
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions or Admin can write
+    }
+    
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

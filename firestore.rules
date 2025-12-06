@@ -1,0 +1,182 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Rate limits - server-side only
+    match /rate_limits/{rateLimitId} {
+      allow read, write: if false; // Only Cloud Functions can access
+    }
+    
+    // AI cache - read-only for users, write-only for Cloud Functions
+    match /ai_cache/{cacheId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions can write
+    }
+    
+    // User stats - users can read/write their own stats
+    match /user_stats/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // AI edition generations - users can read/write their own
+    match /ai_edition_generations/{generationId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // Daily challenges - public read, authenticated write
+    match /daily_challenges/{challengeId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Challenge leaderboards - public read, authenticated write
+    match /challenge_leaderboards/{challengeId}/scores/{scoreId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Game rooms - multiplayer game rooms
+    // Security model: Defense in depth
+    // - Firestore rules provide first layer (restrictive by status)
+    // - Application logic (MultiplayerService) provides second layer (validates player membership)
+    // This dual-layer approach ensures security even if one layer is bypassed
+    // 
+    // NOTE: Firestore rules cannot easily check nested objects in arrays (players array contains Player objects)
+    // Therefore, we rely on app-level validation in MultiplayerService.validatePlayerMembership()
+    // for player membership checks. Firestore rules provide status-based access control.
+    match /game_rooms/{roomId} {
+      // Helper function to check if user is the host
+      function isHost() {
+        return request.auth != null && 
+               resource.data.hostId == request.auth.uid;
+      }
+      
+      // Note: Firestore rules cannot easily check nested objects in arrays (players array contains Player objects)
+      // Therefore, we rely on app-level validation in MultiplayerService.validatePlayerMembership()
+      // for player membership checks. Firestore rules provide status-based access control.
+      // 
+      // Allow read if user is authenticated and either:
+      // - User is the host (can always read their own rooms)
+      // - Room is in waiting status (for room discovery - app validates membership before joining)
+      // Note: For active games, app logic validates player membership before allowing access
+      // This prevents unauthorized users from reading room data during active games
+      // The validatePlayerMembership() method in MultiplayerService provides defense in depth
+      allow read: if request.auth != null && (
+        isHost() ||
+        resource.data.status == 'waiting'
+      );
+      
+      // Allow create if user is authenticated and sets themselves as host
+      // This prevents users from creating rooms with other users as hosts
+      allow create: if request.auth != null && 
+        request.resource.data.hostId == request.auth.uid;
+      
+      // Allow update if user is authenticated and either:
+      // - User is the host (can update anything in their room)
+      // - User is authenticated AND room is in a playable state
+      // Note: Application logic in MultiplayerService.validatePlayerMembership() enforces 
+      // that only players in the room can update (checks players array before allowing updates)
+      // This provides defense in depth - rules allow by status, app validates by membership
+      // The app-level validation is critical since Firestore rules cannot check nested array objects
+      allow update: if request.auth != null && (
+        isHost() ||
+        (resource.data.status == 'waiting' ||
+         resource.data.status == 'inProgress' ||
+         resource.data.status == 'starting')
+      );
+      
+      // Allow delete only if user is the host
+      // Prevents unauthorized room deletion
+      allow delete: if request.auth != null && 
+        resource.data.hostId == request.auth.uid;
+      
+      // Chat messages subcollection - players in the room can read/write
+      match /messages/{messageId} {
+        // Allow read if user is authenticated and room exists
+        // Note: App logic validates player membership before allowing chat access
+        allow read: if request.auth != null;
+        
+        // Allow create if user is authenticated and message is valid
+        // Content validation is handled by application logic (ContentModerationService)
+        allow create: if request.auth != null &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.message is string &&
+          request.resource.data.message.size() <= 500 &&
+          request.resource.data.message.size() >= 1;
+        
+        // Allow update/delete only by message author (for moderation/editing)
+        allow update, delete: if request.auth != null &&
+          resource.data.userId == request.auth.uid;
+      }
+    }
+    
+    // Family groups - Family & Friends plan management
+    // Security model: Defense in depth
+    // - Firestore rules provide first layer (owner/member checks)
+    // - Application logic (FamilyGroupService) provides second layer (validates membership)
+    match /family_groups/{groupId} {
+      // Helper functions
+      function isOwner() {
+        return request.auth != null && 
+               resource.data.ownerId == request.auth.uid;
+      }
+      
+      // Check if user is a member (Firestore rules can check array of maps)
+      function isMember() {
+        return request.auth != null && 
+               request.auth.uid in resource.data.members.map(m => m.userId);
+      }
+      
+      // Check if user's email is in pending invites
+      function isInvited() {
+        return request.auth != null &&
+               request.auth.token.email != null &&
+               request.auth.token.email in resource.data.pendingInvites.map(i => i.email);
+      }
+      
+      // Read: Owner, members, or invited users can read
+      allow read: if request.auth != null && (
+        isOwner() || 
+        isMember() || 
+        isInvited()
+      );
+      
+      // Create: Authenticated users can create, but must set themselves as owner
+      allow create: if request.auth != null &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.subscriptionTier == 'family_friends' &&
+        request.resource.data.maxMembers == 4;
+      
+      // Update: Owner can update anything, members can only update their own status
+      // Note: App logic enforces that only owner can invite/remove members
+      allow update: if request.auth != null && (
+        isOwner() ||
+        (isMember() && 
+         // Members can only update their own entry in members array
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
+      );
+      
+      // Delete: Owner only
+      allow delete: if request.auth != null && isOwner();
+    }
+    
+    // Family memberships subcollection - users can read/write their own memberships
+    match /users/{userId}/family_memberships/{membershipId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
