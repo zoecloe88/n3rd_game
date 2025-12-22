@@ -105,24 +105,28 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
 
       await familyService.acceptInvitation(groupId);
 
+      // CRITICAL: Check mounted after async operation
+      if (!mounted) return;
+
       // Log analytics
       await analyticsService.logFamilyGroupEvent('family_invitation_accepted', {
         'group_id': groupId,
       });
 
-      if (mounted) {
-        ErrorHandler.showSuccess(
-          context,
-          'Successfully joined Family & Friends group!',
-        );
-        
-        // Navigate to family management screen after a delay
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            NavigationHelper.safeNavigate(context, '/family-management');
-          }
-        });
-      }
+      // CRITICAL: Check mounted again after another async operation
+      if (!mounted || !context.mounted) return;
+
+      ErrorHandler.showSuccess(
+        context,
+        'Successfully joined Family & Friends group!',
+      );
+      
+      // Navigate to family management screen after a delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && context.mounted) {
+          NavigationHelper.safeNavigate(context, '/family-management');
+        }
+      });
     } on ValidationException catch (e) {
       if (mounted) {
         ErrorHandler.showSnackBar(context, e.toString());

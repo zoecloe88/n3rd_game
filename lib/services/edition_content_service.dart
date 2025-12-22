@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart';
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/models/trivia_item.dart';
 
 /// Service to load trivia content for specific editions
@@ -20,13 +20,13 @@ class EditionContentService extends ChangeNotifier {
 
     // Templates are already initialized in main.dart before this service is created
     // If not initialized, it means initialization failed in main.dart and we can't recover here
-    if (!EditionTriviaTemplates.isInitialized) {
+    if (!templates.EditionTriviaTemplates.isInitialized) {
       if (kDebugMode) {
         debugPrint(
           '⚠️ Warning: EditionTriviaTemplates not initialized. This should not happen - templates are initialized in main.dart.',
         );
         debugPrint(
-          '   Last validation error: ${EditionTriviaTemplates.lastValidationError}',
+          '   Last validation error: ${templates.EditionTriviaTemplates.lastValidationError}',
         );
       }
       // Don't attempt to initialize here - it would fail with the same error
@@ -143,7 +143,7 @@ class EditionContentService extends ChangeNotifier {
 
     for (final editionId in editionIds) {
       _editionTemplates[editionId] =
-          EditionTriviaTemplates.getTemplatesForEdition(editionId);
+          templates.EditionTriviaTemplates.getTemplatesForEdition(editionId);
     }
   }
 

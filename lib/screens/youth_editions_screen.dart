@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/config/screen_animations_config.dart';
-import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -53,99 +51,7 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-
-    // Block editions access for non-Premium users
-    if (!subscriptionService.hasEditionsAccess) {
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
-      return Scaffold(
-        backgroundColor: AppColors.of(context).background,
-        body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
-          child: SafeArea(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(AppSpacing.lg),
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.large,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: AppColors.of(context).tertiaryText,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Youth Editions - Premium Feature',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.of(context).primaryText,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Youth Editions are only available with Premium subscription. Upgrade to Premium to access age-appropriate content for kids!',
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 16,
-                        color: AppColors.of(context).secondaryText,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: () => NavigationHelper.safePop(context),
-                          child: Text(
-                            'Cancel',
-                            style: AppTypography.bodyMedium.copyWith(),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        ElevatedButton(
-                          onPressed: () {
-                            NavigationHelper.safePop(context);
-                            Navigator.of(
-                              context,
-                            ).pushNamed('/subscription-management');
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.of(
-                              context,
-                            ).primaryButton,
-                          ),
-                          child: Text(
-                            'Upgrade to Premium',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
+    // RouteGuard handles subscription checking at route level
     final route = ModalRoute.of(context)?.settings.name;
     final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 

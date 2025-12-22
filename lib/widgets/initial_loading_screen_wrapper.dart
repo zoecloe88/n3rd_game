@@ -22,15 +22,24 @@ class _InitialLoadingScreenWrapperState
   @override
   void initState() {
     super.initState();
+    // Preload fonts during loading screen display and navigate after delay
+    _initializeAndNavigate();
+  }
+
+  /// Initialize fonts and navigate to next screen with proper error handling
+  Future<void> _initializeAndNavigate() async {
     // Preload fonts during loading screen display
     final fontLoadFuture = _preloadFonts();
 
-    // Show initial loading for 3 seconds, then navigate to logo loading screen
-    // Wait for fonts to load or timeout, whichever comes first
-    Future.wait([
-      Future.delayed(const Duration(seconds: 3)),
-      fontLoadFuture,
-    ]).then((_) {
+    try {
+      // Show initial loading for 3 seconds, then navigate to logo loading screen
+      // Wait for fonts to load or timeout, whichever comes first
+      await Future.wait([
+        Future.delayed(const Duration(seconds: 3)),
+        fontLoadFuture,
+      ]);
+
+      // Navigate after successful initialization
       if (mounted && context.mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -38,8 +47,16 @@ class _InitialLoadingScreenWrapperState
           ),
         );
       }
-    }).catchError((_) {
+    } catch (e) {
       // Even if font loading fails, proceed after 3 seconds
+      // Log error for debugging but don't block app startup
+      if (kDebugMode) {
+        debugPrint(
+          '⚠️ Font preloading encountered error during initialization: $e',
+        );
+      }
+
+      // Ensure we navigate even if font loading fails
       if (mounted && context.mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -47,7 +64,7 @@ class _InitialLoadingScreenWrapperState
           ),
         );
       }
-    });
+    }
   }
 
   /// Preload Google Fonts during app initialization

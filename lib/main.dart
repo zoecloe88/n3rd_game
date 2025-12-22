@@ -15,7 +15,7 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/config/app_config.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart';
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates;
 import 'package:n3rd_game/widgets/initial_loading_screen_wrapper.dart';
 import 'package:n3rd_game/screens/instructions_screen.dart';
 import 'package:n3rd_game/screens/word_of_day_screen.dart';
@@ -53,6 +53,7 @@ import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/initialization_error_screen.dart';
 import 'package:n3rd_game/widgets/main_navigation_wrapper.dart';
 import 'package:n3rd_game/widgets/error_boundary.dart';
+import 'package:n3rd_game/widgets/route_guard.dart';
 import 'package:n3rd_game/models/game_room.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/game_service.dart';
@@ -111,45 +112,72 @@ Future<void> _initializeSubscriptionService(
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Track app startup time for performance monitoring
+  final appStartTime = DateTime.now();
+
   // Store auth state subscription to prevent memory leak
   // Note: This subscription persists for app lifetime (intentional - no cancellation needed)
   // ignore: unused_local_variable
   StreamSubscription<User?>? authStateSubscription;
 
   // Initialize Firebase (must be done before Crashlytics and FCM background handler)
+  bool firebaseInitialized = false;
+  String? firebaseInitError;
   try {
     await Firebase.initializeApp();
+    firebaseInitialized = true;
 
     // CRITICAL: Register background message handler BEFORE any other Firebase operations
     // This must be registered at the top level, before runApp()
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      // Background message handler registration failure is non-critical
+      // The app can still function without push notifications
+      if (kDebugMode) {
+        debugPrint(
+          '⚠️ Warning: Failed to register Firebase background message handler: $e',
+        );
+      }
+    }
 
     // AI Edition now uses Firebase Cloud Functions
     // API keys are stored server-side and never exposed to clients
     if (kDebugMode) {
-      debugPrint('AI Edition configured to use Firebase Cloud Functions');
+      debugPrint('✓ Firebase initialized successfully');
+      debugPrint('✓ AI Edition configured to use Firebase Cloud Functions');
     }
-  } catch (e) {
+  } catch (e, stackTrace) {
+    firebaseInitError = e.toString();
     if (kDebugMode) {
-      debugPrint('Firebase initialization error: $e');
+      debugPrint('❌ CRITICAL: Firebase initialization failed: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
+    // App will continue but Firebase features will be disabled
+    // Services that depend on Firebase will check isFirebaseInitialized
+    // before attempting Firebase operations
   }
 
   // Initialize Firebase Crashlytics error handlers
-  // Check if Firebase is initialized before using Crashlytics
-  final isFirebaseInitialized = () {
-    try {
-      Firebase.app();
-      return true;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'Firebase not initialized - Crashlytics will be disabled: $e',
-        );
-      }
-      return false;
-    }
-  }();
+  // Use the firebaseInitialized flag from initialization above
+  final isFirebaseInitialized = firebaseInitialized ||
+      (() {
+        // Fallback check in case flag wasn't set correctly
+        try {
+          Firebase.app();
+          return true;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              'Firebase not initialized - Crashlytics will be disabled: $e',
+            );
+            if (firebaseInitError != null) {
+              debugPrint('Original Firebase init error: $firebaseInitError');
+            }
+          }
+          return false;
+        }
+      }());
 
   // Global error handler for all Flutter framework errors
   // This complements ErrorWidget.builder (which handles widget build errors)
@@ -202,14 +230,16 @@ void main() async {
   // Analytics tracking will be done after AnalyticsService is initialized
   // CRITICAL: If template initialization fails, show blocking error screen
   // This prevents the app from starting in a broken state
+  // Load templates library (deferred import to reduce kernel size)
   bool triviaInitializationFailed = false;
   String? triviaInitError;
   try {
-    await EditionTriviaTemplates.initialize();
-    if (!EditionTriviaTemplates.isInitialized) {
+    await templates.loadLibrary();
+    await templates.EditionTriviaTemplates.initialize();
+    if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
       triviaInitError =
-          EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
+          templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
       if (kDebugMode) {
         debugPrint(
           '❌ CRITICAL ERROR: Template initialization failed: $triviaInitError',
@@ -363,6 +393,13 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => NetworkService()..init()),
         ChangeNotifierProvider(create: (_) => MultiplayerService()..init()),
+        // Wire AnalyticsService to MultiplayerService for performance tracking
+        ProxyProvider<AnalyticsService, MultiplayerService>(
+          update: (_, analytics, previous) {
+            previous?.setAnalyticsService(analytics);
+            return previous ?? MultiplayerService()..init();
+          },
+        ),
         ChangeNotifierProvider(create: (_) => EditionAccessService()..init()),
         ChangeNotifierProvider(create: (_) => FamilyGroupService()..init()),
         // Add RevenueCatService provider
@@ -381,16 +418,18 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AIModeService()..init()),
         // Create shared personalization service instance
         ChangeNotifierProvider(create: (_) => TriviaPersonalizationService()),
-        // Wire AIEditionService to use personalization and generator services
-        ProxyProvider2<
+        // Wire AIEditionService to use personalization, generator, and analytics services
+        ProxyProvider3<
           TriviaPersonalizationService,
           TriviaGeneratorService,
+          AnalyticsService,
           AIEditionService
         >(
-          update: (_, personalization, generator, previous) {
+          update: (_, personalization, generator, analytics, previous) {
             previous ??= AIEditionService();
             previous.setPersonalizationService(personalization);
             previous.setGeneratorService(generator);
+            previous.setAnalyticsService(analytics);
             return previous;
           },
         ),
@@ -406,9 +445,9 @@ void main() async {
             // Only create new instance if it doesn't exist
             if (previous == null) {
               // Validate templates are initialized before creating service
-              if (!EditionTriviaTemplates.isInitialized) {
+              if (!templates.EditionTriviaTemplates.isInitialized) {
                 final error =
-                    EditionTriviaTemplates.lastValidationError ??
+                    templates.EditionTriviaTemplates.lastValidationError ??
                     'Unknown error';
                 final errorMessage =
                     'TriviaGeneratorService initialization failed: '
@@ -575,6 +614,21 @@ void main() async {
 
               return Consumer<ThemeService>(
                 builder: (context, themeService, _) {
+                  // Track app startup time after first frame
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final analyticsService = Provider.of<AnalyticsService>(
+                      context,
+                      listen: false,
+                    );
+                    final startupDuration = DateTime.now().difference(appStartTime);
+                    analyticsService.logAppStartup(
+                      startupDuration,
+                      success: !triviaInitializationFailed,
+                      firebaseInitialized: firebaseInitialized,
+                      templatesInitialized: !triviaInitializationFailed,
+                    );
+                  });
+
                   return MaterialApp(
                     // Localization support
                     localizationsDelegates: const [
@@ -627,55 +681,113 @@ void main() async {
                       '/modes': (context) =>
                           const MainNavigationWrapper(initialIndex: 1),
                       '/game': (context) => const GameScreen(),
-                      '/multiplayer-lobby': (context) =>
-                          const MultiplayerLobbyScreen(),
-                      '/multiplayer-game': (context) =>
-                          const MultiplayerGameScreen(),
-                      '/direct-message': (context) =>
-                          const DirectMessageScreen(),
+                      '/multiplayer-lobby': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Multiplayer Lobby',
+                          child: MultiplayerLobbyScreen(),
+                        ),
+                      '/multiplayer-game': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Multiplayer Game',
+                          child: MultiplayerGameScreen(),
+                        ),
+                      '/direct-message': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Direct Messages',
+                          child: DirectMessageScreen(),
+                        ),
                       '/onboarding': (context) => const OnboardingScreen(),
                       '/stats': (context) =>
                           const MainNavigationWrapper(initialIndex: 2),
-                      '/leaderboard': (context) =>
-                          const MainNavigationWrapper(initialIndex: 2),
-                      '/friends': (context) =>
-                          const MainNavigationWrapper(initialIndex: 3),
+                      '/leaderboard': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Leaderboard',
+                          child: MainNavigationWrapper(initialIndex: 2),
+                        ),
+                      '/friends': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Friends',
+                          child: MainNavigationWrapper(initialIndex: 3),
+                        ),
                       '/more': (context) =>
                           const MainNavigationWrapper(initialIndex: 4),
                       '/word-of-day': (context) => const WordOfDayScreen(),
-                      '/editions-selection': (context) =>
-                          const EditionsSelectionScreen(),
-                      '/editions': (context) => const EditionsScreen(),
-                      '/youth-editions': (context) =>
-                          const YouthEditionsScreen(),
+                      '/editions-selection': (context) => const RouteGuard(
+                          requiresEditionsAccess: true,
+                          featureName: 'Editions Selection',
+                          child: EditionsSelectionScreen(),
+                        ),
+                      '/editions': (context) => const RouteGuard(
+                          requiresEditionsAccess: true,
+                          featureName: 'Editions',
+                          child: EditionsScreen(),
+                        ),
+                      '/youth-editions': (context) => const RouteGuard(
+                          requiresEditionsAccess: true,
+                          featureName: 'Youth Editions',
+                          child: YouthEditionsScreen(),
+                        ),
                       '/subscription-management': (context) =>
                           const SubscriptionManagementScreen(),
-                      '/family-management': (context) =>
-                          const FamilyManagementScreen(),
+                      '/family-management': (context) => const RouteGuard(
+                          requiresFamilyFriends: true,
+                          featureName: 'Family Management',
+                          child: FamilyManagementScreen(),
+                        ),
                       '/family-invitation': (context) {
                         final args = ModalRoute.of(context)?.settings.arguments;
                         final groupId = args is String ? args : null;
-                        return FamilyInvitationScreen(groupId: groupId);
+                        return RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Family Invitation',
+                          child: FamilyInvitationScreen(groupId: groupId),
+                        );
                       },
                       '/privacy-policy': (context) =>
                           const PrivacyPolicyScreen(),
                       '/terms-of-service': (context) =>
                           const TermsOfServiceScreen(),
-                      '/ai-edition-history': (context) =>
-                          const AIEditionHistoryScreen(),
-                      '/analytics': (context) =>
-                          const AnalyticsDashboardScreen(),
-                      '/daily-challenges': (context) =>
-                          const DailyChallengesScreen(),
-                      '/voice-calibration': (context) =>
-                          const VoiceCalibrationScreen(),
+                      '/ai-edition-history': (context) => const RouteGuard(
+                          requiresEditionsAccess: true,
+                          featureName: 'AI Edition History',
+                          child: AIEditionHistoryScreen(),
+                        ),
+                      '/analytics': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Analytics Dashboard',
+                          child: AnalyticsDashboardScreen(),
+                        ),
+                      '/daily-challenges': (context) => const RouteGuard(
+                          requiresOnlineAccess: true,
+                          featureName: 'Daily Challenges',
+                          child: DailyChallengesScreen(),
+                        ),
+                      '/voice-calibration': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Voice Calibration',
+                          child: VoiceCalibrationScreen(),
+                        ),
                       '/themes': (context) => const ThemesScreen(),
-                      '/learning': (context) => const LearningModeScreen(),
-                      '/performance-insights': (context) =>
-                          const PerformanceInsightsScreen(),
-                      '/practice': (context) => const PracticeModeScreen(),
-                      '/trivia-creator': (context) =>
-                          const TriviaCreatorScreen(),
+                      '/learning': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Learning Mode',
+                          child: LearningModeScreen(),
+                        ),
+                      '/performance-insights': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Performance Insights',
+                          child: PerformanceInsightsScreen(),
+                        ),
+                      '/practice': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Practice Mode',
+                          child: PracticeModeScreen(),
+                        ),
+                      '/trivia-creator': (context) => const RouteGuard(
+                          requiresPremium: true,
+                          featureName: 'Trivia Creator',
+                          child: TriviaCreatorScreen(),
+                        ),
                       '/help-center': (context) => const HelpCenterScreen(),
                       '/support-dashboard': (context) =>
                           const SupportDashboardScreen(),
@@ -772,9 +884,13 @@ void main() async {
                         final args =
                             settings.arguments as Map<String, dynamic>?;
                         return MaterialPageRoute(
-                          builder: (context) => AIEditionInputScreen(
-                            isYouthEdition:
-                                args?['isYouthEdition'] as bool? ?? false,
+                          builder: (context) => RouteGuard(
+                            requiresEditionsAccess: true,
+                            featureName: 'AI Edition Input',
+                            child: AIEditionInputScreen(
+                              isYouthEdition:
+                                  args?['isYouthEdition'] as bool? ?? false,
+                            ),
                           ),
                           settings: settings,
                         );
@@ -913,11 +1029,11 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
     ];
 
     // If user logged out and is on a protected route, redirect to login
+    // Use pushNamedAndRemoveUntil to clear navigation stack and go to login
+    // This works regardless of whether we can pop (removes all routes)
     if (!authService.isAuthenticated &&
         currentRoute != null &&
-        protectedRoutes.contains(currentRoute) &&
-        navigator.canPop()) {
-      // Only navigate if we can pop, meaning we're not on root route
+        protectedRoutes.contains(currentRoute)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && context.mounted) {
           navigator.pushNamedAndRemoveUntil('/login', (route) => false);

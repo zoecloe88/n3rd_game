@@ -144,7 +144,7 @@ class _GameScreenState extends State<GameScreen>
           listen: false,
         );
         analyticsService.logGameModeSelected(
-          mode?.toString().split('.').last ?? 'unknown',
+          mode?.name ?? 'unknown',
           subscriptionService.tierName,
         );
       }
@@ -185,13 +185,13 @@ class _GameScreenState extends State<GameScreen>
             buildContext,
             generator,
             analyticsService,
-            mode?.toString().split('.').last ?? 'unknown',
+            mode?.name ?? 'unknown',
           );
 
           // Validate trivia pool is not empty
           if (triviaPool.isEmpty) {
             await analyticsService.logTriviaGeneration(
-              mode?.toString().split('.').last ?? 'unknown',
+              mode?.name ?? 'unknown',
               false,
               error: 'Empty trivia pool after retries',
             );
@@ -208,7 +208,7 @@ class _GameScreenState extends State<GameScreen>
           }
 
           await analyticsService.logTriviaGeneration(
-            mode?.toString().split('.').last ?? 'unknown',
+            mode?.name ?? 'unknown',
             true,
           );
         }
@@ -224,7 +224,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.toString().split('.').last ?? 'unknown',
+              mode?.name ?? 'unknown',
               false,
               error: e.toString(),
             );
@@ -265,7 +265,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.toString().split('.').last ?? 'unknown',
+              mode?.name ?? 'unknown',
               false,
               error: e.toString(),
             );
@@ -295,7 +295,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.toString().split('.').last ?? 'unknown',
+              mode?.name ?? 'unknown',
               false,
               error: e.toString(),
             );
@@ -548,9 +548,7 @@ class _GameScreenState extends State<GameScreen>
                     NavigationHelper.safePop(context);
                   },
                   child: Text(
-                    // ignore: undefined_getter
-                    AppLocalizations.of(context)?.dontShowAgain ??
-                        "Don't show again",
+                    "Don't show again",
                     style: AppTypography.labelLarge.copyWith(
                       color: AppColors.of(context).secondaryText,
                     ),
@@ -802,15 +800,15 @@ class _GameScreenState extends State<GameScreen>
       // Log subscription validation
       await analyticsService.logSubscriptionValidation(
         tierChanged || !hasPremiumAccess,
-        _initialTier?.toString().split('.').last,
-        currentTier.toString().split('.').last,
+        _initialTier?.name,
+        currentTier.name,
       );
 
       // If tier changed or premium access lost, handle it
       if (tierChanged || (hadPremiumAccess && !hasPremiumAccess)) {
         await analyticsService.logSubscriptionTierChange(
-          _initialTier?.toString().split('.').last ?? 'unknown',
-          currentTier.toString().split('.').last,
+          _initialTier?.name ?? 'unknown',
+          currentTier.name,
         );
 
         // If downgraded from Premium/Family to Free/Basic during AI mode game
@@ -836,8 +834,8 @@ class _GameScreenState extends State<GameScreen>
             );
             // Log analytics for subscription expiration during AI mode
             await analyticsService.logSubscriptionTierChange(
-              _initialTier?.toString().split('.').last ?? 'unknown',
-              currentTier.toString().split('.').last,
+              _initialTier?.name ?? 'unknown',
+              currentTier.name,
             );
           }
         }
@@ -2031,7 +2029,7 @@ class _GameScreenState extends State<GameScreen>
                               buildContext,
                               generator,
                               analyticsService,
-                              service.currentMode.toString().split('.').last,
+                              service.currentMode.name,
                             );
 
                             if (!mounted || !buildContext.mounted) return;
@@ -2405,7 +2403,7 @@ class _GameScreenState extends State<GameScreen>
                   capturedContext,
                   generator,
                   analyticsService,
-                  service.currentMode.toString().split('.').last,
+                  service.currentMode.name,
                 );
 
                 if (triviaPool.isNotEmpty) {
@@ -2554,29 +2552,40 @@ class _GameScreenState extends State<GameScreen>
 
     // Record analytics when game over screen is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final analyticsService = Provider.of<AnalyticsService>(
-        context,
-        listen: false,
-      );
+      // CRITICAL: Check if widget is still mounted before accessing context/Provider
+      if (!mounted || !context.mounted) return;
 
-      // Game tracking for free tier is done when game starts, not when it ends
-      // This ensures users get exactly 5 games per day regardless of outcome
-
-      final totalAnswers =
-          service.sessionCorrectAnswers + service.sessionWrongAnswers;
-      final accuracy = totalAnswers > 0
-          ? (service.sessionCorrectAnswers / totalAnswers) * 100.0
-          : 0.0;
-
-      final currentTrivia = service.currentTrivia;
-      if (currentTrivia != null) {
-        analyticsService.recordGameSession(
-          score: service.state.score.toDouble(),
-          accuracy: accuracy,
-          gamesPlayed: service.state.round - 1,
-          category: currentTrivia.category,
-          triviaItem: currentTrivia,
+      try {
+        final analyticsService = Provider.of<AnalyticsService>(
+          context,
+          listen: false,
         );
+
+        // Game tracking for free tier is done when game starts, not when it ends
+        // This ensures users get exactly 5 games per day regardless of outcome
+
+        final totalAnswers =
+            service.sessionCorrectAnswers + service.sessionWrongAnswers;
+        final accuracy = totalAnswers > 0
+            ? (service.sessionCorrectAnswers / totalAnswers) * 100.0
+            : 0.0;
+
+        final currentTrivia = service.currentTrivia;
+        if (currentTrivia != null) {
+          analyticsService.recordGameSession(
+            score: service.state.score.toDouble(),
+            accuracy: accuracy,
+            gamesPlayed: service.state.round - 1,
+            category: currentTrivia.category,
+            triviaItem: currentTrivia,
+          );
+        }
+      } catch (e) {
+        // Provider might not be available if widget tree was disposed
+        // Silently fail - analytics are non-critical
+        if (kDebugMode) {
+          debugPrint('Failed to record analytics in game over: $e');
+        }
       }
     });
 
@@ -2755,20 +2764,23 @@ class _GameScreenState extends State<GameScreen>
       }
 
       // Try to load the most recently downloaded pack
-      try {
-        final mostRecentPack = offlineService.downloadedPacks.last;
-        final offlineTrivia = await offlineService.loadPack(mostRecentPack);
-        if (offlineTrivia != null && offlineTrivia.isNotEmpty) {
-          if (kDebugMode) {
-            debugPrint(
-              '✓ Loaded offline trivia pack: $mostRecentPack (${offlineTrivia.length} items)',
-            );
+      // CRITICAL: Check list is not empty before accessing .last to prevent crash
+      if (offlineService.downloadedPacks.isNotEmpty) {
+        try {
+          final mostRecentPack = offlineService.downloadedPacks.last;
+          final offlineTrivia = await offlineService.loadPack(mostRecentPack);
+          if (offlineTrivia != null && offlineTrivia.isNotEmpty) {
+            if (kDebugMode) {
+              debugPrint(
+                '✓ Loaded offline trivia pack: $mostRecentPack (${offlineTrivia.length} items)',
+              );
+            }
+            return offlineTrivia;
           }
-          return offlineTrivia;
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Failed to load offline pack: $e');
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Failed to load offline pack: $e');
+          }
         }
       }
 

@@ -11,6 +11,8 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
+import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 
 class WordOfDayScreen extends StatefulWidget {
   const WordOfDayScreen({super.key});
@@ -132,12 +134,14 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
         animationPadding: const EdgeInsets.only(bottom: 20),
         child: SafeArea(
           child: _checkingAuth
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00D9FF)),
+              ? const StandardizedLoadingWidget(
+                  message: 'Checking authentication...',
+                  color: Color(0xFF00D9FF),
                 )
               : _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00D9FF)),
+              ? const StandardizedLoadingWidget(
+                  message: 'Loading word of the day...',
+                  color: Color(0xFF00D9FF),
                 )
               : _buildContent(),
         ),
@@ -148,30 +152,12 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   Widget _buildContent() {
     // Safety check - if word is still null, show error message
     if (_word == null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load word',
-              style: AppTypography.bodyLarge.copyWith(color: Colors.white),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => NavigationHelper.safeNavigate(context, '/title'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).background,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                'Continue',
-                style: AppTypography.labelLarge.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+      return ErrorRecoveryWidget(
+        title: 'Unable to Load Word',
+        message: 'There was an error loading the word of the day. Please try again later.',
+        onRetry: () => NavigationHelper.safeNavigate(context, '/title'),
+        icon: Icons.error_outline,
+        showRetryButton: false,
       );
     }
 

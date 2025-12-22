@@ -16,6 +16,8 @@ Architecture Decision Records document important architectural decisions made du
 3. [ADR-003: State Persistence Strategy](./003-state-persistence-strategy.md)
 4. [ADR-004: Error Recovery Mechanisms](./004-error-recovery-mechanisms.md)
 5. [ADR-005: Performance Monitoring](./005-performance-monitoring.md)
+6. [ADR-006: Subscription Routing Architecture](./006-subscription-routing-architecture.md)
+7. [ADR-007: Error Handling Strategy](./007-error-handling-strategy.md)
 
 ## Format
 

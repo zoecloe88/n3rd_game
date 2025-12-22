@@ -33,7 +33,7 @@ void main() {
       final correctSet = validTrivia.correctAnswers.toSet();
       final wordSet = validTrivia.words.toSet();
       expect(wordSet.containsAll(correctSet), isTrue,
-        reason: 'All correct answers must appear in the words list');
+        reason: 'All correct answers must appear in the words list',);
     });
 
     test('GameService throws GameException for trivia with wrong word count', () {
@@ -58,7 +58,7 @@ void main() {
       
       expect(() => gameService.startNewRound(triviaPool),
         throwsA(isA<GameException>()),
-        reason: 'GameService should throw GameException for trivia items without exactly 6 words');
+        reason: 'GameService should throw GameException for trivia items without exactly 6 words',);
     });
 
   });

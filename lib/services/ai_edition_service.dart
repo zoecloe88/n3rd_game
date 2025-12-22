@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:async' show unawaited, TimeoutException;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +10,8 @@ import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/difficulty_level.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/services/trivia_personalization_service.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
 
@@ -55,6 +56,11 @@ class AIEditionService extends ChangeNotifier {
   TriviaPersonalizationService? _personalizationService;
   TriviaGeneratorService?
   _generatorService; // Cache generator service for fallback
+  AnalyticsService? _analyticsService;
+
+  void setAnalyticsService(AnalyticsService? service) {
+    _analyticsService = service;
+  }
 
   // Youth safety parameters - expanded list
   static const List<String> _prohibitedTopics = [
@@ -391,8 +397,8 @@ class AIEditionService extends ChangeNotifier {
 
   /// Find templates relevant to the topic with similarity scoring
   List<TriviaTemplate> _findRelevantTemplates(String topic, bool isYouth) {
-    final allTemplates = EditionTriviaTemplates.getAvailableThemes()
-        .expand((theme) => EditionTriviaTemplates.getTemplatesForEdition(theme))
+    final allTemplates = templates.EditionTriviaTemplates.getAvailableThemes()
+        .expand((theme) => templates.EditionTriviaTemplates.getTemplatesForEdition(theme))
         .toList();
 
     // Calculate similarity scores
@@ -1130,6 +1136,11 @@ class AIEditionService extends ChangeNotifier {
     _lastErrorType = null;
     notifyListeners();
 
+    // Track performance for AI edition generation
+    final startTime = DateTime.now();
+    final int retryCount = 0;
+    String? errorType;
+
     try {
       // Check rate limit
       final (canGenerate, remaining) = await checkRateLimit();
@@ -1241,8 +1252,27 @@ class AIEditionService extends ChangeNotifier {
 
       _isGenerating = false;
       notifyListeners();
+
+      // Log performance metrics
+      final duration = DateTime.now().difference(startTime);
+      unawaited(_analyticsService?.logAIEditionGeneration(
+        duration,
+        success: true,
+        isYouth: isYouthEdition,
+        retryCount: retryCount,
+      ),);
+
       return triviaItems;
-    } on AIEditionException {
+    } on AIEditionException catch (e) {
+      errorType = e.type.name;
+      final duration = DateTime.now().difference(startTime);
+      unawaited(_analyticsService?.logAIEditionGeneration(
+        duration,
+        success: false,
+        isYouth: isYouthEdition,
+        retryCount: retryCount,
+        errorType: errorType,
+      ),);
       rethrow;
     } catch (e) {
       if (kDebugMode) {
@@ -1264,8 +1294,20 @@ class AIEditionService extends ChangeNotifier {
             'Failed to generate trivia. Please try a different topic or try again later.';
       }
 
+      errorType = _lastErrorType?.name ?? 'unknown';
       _isGenerating = false;
       notifyListeners();
+
+      // Log performance metrics for failure
+      final duration = DateTime.now().difference(startTime);
+      unawaited(_analyticsService?.logAIEditionGeneration(
+        duration,
+        success: false,
+        isYouth: isYouthEdition,
+        retryCount: retryCount,
+        errorType: errorType,
+      ),);
+
       throw AIEditionException(_lastErrorType!, _lastError!);
     }
   }

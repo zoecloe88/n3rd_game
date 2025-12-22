@@ -81,7 +81,7 @@ class SubscriptionService extends ChangeNotifier {
       // Store tier at game start for accurate grace period validation
       await prefs.setString(
         _prefKeyActiveGameTier,
-        _currentTier.toString().split('.').last,
+        _currentTier.name,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -143,7 +143,7 @@ class SubscriptionService extends ChangeNotifier {
         final tierString = prefs.getString(_prefKeyActiveGameTier);
         if (tierString != null) {
           tierAtGameStart = SubscriptionTier.values.firstWhere(
-            (tier) => tier.toString().split('.').last == tierString,
+            (tier) => tier.name == tierString,
             orElse: () => _currentTier, // Fallback to current tier if not found
           );
         }
@@ -199,7 +199,7 @@ class SubscriptionService extends ChangeNotifier {
     final normalizedTierString = tierString == 'base' ? 'basic' : tierString;
 
     _currentTier = SubscriptionTier.values.firstWhere(
-      (tier) => tier.toString().split('.').last == normalizedTierString,
+      (tier) => tier.name == normalizedTierString,
       orElse: () => SubscriptionTier.free,
     );
 
@@ -291,7 +291,7 @@ class SubscriptionService extends ChangeNotifier {
     try {
       _currentTier = tier;
       final prefs = await SharedPreferences.getInstance();
-      final tierString = tier.toString().split('.').last;
+      final tierString = tier.name;
       await prefs.setString(_prefKeyTier, tierString);
 
       // Sync to Firestore if user is authenticated (only when tier changed)
@@ -313,7 +313,7 @@ class SubscriptionService extends ChangeNotifier {
       // Log tier change (we know it changed since we checked above)
       if (kDebugMode) {
         debugPrint(
-          'Subscription tier changed: ${oldTier.toString().split('.').last} -> ${tier.toString().split('.').last}',
+          'Subscription tier changed: ${oldTier.name} -> ${tier.name}',
         );
       }
     } finally {
@@ -330,7 +330,7 @@ class SubscriptionService extends ChangeNotifier {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final firestore = FirebaseFirestore.instance;
-        final tierString = tier.toString().split('.').last;
+        final tierString = tier.name;
 
         await firestore
             .collection('users')
@@ -338,7 +338,7 @@ class SubscriptionService extends ChangeNotifier {
             .set({
               'subscriptionTier': tierString,
               'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true))
+            }, SetOptions(merge: true),)
             .timeout(
               const Duration(seconds: 10),
               onTimeout: () {
@@ -411,7 +411,7 @@ class SubscriptionService extends ChangeNotifier {
                 : tierString;
 
             final tier = SubscriptionTier.values.firstWhere(
-              (t) => t.toString().split('.').last == normalizedTierString,
+              (t) => t.name == normalizedTierString,
               orElse: () => SubscriptionTier.free,
             );
 

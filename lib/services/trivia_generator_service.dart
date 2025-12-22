@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/difficulty_level.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart'; // Added to check initialization status
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/config/game_constants.dart';
 import 'package:n3rd_game/services/trivia_personalization_service.dart';
@@ -144,9 +144,10 @@ class TriviaGeneratorService extends ChangeNotifier {
   TriviaGeneratorService() {
     // CRITICAL: Check if EditionTriviaTemplates were initialized first
     // This prevents service creation when templates failed to initialize
-    if (!EditionTriviaTemplates.isInitialized) {
+    // Note: Library is loaded in main.dart before services are created
+    if (!templates.EditionTriviaTemplates.isInitialized) {
       final error =
-          EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
+          templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
       throw ValidationException(
         'CRITICAL ERROR: TriviaGeneratorService cannot be created - templates not initialized!\n'
         'Please ensure EditionTriviaTemplates.initialize() is called before creating TriviaGeneratorService.\n'
@@ -15362,6 +15363,13 @@ class TriviaGeneratorService extends ChangeNotifier {
     }
 
     // Fallback to last template (should never reach here)
+    // CRITICAL: Add defensive check before accessing .last to prevent crash
+    // Even though we check isEmpty above, this provides extra safety
+    if (templates.isEmpty) {
+      throw ValidationException(
+        'Cannot select template from empty list. This indicates a bug in template filtering.',
+      );
+    }
     return templates.last;
   }
 

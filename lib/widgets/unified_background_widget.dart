@@ -41,11 +41,12 @@ class UnifiedBackgroundWidget extends StatelessWidget {
         // Common background (static image)
         _buildCommonBackground(),
 
-        // Screen content
-        child,
-
-        // Optional animation overlay (1012x1024)
+        // Optional animation overlay (behind content, non-interactive)
+        // Placed before child so it appears behind UI elements
         if (animationPath != null) _buildAnimationOverlay(),
+
+        // Screen content (on top, fully interactive)
+        child,
       ],
     );
   }
@@ -102,17 +103,23 @@ class UnifiedBackgroundWidget extends StatelessWidget {
         responsiveHeight = responsiveHeight.clamp(300.0, screenHeight);
 
         return Positioned.fill(
-          child: Align(
-            alignment: animationAlignment,
-            child: Padding(
-              padding: animationPadding ?? EdgeInsets.zero,
-              child: SizedBox(
-                width: responsiveWidth,
-                height: responsiveHeight,
-                child: VideoPlayerWidget(
-                  videoPath: animationPath!,
-                  loop: true,
-                  autoplay: true,
+          child: IgnorePointer(
+            // Make animation non-interactive so it doesn't block UI elements
+            child: ClipRect(
+              // Prevent overflow if animation is larger than screen
+              child: Align(
+                alignment: animationAlignment,
+                child: Padding(
+                  padding: animationPadding ?? EdgeInsets.zero,
+                  child: SizedBox(
+                    width: responsiveWidth,
+                    height: responsiveHeight,
+                    child: VideoPlayerWidget(
+                      videoPath: animationPath!,
+                      loop: true,
+                      autoplay: true,
+                    ),
+                  ),
                 ),
               ),
             ),

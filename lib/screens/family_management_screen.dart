@@ -11,6 +11,8 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/config/screen_animations_config.dart';
+import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -187,6 +189,95 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     final group = familyService.currentGroup;
     final isOwner = familyService.isOwner;
 
+    // CRITICAL: Check if user has Family & Friends tier access
+    if (!subscriptionService.isFamilyFriends && group == null) {
+      // User doesn't have Family & Friends tier and is not in a group
+      final route = ModalRoute.of(context)?.settings.name;
+      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
+
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: UnifiedBackgroundWidget(
+          animationPath: animationPath,
+          animationAlignment: Alignment.bottomCenter,
+          animationPadding: const EdgeInsets.only(bottom: 20),
+          child: SafeArea(
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppShadows.large,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: colors.tertiaryText,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Family & Friends Feature',
+                      style: AppTypography.headlineLarge.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: colors.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Family Management is available for Family & Friends subscribers. '
+                      'Join a group or upgrade to access this feature!',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontSize: 14,
+                        color: colors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        NavigationHelper.safeNavigate(
+                          context,
+                          '/subscription-management',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primaryButton,
+                        foregroundColor: colors.buttonText,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: Text(
+                        'View Subscriptions',
+                        style: AppTypography.labelLarge,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => NavigationHelper.safePop(context),
+                      child: Text(
+                        'Go Back',
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: colors.secondaryText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(
@@ -260,7 +351,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                                 member,
                                 isOwner && member.userId != currentUser?.uid,
                                 member.userId == currentUser?.uid,
-                              )),
+                              ),),
 
                           const SizedBox(height: 16),
 
@@ -283,7 +374,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                                   context,
                                   colors,
                                   invite,
-                                )),
+                                ),),
                             const SizedBox(height: 16),
                           ],
 

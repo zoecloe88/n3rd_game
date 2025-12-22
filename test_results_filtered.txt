@@ -1,0 +1,1098 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+00:01 +0: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should complete a full game round successfully                                                00:01 +0 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should complete a full game round successfully [E]                                         
+  Expected: <0>
+    Actual: <1>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test/integration/game_flow_test.dart 42:7           main.<fn>.<fn>
+  
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart -p vm --plain-name 'Game Flow Integration Tests should complete a full game round successfully'
+00:01 +0 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle game state transitions correctly                                             00:01 +0 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle game state transitions correctly                                             
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:01 +1 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle game state transitions correctly                                             00:01 +1 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should validate trivia item structure                                                      00:01 +1 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should validate trivia item structure                                                      
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:01 +2 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should validate trivia item structure                                                      00:01 +2 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle multiple game modes configuration                                            00:01 +2 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle multiple game modes configuration                                            
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:01 +3 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle multiple game modes configuration                                            00:01 +3 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle progressive difficulty correctly                                             00:01 +3 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle progressive difficulty correctly                                             
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:01 +4 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should handle progressive difficulty correctly                                             00:01 +4 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should validate game state immutability                                                    00:01 +4 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Game Flow Integration Tests should validate game state immutability                                                    
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+
+
+
+
+
+
+00:02 +6 -1: /Users/gerardandre/n3rd_game/test/integration/game_flow_test.dart: Trivia Validation Integration should validate trivia pool diversity                                                    00:02 +6 -1: loading /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart                                                                                                            00:02 +6 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService handles trivia generation errors gracefully                                      00:02 +6 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService handles trivia generation errors gracefully                                      
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +7 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService handles trivia generation errors gracefully                                      00:02 +7 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService recovers from invalid trivia items                                               00:02 +7 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService recovers from invalid trivia items                                               
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +8 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests GameService recovers from invalid trivia items                                               00:02 +8 -1: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests NetworkService handles DNS lookup failures                                                   00:02 +8 -2: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests NetworkService handles DNS lookup failures [E]                                               
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/error_recovery_test.dart 36:28                                      main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart -p vm --plain-name 'Error Recovery Tests NetworkService handles DNS lookup failures'
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/error_recovery_test.dart 50:23                                                 main.<fn>.<fn>
+  
+
+00:02 +8 -3: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests Services handle timeout errors with retries                                                  00:02 +8 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Error Recovery Tests Services handle timeout errors with retries [E]                                              
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/error_recovery_test.dart 63:34                                                 main.<fn>.<fn>
+  
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart -p vm --plain-name 'Error Recovery Tests Services handle timeout errors with retries'
+
+
+
+00:02 +9 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Exception Handling Services catch and handle exceptions without crashing                                          
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +10 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Exception Handling Services catch and handle exceptions without crashing                                         00:02 +10 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService recovers from invalid state                                                           00:02 +10 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService recovers from invalid state                                                           
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +11 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService recovers from invalid state                                                           00:02 +11 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService handles state persistence errors                                                      00:02 +11 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService handles state persistence errors                                                      
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +12 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: State Recovery GameService handles state persistence errors                                                      00:02 +12 -4: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Network Recovery NetworkService recovers from connectivity loss                                                  00:02 +12 -5: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Network Recovery NetworkService recovers from connectivity loss [E]                                              
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/error_recovery_test.dart 135:28                                     main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart -p vm --plain-name 'Network Recovery NetworkService recovers from connectivity loss'
+00:02 +12 -5: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Network Recovery MultiplayerService recovers from network interruptions                                          00:02 +12 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Network Recovery MultiplayerService recovers from network interruptions [E]                                      
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/error_recovery_test.dart 148:23                                                main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart -p vm --plain-name 'Network Recovery MultiplayerService recovers from network interruptions'
+00:02 +12 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Data Validation Recovery Services validate data before processing                                                00:02 +12 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Data Validation Recovery Services validate data before processing                                                
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+[ERROR] Failed to load flip reveal mode
+Error: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +13 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Data Validation Recovery Services validate data before processing                                                00:02 +13 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Data Validation Recovery Services handle invalid data gracefully                                                 00:02 +13 -6: /Users/gerardandre/n3rd_game/test/integration/error_recovery_test.dart: Data Validation Recovery Services handle invalid data gracefully                                                 
+Failed to save game state (attempt 1/3): Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+
+
+
+lib/screens/game_screen.dart:552:51: Error: The getter 'dontShowAgain' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'dontShowAgain'.
+                    AppLocalizations.of(context)?.dontShowAgain ??
+                                                  ^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:87:31: Error: The getter 'instructionClassicIITitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionClassicIITitle'.
+        title: localizations?.instructionClassicIITitle ?? 'Classic II Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:89:28: Error: The getter 'instructionClassicIIMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionClassicIIMessage'.
+            localizations?.instructionClassicIIMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:96:31: Error: The getter 'instructionRegularModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRegularModeTitle'.
+        title: localizations?.instructionRegularModeTitle ?? 'Regular Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:98:28: Error: The getter 'instructionRegularModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRegularModeMessage'.
+            localizations?.instructionRegularModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:105:31: Error: The getter 'instructionRandomModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRandomModeTitle'.
+        title: localizations?.instructionRandomModeTitle ?? 'Random Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:107:28: Error: The getter 'instructionRandomModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRandomModeMessage'.
+            localizations?.instructionRandomModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:114:31: Error: The getter 'instructionTimeAttackTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionTimeAttackTitle'.
+        title: localizations?.instructionTimeAttackTitle ?? 'Time Attack Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:116:28: Error: The getter 'instructionTimeAttackMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionTimeAttackMessage'.
+            localizations?.instructionTimeAttackMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:123:31: Error: The getter 'instructionChallengeModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionChallengeModeTitle'.
+        title: localizations?.instructionChallengeModeTitle ?? 'Challenge Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:125:28: Error: The getter 'instructionChallengeModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionChallengeModeMessage'.
+            localizations?.instructionChallengeModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:132:31: Error: The getter 'instructionStreakModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionStreakModeTitle'.
+        title: localizations?.instructionStreakModeTitle ?? 'Streak Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:134:28: Error: The getter 'instructionStreakModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionStreakModeMessage'.
+            localizations?.instructionStreakModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:141:31: Error: The getter 'instructionBlitzModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionBlitzModeTitle'.
+        title: localizations?.instructionBlitzModeTitle ?? 'Blitz Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:143:28: Error: The getter 'instructionBlitzModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionBlitzModeMessage'.
+            localizations?.instructionBlitzModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:150:31: Error: The getter 'instructionMarathonModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionMarathonModeTitle'.
+        title: localizations?.instructionMarathonModeTitle ?? 'Marathon Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:152:28: Error: The getter 'instructionMarathonModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionMarathonModeMessage'.
+            localizations?.instructionMarathonModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:159:31: Error: The getter 'instructionPerfectModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPerfectModeTitle'.
+        title: localizations?.instructionPerfectModeTitle ?? 'Perfect Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:161:28: Error: The getter 'instructionPerfectModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPerfectModeMessage'.
+            localizations?.instructionPerfectModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:168:31: Error: The getter 'instructionSurvivalModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionSurvivalModeTitle'.
+        title: localizations?.instructionSurvivalModeTitle ?? 'Survival Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:170:28: Error: The getter 'instructionSurvivalModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionSurvivalModeMessage'.
+            localizations?.instructionSurvivalModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:177:31: Error: The getter 'instructionPrecisionModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPrecisionModeTitle'.
+        title: localizations?.instructionPrecisionModeTitle ?? 'Precision Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:179:28: Error: The getter 'instructionPrecisionModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPrecisionModeMessage'.
+            localizations?.instructionPrecisionModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:186:31: Error: The getter 'instructionFlipModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionFlipModeTitle'.
+        title: localizations?.instructionFlipModeTitle ?? 'Flip Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:188:28: Error: The getter 'instructionFlipModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionFlipModeMessage'.
+            localizations?.instructionFlipModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:195:31: Error: The getter 'instructionAIModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionAIModeTitle'.
+        title: localizations?.instructionAIModeTitle ?? 'AI Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:197:28: Error: The getter 'instructionAIModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionAIModeMessage'.
+            localizations?.instructionAIModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:204:31: Error: The getter 'instructionPracticeModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPracticeModeTitle'.
+        title: localizations?.instructionPracticeModeTitle ?? 'Practice Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:206:28: Error: The getter 'instructionPracticeModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPracticeModeMessage'.
+            localizations?.instructionPracticeModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:213:31: Error: The getter 'instructionLearningModeTitle' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionLearningModeTitle'.
+        title: localizations?.instructionLearningModeTitle ?? 'Learning Mode',
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/utils/game_instructions.dart:215:28: Error: The getter 'instructionLearningModeMessage' isn't defined for the type 'AppLocalizations'.
+ - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionLearningModeMessage'.
+            localizations?.instructionLearningModeMessage ??
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+00:02 +14 -6: loading /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart                                                                                                         00:02 +14 -6: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService initializes correctly                                        00:02 +14 -8: loading /Users/gerardandre/n3rd_game/test/game_screen_test.dart [E]                                                                                                                      
+  Failed to load "/Users/gerardandre/n3rd_game/test/game_screen_test.dart":
+  Compilation failed for testPath=/Users/gerardandre/n3rd_game/test/game_screen_test.dart: lib/screens/game_screen.dart:552:51: Error: The getter 'dontShowAgain' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'dontShowAgain'.
+                      AppLocalizations.of(context)?.dontShowAgain ??
+                                                    ^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:87:31: Error: The getter 'instructionClassicIITitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionClassicIITitle'.
+          title: localizations?.instructionClassicIITitle ?? 'Classic II Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:89:28: Error: The getter 'instructionClassicIIMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionClassicIIMessage'.
+              localizations?.instructionClassicIIMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:96:31: Error: The getter 'instructionRegularModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRegularModeTitle'.
+          title: localizations?.instructionRegularModeTitle ?? 'Regular Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:98:28: Error: The getter 'instructionRegularModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRegularModeMessage'.
+              localizations?.instructionRegularModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:105:31: Error: The getter 'instructionRandomModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRandomModeTitle'.
+          title: localizations?.instructionRandomModeTitle ?? 'Random Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:107:28: Error: The getter 'instructionRandomModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionRandomModeMessage'.
+              localizations?.instructionRandomModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:114:31: Error: The getter 'instructionTimeAttackTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionTimeAttackTitle'.
+          title: localizations?.instructionTimeAttackTitle ?? 'Time Attack Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:116:28: Error: The getter 'instructionTimeAttackMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionTimeAttackMessage'.
+              localizations?.instructionTimeAttackMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:123:31: Error: The getter 'instructionChallengeModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionChallengeModeTitle'.
+          title: localizations?.instructionChallengeModeTitle ?? 'Challenge Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:125:28: Error: The getter 'instructionChallengeModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionChallengeModeMessage'.
+              localizations?.instructionChallengeModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:132:31: Error: The getter 'instructionStreakModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionStreakModeTitle'.
+          title: localizations?.instructionStreakModeTitle ?? 'Streak Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:134:28: Error: The getter 'instructionStreakModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionStreakModeMessage'.
+              localizations?.instructionStreakModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:141:31: Error: The getter 'instructionBlitzModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionBlitzModeTitle'.
+          title: localizations?.instructionBlitzModeTitle ?? 'Blitz Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:143:28: Error: The getter 'instructionBlitzModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionBlitzModeMessage'.
+              localizations?.instructionBlitzModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:150:31: Error: The getter 'instructionMarathonModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionMarathonModeTitle'.
+          title: localizations?.instructionMarathonModeTitle ?? 'Marathon Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:152:28: Error: The getter 'instructionMarathonModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionMarathonModeMessage'.
+              localizations?.instructionMarathonModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:159:31: Error: The getter 'instructionPerfectModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPerfectModeTitle'.
+          title: localizations?.instructionPerfectModeTitle ?? 'Perfect Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:161:28: Error: The getter 'instructionPerfectModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPerfectModeMessage'.
+              localizations?.instructionPerfectModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:168:31: Error: The getter 'instructionSurvivalModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionSurvivalModeTitle'.
+          title: localizations?.instructionSurvivalModeTitle ?? 'Survival Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:170:28: Error: The getter 'instructionSurvivalModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionSurvivalModeMessage'.
+              localizations?.instructionSurvivalModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:177:31: Error: The getter 'instructionPrecisionModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPrecisionModeTitle'.
+          title: localizations?.instructionPrecisionModeTitle ?? 'Precision Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:179:28: Error: The getter 'instructionPrecisionModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPrecisionModeMessage'.
+              localizations?.instructionPrecisionModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:186:31: Error: The getter 'instructionFlipModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionFlipModeTitle'.
+          title: localizations?.instructionFlipModeTitle ?? 'Flip Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:188:28: Error: The getter 'instructionFlipModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionFlipModeMessage'.
+              localizations?.instructionFlipModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:195:31: Error: The getter 'instructionAIModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionAIModeTitle'.
+          title: localizations?.instructionAIModeTitle ?? 'AI Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:197:28: Error: The getter 'instructionAIModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionAIModeMessage'.
+              localizations?.instructionAIModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:204:31: Error: The getter 'instructionPracticeModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPracticeModeTitle'.
+          title: localizations?.instructionPracticeModeTitle ?? 'Practice Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:206:28: Error: The getter 'instructionPracticeModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionPracticeModeMessage'.
+              localizations?.instructionPracticeModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:213:31: Error: The getter 'instructionLearningModeTitle' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionLearningModeTitle'.
+          title: localizations?.instructionLearningModeTitle ?? 'Learning Mode',
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/utils/game_instructions.dart:215:28: Error: The getter 'instructionLearningModeMessage' isn't defined for the type 'AppLocalizations'.
+   - 'AppLocalizations' is from 'package:n3rd_game/l10n/app_localizations.dart' ('lib/l10n/app_localizations.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'instructionLearningModeMessage'.
+              localizations?.instructionLearningModeMessage ??
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  .
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/game_screen_test.dart -p vm --plain-name 'loading /Users/gerardandre/n3rd_game/test/game_screen_test.dart'
+00:02 +14 -8: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService initializes correctly [E]                                    
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/network_recovery_test.dart 21:28                                    main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests NetworkService initializes correctly'
+00:02 +14 -8: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService handles connectivity changes                                 00:02 +14 -9: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService handles connectivity changes [E]                             
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/network_recovery_test.dart 29:28                                    main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests NetworkService handles connectivity changes'
+00:02 +14 -9: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService caches reachability results                                  00:02 +14 -10: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService caches reachability results [E]                             
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/network_recovery_test.dart 41:28                                    main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests NetworkService caches reachability results'
+00:02 +14 -10: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests MultiplayerService handles network errors gracefully                       00:02 +14 -11: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests MultiplayerService handles network errors gracefully [E]                   
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 54:23                                               main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests MultiplayerService handles network errors gracefully'
+00:02 +14 -11: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests Network errors throw NetworkException                                      00:02 +15 -11: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests Network errors throw NetworkException                                      00:02 +15 -11: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService provides connection type information                        00:02 +15 -12: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService provides connection type information [E]                    
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/network_recovery_test.dart 72:28                                    main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests NetworkService provides connection type information'
+00:02 +15 -12: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService retry logic works correctly                                 00:02 +15 -13: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Network Recovery Integration Tests NetworkService retry logic works correctly [E]                             
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/network_recovery_test.dart 79:28                                    main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Network Recovery Integration Tests NetworkService retry logic works correctly'
+00:02 +15 -13: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService handles reconnection attempts                                 00:02 +15 -14: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService handles reconnection attempts [E]                             
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 90:23                                               main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Multiplayer Network Recovery MultiplayerService handles reconnection attempts'
+00:02 +15 -14: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService validates connectivity before operations                      00:02 +15 -15: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService validates connectivity before operations [E]                  
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 103:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Multiplayer Network Recovery MultiplayerService validates connectivity before operations'
+00:02 +15 -15: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService handles timeout errors                                        00:02 +15 -16: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Multiplayer Network Recovery MultiplayerService handles timeout errors [E]                                    
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 117:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Multiplayer Network Recovery MultiplayerService handles timeout errors'
+00:02 +15 -16: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns NetworkException provides user-friendly messages                                      00:02 +16 -16: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns NetworkException provides user-friendly messages                                      00:02 +16 -16: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns Services handle network unavailability gracefully                                     00:02 +16 -17: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns Services handle network unavailability gracefully [E]                                 
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 138:34                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Error Recovery Patterns Services handle network unavailability gracefully'
+00:02 +16 -17: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns Retry logic uses exponential backoff                                                  00:02 +16 -18: /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart: Error Recovery Patterns Retry logic uses exponential backoff [E]                                              
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/integration/network_recovery_test.dart 151:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/network_recovery_test.dart -p vm --plain-name 'Error Recovery Patterns Retry logic uses exponential backoff'
+
+
+
+00:02 +16 -18: loading /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart                                                                                                  00:02 +16 -18: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks template initialization performance                00:02 +16 -18: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks template initialization performance                
+Failed to load analytics from local storage: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +17 -18: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks template initialization performance                00:02 +17 -18: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks network reachability performance                   00:02 +17 -18: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks network reachability performance                   
+Failed to load analytics from local storage: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +17 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks network reachability performance [E]               
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/performance_monitoring_test.dart 41:28                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart -p vm --plain-name 'Performance Monitoring Tests AnalyticsService tracks network reachability performance'
+00:02 +17 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics are stored correctly                                   00:02 +18 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics are stored correctly                                   00:02 +18 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks service initialization failures                    00:02 +18 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks service initialization failures                    
+Failed to load analytics from local storage: Binding has not yet been initialized.
+The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+00:02 +19 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests AnalyticsService tracks service initialization failures                    00:02 +19 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics support trend analysis                                 00:02 +20 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics support trend analysis                                 00:02 +20 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track category breakdown                               00:02 +21 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track category breakdown                               00:02 +21 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track time-of-day performance                          00:02 +22 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track time-of-day performance                          00:02 +22 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track personal bests                                   00:02 +23 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track personal bests                                   00:02 +23 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track improvement over time                            00:02 +24 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Performance Monitoring Tests Performance metrics track improvement over time                            00:02 +24 -19: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Network Performance Monitoring NetworkService tracks reachability check duration                        00:02 +24 -20: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Network Performance Monitoring NetworkService tracks reachability check duration [E]                    
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/performance_monitoring_test.dart 111:28                             main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart -p vm --plain-name 'Network Performance Monitoring NetworkService tracks reachability check duration'
+00:02 +24 -20: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Network Performance Monitoring NetworkService caches reachability results for performance               00:02 +24 -21: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Network Performance Monitoring NetworkService caches reachability results for performance [E]           
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                    BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                    BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                      ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                            _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                            MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                            MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                            MethodChannel.invokeMethod
+  package:flutter/src/services/platform_channel.dart 553:41                            MethodChannel.invokeListMethod
+  package:connectivity_plus_platform_interface/method_channel_connectivity.dart 40:10  MethodChannelConnectivity.checkConnectivity
+  package:connectivity_plus/connectivity_plus.dart 64:22                               Connectivity.checkConnectivity
+  package:n3rd_game/services/network_service.dart 38:40                                NetworkService.init
+  test/integration/performance_monitoring_test.dart 126:28                             main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart -p vm --plain-name 'Network Performance Monitoring NetworkService caches reachability results for performance'
+00:02 +24 -21: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Template Initialization Performance Template initialization tracks duration                             00:02 +25 -21: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Template Initialization Performance Template initialization tracks duration                             00:02 +25 -21: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Template Initialization Performance Template initialization tracks retry attempts                       00:02 +26 -21: /Users/gerardandre/n3rd_game/test/integration/performance_monitoring_test.dart: Template Initialization Performance Template initialization tracks retry attempts                       00:02 +26 -21: loading /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart                                                                                                           00:02 +26 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService initializes correctly                                           00:02 +26 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService initializes correctly                                           
+Failed to load accessibility settings from local storage: MissingPluginException(No implementation found for method getAll on channel plugins.flutter.io/shared_preferences)
+00:02 +27 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService initializes correctly                                           00:02 +27 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService provides font scaling support                                   00:02 +28 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService provides font scaling support                                   00:02 +28 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Color contrast meets accessibility standards                                         00:02 +28 -21: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService provides font scaling support                                   
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+00:02 +27 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService provides font scaling support [E]                               
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 33:39                     main.<fn>.<fn>
+  
+Warning: At least one test in this suite creates an HttpClient. When running a test suite that uses
+TestWidgetsFlutterBinding, all HTTP requests will return status code 400, and no network request
+will actually be made. Any test expecting a real network connection and status code will fail.
+To test code that needs an HttpClient, provide your own HttpClient implementation to the code under
+test, so that your test can consistently provide a testable response to the code under test.
+  This test failed after it had already completed.
+  of pending async work.
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 33:39                     main.<fn>.<fn>
+  
+00:02 +28 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Color contrast meets accessibility standards                                         00:02 +28 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Typography supports high contrast mode                                               00:02 +29 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Typography supports high contrast mode                                               00:02 +29 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Theme supports dark mode for accessibility                                           00:02 +29 -22: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Typography supports high contrast mode                                               
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+00:02 +28 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Typography supports high contrast mode [E]                                           
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 59:39                     main.<fn>.<fn>
+  
+  This test failed after it had already completed.
+  of pending async work.
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 59:39                     main.<fn>.<fn>
+  
+00:02 +29 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests Theme supports dark mode for accessibility                                           00:02 +29 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService tracks user preferences                                         00:02 +29 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService tracks user preferences                                         
+Failed to load accessibility settings from local storage: MissingPluginException(No implementation found for method getAll on channel plugins.flutter.io/shared_preferences)
+00:02 +30 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Accessibility Service Tests AccessibilityService tracks user preferences                                         00:02 +30 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Screen Reader Support Text widgets have semantic labels                                                          00:02 +31 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Screen Reader Support Text widgets have semantic labels                                                          00:02 +31 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Screen Reader Support Interactive elements have semantic hints                                                   00:02 +32 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Screen Reader Support Interactive elements have semantic hints                                                   00:02 +32 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling Typography scales with system font size                                                             00:02 +33 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling Typography scales with system font size                                                             00:02 +33 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling All text styles support custom font sizes                                                           00:02 +33 -23: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling Typography scales with system font size                                                             
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+00:02 +32 -24: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling Typography scales with system font size [E]                                                         
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 118:39                    main.<fn>.<fn>
+  
+  This test failed after it had already completed.
+  of pending async work.
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 118:39                    main.<fn>.<fn>
+  
+00:03 +33 -24: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling All text styles support custom font sizes                                                           00:03 +33 -24: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Color Accessibility Error and success states use color and text                                                  00:03 +33 -24: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling All text styles support custom font sizes                                                           
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+00:03 +32 -25: /Users/gerardandre/n3rd_game/test/integration/accessibility_test.dart: Font Scaling All text styles support custom font sizes [E]                                                       
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 30:67                  AppTypography.displayLarge
+  test/integration/accessibility_test.dart 127:23                    main.<fn>.<fn>
+  
+  This test failed after it had already completed.
+  of pending async work.
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 30:67                  AppTypography.displayLarge
+  test/integration/accessibility_test.dart 127:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 44:68                  AppTypography.headlineLarge
+  test/integration/accessibility_test.dart 129:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 59:54                  AppTypography.titleLarge
+  test/integration/accessibility_test.dart 130:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 65:53                  AppTypography.bodyLarge
+  test/integration/accessibility_test.dart 131:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 78:55                  AppTypography.bodyMedium
+  test/integration/accessibility_test.dart 132:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 72:55                  AppTypography.labelLarge
+  test/integration/accessibility_test.dart 133:23                    main.<fn>.<fn>
+  
+
+If troubleshooting doesn't solve the problem, please file an issue at https://github.com/flutter/flutter/issues/new/choose.
+
+  ===== asynchronous gap ===========================
+  dart:async                                                         _CustomZone.registerBinaryCallback
+  package:n3rd_game/theme/app_typography.dart 84:55                  AppTypography.labelSmall
+  test/integration/accessibility_test.dart 134:23                    main.<fn>.<fn>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+00:04 +46 -25: loading /Users/gerardandre/n3rd_game/test/widget_test.dart                                                                                                                              00:04 +46 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +47 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +48 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +49 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +50 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +50 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService initializes correctly                                                     
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+00:04 +51 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +51 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService returns empty list for non-existent category                              
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+❌ AnimationRandomizerService: Error loading animations for category non_existent: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+00:04 +52 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +52 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService handles empty category gracefully                                         
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+⚠️ AnimationRandomizerService: Empty category provided
+00:04 +53 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +53 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService getRandomAnimation returns null for empty category                        
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+⚠️ AnimationRandomizerService: Empty category provided
+⚠️ AnimationRandomizerService: No animations available for category: 
+00:04 +54 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +54 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService getAnimationPath validates empty inputs                                   
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+⚠️ AnimationRandomizerService: Empty category or filename provided
+⚠️ AnimationRandomizerService: Empty category or filename provided
+00:04 +55 -25: /Users/gerardandre/n3rd_game/test/widget_test.dart: TitleScreen loads and displays content                                                                                              00:04 +55 -25: /Users/gerardandre/n3rd_game/test/services/animation_randomizer_service_test.dart: AnimationRandomizerService clearCache works correctly                                                
+⚠️ AnimationRandomizerService: Failed to initialize: Unable to load asset: "AssetManifest.json".
+The asset does not exist or has empty data.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+00:06 +76 -25: loading /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart                                                                                                          00:06 +76 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Free tier defaults to Classic mode only                                                 00:06 +76 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Free tier defaults to Classic mode only                                                 
+00:06 +77 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Free tier defaults to Classic mode only                                                 00:06 +77 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Basic tier allows all modes except AI                                                   00:06 +77 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Basic tier allows all modes except AI                                                   
+Subscription tier changed: free -> basic
+00:06 +78 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +78 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Premium tier allows all modes including AI                                              
+Subscription tier changed: free -> premium
+00:06 +79 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +79 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Subscription tier changes are properly tracked                                          
+Subscription tier changed: free -> basic
+Subscription tier changed: basic -> premium
+Subscription tier changed: premium -> free
+00:06 +80 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +80 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Free tier users are restricted from Premium features                                    
+00:06 +81 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +81 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Basic tier users have access to all modes except Premium features                       
+Subscription tier changed: free -> basic
+00:06 +82 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +82 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Premium tier users have full access                                                     
+Subscription tier changed: free -> premium
+00:06 +83 -25: /Users/gerardandre/n3rd_game/test/services/game_service_test.dart: GameService should initialize with default state                                                                     00:06 +83 -25: /Users/gerardandre/n3rd_game/test/services/subscription_flow_test.dart: Subscription Flow Tests Tier name getter returns correct string                                                 
+Subscription tier changed: free -> basic
+Subscription tier changed: basic -> premium
+
+
+
+00:06 +96 -25: /Users/gerardandre/n3rd_game/test/services/trivia_validation_test.dart: Trivia Validation Tests - Exactly 6 Words Valid trivia items contain exactly 6 words and 3 correct answers      00:06 +96 -25: /Users/gerardandre/n3rd_game/test/services/trivia_validation_test.dart: Trivia Validation Tests - Exactly 6 Words GameService throws GameException for trivia with wrong word count     00:06 +96 -25: /Users/gerardandre/n3rd_game/test/services/trivia_validation_test.dart: Trivia Validation Tests - Exactly 6 Words GameService throws GameException for trivia with wrong word count     
+⚠️ Invalid trivia item: incorrect word count (5 != 6, expected exactly 6). Attempting to find valid trivia item...
+❌ Cannot start game: No trivia item found with exactly 6 words (attempted 10 items).
+
+
+
+
+
+
+00:06 +97 -25: loading /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart                                                                                                               00:06 +97 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service initializes without crashing                                                                     00:06 +98 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service initializes without crashing                                                                     00:06 +98 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService email validation works correctly                                                                         00:06 +99 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService email validation works correctly                                                                         00:06 +99 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service handles Firebase unavailability gracefully                                                       00:06 +99 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service handles Firebase unavailability gracefully                                                       
+00:06 +100 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service handles Firebase unavailability gracefully                                                      00:06 +100 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service state is correct after init                                                                     00:06 +100 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service state is correct after init                                                                     
+00:06 +101 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService service state is correct after init                                                                     00:06 +101 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService Email Validation login with empty email fails                                                           00:06 +101 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService Email Validation login with empty email fails                                                           
+
+
+
+00:07 +102 -25: /Users/gerardandre/n3rd_game/test/services/auth_service_test.dart: AuthService Email Validation login with empty email fails                                                           00:07 +102 -25: loading /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart                                                                                                      00:07 +102 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService initializes with free tier by default                                                   00:07 +102 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService initializes with free tier by default                                                   
+00:07 +103 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService initializes with free tier by default                                                   00:07 +103 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isFree returns true for free tier                                                       00:07 +103 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isFree returns true for free tier                                                       
+00:07 +104 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isFree returns true for free tier                                                       00:07 +104 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isPremium returns false for free tier                                                   00:07 +104 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isPremium returns false for free tier                                                   
+00:07 +105 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService isPremium returns false for free tier                                                   00:07 +105 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService service can be initialized                                                              00:07 +105 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService service can be initialized                                                              
+00:07 +106 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService service can be initialized                                                              00:07 +106 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService service can be disposed                                                                 00:07 +106 -25: /Users/gerardandre/n3rd_game/test/services/subscription_service_test.dart: SubscriptionService service can be disposed                                                                 
+
+
+
+00:07 +113 -25: loading /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart                                                                                                           00:07 +113 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeText removes control characters                                                           00:07 +114 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeText removes control characters                                                           00:07 +114 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeHtml removes script tags                                                                  00:07 +115 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeHtml removes script tags                                                                  00:07 +115 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeHtml removes event handlers                                                               00:07 +116 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeHtml removes event handlers                                                               00:07 +116 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer escapeHtml escapes special characters                                                             00:07 +117 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer escapeHtml escapes special characters                                                             00:07 +117 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeEmail validates and sanitizes emails                                                      00:07 +118 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeEmail validates and sanitizes emails                                                      00:07 +118 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeUrl validates URLs                                                                        00:07 +119 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeUrl validates URLs                                                                        00:07 +119 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeFileName removes dangerous characters                                                     00:07 +120 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeFileName removes dangerous characters                                                     00:07 +120 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeForJson escapes JSON special characters                                                   00:07 +121 -25: /Users/gerardandre/n3rd_game/test/services/input_sanitizer_test.dart: InputSanitizer sanitizeForJson escapes JSON special characters                                                   00:07 +121 -25: loading /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart                                                                                                       00:07 +121 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: (setUpAll)                                                                                                   00:07 +121 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service structure is correct                                               00:07 +122 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service structure is correct                                               00:07 +122 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service initialization logic is correct                                    00:07 +123 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service initialization logic is correct                                    00:07 +123 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service handles multiple init calls gracefully                             00:07 +124 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service handles multiple init calls gracefully                             00:07 +124 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service state management is correct                                        00:07 +125 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Initialization service state management is correct                                        00:07 +125 -25: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: ... Player Membership Validation Logic validatePlayerMembership logic handles null userId correctly          00:07 +125 -26: loading /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart                                                                                                  00:07 +125 -26: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +125 -26: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Player Membership Validation Logic validatePlayerMembership logic handles null userId correctly [E]
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 116:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Player Membership Validation Logic validatePlayerMembership logic handles null userId correctly'
+00:07 +125 -27: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Player Membership Validation Logic validatePlayerMembership returns false for non-existent room [E]
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 128:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Player Membership Validation Logic validatePlayerMembership returns false for non-existent room'
+00:07 +125 -28: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Player Membership Validation Logic player membership validation checks host ID correctly [E]
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 140:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Player Membership Validation Logic player membership validation checks host ID correctly'
+00:07 +125 -29: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Player Membership Validation Logic player membership validation checks players array correctly [E]
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 155:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Player Membership Validation Logic player membership validation checks players array correctly'
+00:07 +126 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +127 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +128 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +129 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +130 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +131 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +132 -29: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +132 -30: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Rate Limiting Integration service uses RateLimiterService for room creation [E]           
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 260:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Rate Limiting Integration service uses RateLimiterService for room creation'
+00:07 +132 -31: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Rate Limiting Integration service uses RateLimiterService for room joining [E]            
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 272:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Rate Limiting Integration service uses RateLimiterService for room joining'
+00:07 +133 -31: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +134 -31: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +135 -31: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +135 -32: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Room Operations Logic createRoom validates host ID matches current user [E]               
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 331:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Room Operations Logic createRoom validates host ID matches current user'
+00:07 +135 -33: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Room Operations Logic joinRoom uses transaction for atomic operations [E]                 
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 343:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Room Operations Logic joinRoom uses transaction for atomic operations'
+00:07 +135 -34: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Room Operations Logic joinRoom checks room capacity atomically [E]                        
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 355:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Room Operations Logic joinRoom checks room capacity atomically'
+00:07 +135 -35: /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart: MultiplayerService Concurrent Round Advancement only host can advance rounds logic is enforced [E]           
+  package:n3rd_game/services/multiplayer_service.dart 14:58                                       new MultiplayerService
+  test/services/multiplayer_service_test.dart 369:23                                              main.<fn>.<fn>
+  
+
+To run this test again: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart test /Users/gerardandre/n3rd_game/test/services/multiplayer_service_test.dart -p vm --plain-name 'MultiplayerService Concurrent Round Advancement only host can advance rounds logic is enforced'
+00:07 +135 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       00:07 +135 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (setUpAll)                                                                       
+⚠️ Warning: Poor template diversity detected. Ratio: 0.02702702702702703 (min: 1, max: 37)
+   Consider balancing templates across themes for better content distribution.
+❌ Error initializing trivia templates (attempt 1/3): Template "This regulatory agency approves new drugs for marketing in the United States" contains invalid words: distractorPool: "Medicines and Healthcare Products Regulatory Agency" (exceeds max length of 50 characters)
+Retrying trivia template initialization (attempt 2/3)...
+⚠️ Warning: Poor template diversity detected. Ratio: 0.02702702702702703 (min: 1, max: 37)
+   Consider balancing templates across themes for better content distribution.
+❌ Error initializing trivia templates (attempt 2/3): Template "This regulatory agency approves new drugs for marketing in the United States" contains invalid words: distractorPool: "Medicines and Healthcare Products Regulatory Agency" (exceeds max length of 50 characters)
+Retrying trivia template initialization (attempt 3/3)...
+⚠️ Warning: Poor template diversity detected. Ratio: 0.02702702702702703 (min: 1, max: 37)
+   Consider balancing templates across themes for better content distribution.
+❌ Error initializing trivia templates (attempt 3/3): Template "This regulatory agency approves new drugs for marketing in the United States" contains invalid words: distractorPool: "Medicines and Healthcare Products Regulatory Agency" (exceeds max length of 50 characters)
+[ERROR] Failed to initialize trivia templates after 3 attempts (464ms)
+Error: Template "This regulatory agency approves new drugs for marketing in the United States" contains invalid words: distractorPool: "Medicines and Healthcare Products Regulatory Agency" (exceeds max length of 50 characters)
+Stack: #0      EditionTriviaTemplates.initialize (package:n3rd_game/data/trivia_templates_consolidated.dart:153:49)
+<asynchronous suspension>
+#1      main.<anonymous closure>.<anonymous closure> (file:///Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart:15:9)
+<asynchronous suspension>
+#2      Future._kTrue (dart:async/future.dart:681:3)
+<asynchronous suspension>
+#3      _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:1367:12)
+<asynchronous suspension>
+
+00:08 +135 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService can generate trivia item                                                         00:08 +136 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService can generate trivia item                                                         00:08 +136 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item can be created with minimum required fields                          00:08 +137 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item can be created with minimum required fields                          00:08 +137 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item supports optional difficulty                                         00:08 +138 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item supports optional difficulty                                         00:08 +138 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item supports optional theme                                              00:08 +139 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService trivia item supports optional theme                                              00:08 +139 -35: /Users/gerardandre/n3rd_game/test/services/trivia_generator_service_test.dart: TriviaGeneratorService (tearDownAll)                                                                    00:08 +139 -35: Some tests failed.                                                                                                                                                                     

@@ -7,9 +7,12 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  
   // Skip this test - GameScreen requires full initialization with async operations
   // that hang in test environment. This is a known limitation.
-  testWidgets('GameScreen structure loads correctly', (WidgetTester tester) async {
+  group('GameScreen Tests', () {
+    testWidgets('GameScreen structure loads correctly', (WidgetTester tester) async {
     // Create services
     final gameService = GameService();
     final subscriptionService = SubscriptionService();
@@ -47,10 +50,12 @@ void main() {
     // Clean up: Dispose the service to cancel any timers immediately
     gameService.dispose();
     
-    // Quick pump for cleanup
-    await tester.pump();
-  }, 
-  skip: true, // GameScreen requires full initialization with async operations that hang in test environment
-  timeout: const Timeout(Duration(seconds: 5))); // Very short timeout - test should complete quickly
+      // Quick pump for cleanup
+      await tester.pump();
+    },
+    skip: true, // GameScreen requires full initialization with async operations that hang in test environment
+    timeout: const Timeout(Duration(seconds: 5)), // Very short timeout - test should complete quickly
+    );
+  }, skip: true,); // Skip entire group
 }
 

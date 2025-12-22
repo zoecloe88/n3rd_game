@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class YouthTransitionScreen extends StatefulWidget {
   final String? routeAfter;
@@ -37,7 +38,8 @@ class _YouthTransitionScreenState extends State<YouthTransitionScreen>
         if (widget.onFinished != null) {
           widget.onFinished!.call();
         } else if (widget.routeAfter != null) {
-          Navigator.of(context).pushReplacementNamed(
+          NavigationHelper.safePushReplacementNamed(
+            context,
             widget.routeAfter!,
             arguments: widget.routeArgs,
           );

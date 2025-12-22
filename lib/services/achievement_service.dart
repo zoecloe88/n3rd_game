@@ -195,7 +195,7 @@ class AchievementService {
 
       await firestore.collection('user_achievements').doc(userId).set({
         achievement.id: userAchievement.toJson(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
 
       // Note: Notification will be sent via Cloud Functions or client-side notification
       debugPrint('Achievement unlocked: ${achievement.title}');
@@ -217,7 +217,7 @@ class AchievementService {
           'progress': progress,
           'unlocked': false,
         },
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
     } catch (e) {
       debugPrint('Error updating achievement progress: $e');
     }

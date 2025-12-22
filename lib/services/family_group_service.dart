@@ -57,6 +57,7 @@ class FamilyGroupService extends ChangeNotifier {
   }
 
   /// Load user's family group from Firestore
+  /// CRITICAL: Includes comprehensive error handling for network issues
   Future<void> _loadUserGroup(String userId) async {
     try {
       // Check if user is a member of any group
@@ -65,7 +66,14 @@ class FamilyGroupService extends ChangeNotifier {
           .where('members', arrayContains: userId)
           .limit(1)
           .get()
-          .timeout(const Duration(seconds: 10));
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw NetworkException(
+                'Request timed out. Please check your connection.',
+              );
+            },
+          );
 
       if (groupsQuery.docs.isNotEmpty) {
         final doc = groupsQuery.docs.first;
@@ -77,10 +85,18 @@ class FamilyGroupService extends ChangeNotifier {
         _currentGroup = null;
         notifyListeners();
       }
+    } on NetworkException catch (e) {
+      // Re-throw network exceptions for caller to handle
+      LoggerService.error('Network error loading user group', error: e);
+      _currentGroup = null;
+      notifyListeners();
+      rethrow;
     } catch (e) {
+      // Handle other errors gracefully
       LoggerService.error('Error loading user group', error: e);
       _currentGroup = null;
       notifyListeners();
+      // Don't rethrow - allow service to continue with null group
     }
   }
 

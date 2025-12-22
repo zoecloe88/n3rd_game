@@ -8,13 +8,15 @@ import 'package:n3rd_game/utils/navigation_helper.dart';
 
 /// Reusable upgrade dialog component
 /// Displays upgrade prompt with features and call-to-action
+/// Enhanced with feature comparison tooltips
 class UpgradeDialog extends StatelessWidget {
   final String title;
   final String message;
-  final String targetTier; // 'basic' or 'premium'
+  final String targetTier; // 'basic', 'premium', or 'family_friends'
   final String
   source; // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
   final List<String> features;
+  final bool showComparison; // Show tier comparison
 
   const UpgradeDialog({
     super.key,
@@ -23,6 +25,7 @@ class UpgradeDialog extends StatelessWidget {
     required this.targetTier,
     required this.source,
     required this.features,
+    this.showComparison = false,
   });
 
   @override
@@ -43,25 +46,40 @@ class UpgradeDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(message, style: AppTypography.bodyMedium),
-            const SizedBox(height: AppSpacing.md),
-            ...features.map(
-              (feature) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.check_circle, color: colors.success, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        feature,
-                        style: AppTypography.bodyMedium.copyWith(fontSize: 14),
-                      ),
-                    ),
-                  ],
+            if (features.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'What you get:',
+                style: AppTypography.labelLarge.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.sm),
+              ...features.map(
+                (feature) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle, color: colors.success, size: 20),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          feature,
+                          style: AppTypography.bodyMedium.copyWith(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (showComparison) ...[
+              const SizedBox(height: AppSpacing.md),
+              const Divider(),
+              const SizedBox(height: AppSpacing.md),
+              _TierComparisonWidget(targetTier: targetTier),
+            ],
           ],
         ),
       ),
@@ -100,3 +118,136 @@ class UpgradeDialog extends StatelessWidget {
     );
   }
 }
+
+/// Tier comparison widget showing feature differences
+class _TierComparisonWidget extends StatelessWidget {
+  final String targetTier;
+
+  const _TierComparisonWidget({required this.targetTier});
+
+  @override
+  Widget build(BuildContext context) {
+    // Define tier features
+    final freeFeatures = [
+      '5 games per day',
+      'Classic mode only',
+      'Basic stats',
+    ];
+    final basicFeatures = [
+      'Unlimited games',
+      'All game modes',
+      'Advanced challenges',
+    ];
+    final premiumFeatures = [
+      'Everything in Basic',
+      'AI Edition',
+      'Multiplayer',
+      'Advanced analytics',
+      'Practice & Learning modes',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Plan Comparison:',
+          style: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (targetTier.toLowerCase() == 'basic' || 
+            targetTier.toLowerCase() == 'premium' ||
+            targetTier.toLowerCase() == 'family_friends')
+          _TierRow(
+            tierName: 'Free',
+            features: freeFeatures,
+            isHighlighted: false,
+          ),
+        if (targetTier.toLowerCase() == 'basic' || 
+            targetTier.toLowerCase() == 'premium' ||
+            targetTier.toLowerCase() == 'family_friends')
+          _TierRow(
+            tierName: 'Basic',
+            features: basicFeatures,
+            isHighlighted: targetTier.toLowerCase() == 'basic',
+          ),
+        if (targetTier.toLowerCase() == 'premium' ||
+            targetTier.toLowerCase() == 'family_friends')
+          _TierRow(
+            tierName: 'Premium',
+            features: premiumFeatures,
+            isHighlighted: targetTier.toLowerCase() == 'premium',
+          ),
+        if (targetTier.toLowerCase() == 'family_friends')
+          const _TierRow(
+            tierName: 'Family & Friends',
+            features: [
+              'Everything in Premium',
+              'Up to 4 members',
+              'Shared progress',
+              'Family challenges',
+            ],
+            isHighlighted: true,
+          ),
+      ],
+    );
+  }
+}
+
+class _TierRow extends StatelessWidget {
+  final String tierName;
+  final List<String> features;
+  final bool isHighlighted;
+
+  const _TierRow({
+    required this.tierName,
+    required this.features,
+    required this.isHighlighted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: isHighlighted
+            ? colors.primaryButton.withValues(alpha: 0.1)
+            : colors.cardBackground,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isHighlighted ? colors.primaryButton : colors.tertiaryText,
+          width: isHighlighted ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tierName,
+            style: AppTypography.labelLarge.copyWith(
+              fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+              color: isHighlighted ? colors.primaryButton : colors.primaryText,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...features.map(
+            (feature) => Padding(
+              padding: const EdgeInsets.only(left: 8, top: 2),
+                        child: Text(
+                          '• $feature',
+                          style: AppTypography.bodyMedium.copyWith(
+                            fontSize: 11,
+                            color: colors.secondaryText,
+                          ),
+                        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

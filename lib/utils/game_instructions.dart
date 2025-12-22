@@ -82,137 +82,122 @@ class GameInstructions {
         showOnce: false,
       ),
       // Classic II Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'classic_ii_mode',
-        title: localizations?.instructionClassicIITitle ?? 'Classic II Mode',
+        title: 'Classic II Mode',
         message:
-            localizations?.instructionClassicIIMessage ??
             'Classic II is faster than Classic mode!\n\nYou have 5 seconds to memorize and 10 seconds to select.\n\nPerfect for quick games when you\'re short on time.',
         showOnce: false,
       ),
       // Regular Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'regular_mode',
-        title: localizations?.instructionRegularModeTitle ?? 'Regular Mode',
+        title: 'Regular Mode',
         message:
-            localizations?.instructionRegularModeMessage ??
             'Regular mode shows all words immediately—no memorization phase!\n\nYou have 15 seconds to select ${GameService.expectedCorrectAnswers} correct answers.\n\nMore time than Speed mode, but still fast-paced!',
         showOnce: false,
       ),
       // Random Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'random_mode',
-        title: localizations?.instructionRandomModeTitle ?? 'Random Mode',
+        title: 'Random Mode',
         message:
-            localizations?.instructionRandomModeMessage ??
             'Random mode changes the game mode each round!\n\nYou might get Classic, Speed, Shuffle, or any other mode.\n\nStay on your toes—adaptability is key!',
         showOnce: false,
       ),
       // Time Attack Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'time_attack_mode',
-        title: localizations?.instructionTimeAttackTitle ?? 'Time Attack Mode',
+        title: 'Time Attack Mode',
         message:
-            localizations?.instructionTimeAttackMessage ??
             'Time Attack: Score as much as possible in 60 seconds!\n\nNo rounds—just continuous play.\n\nEach correct answer adds to your score. How high can you go?',
         showOnce: false,
       ),
       // Challenge Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'challenge_mode',
-        title: localizations?.instructionChallengeModeTitle ?? 'Challenge Mode',
+        title: 'Challenge Mode',
         message:
-            localizations?.instructionChallengeModeMessage ??
             'Challenge mode gets harder each round!\n\nRound 1: 12s memorize, 18s play\nRound 2: 10s memorize, 15s play\nRound 3+: Even faster!\n\nCan you survive the increasing difficulty?',
         showOnce: false,
       ),
       // Streak Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'streak_mode',
-        title: localizations?.instructionStreakModeTitle ?? 'Streak Mode',
+        title: 'Streak Mode',
         message:
-            localizations?.instructionStreakModeMessage ??
             'Streak mode rewards perfect rounds with score multipliers!\n\nEach perfect round increases your multiplier.\n\nBuild a streak to maximize your score!',
         showOnce: false,
       ),
       // Blitz Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'blitz_mode',
-        title: localizations?.instructionBlitzModeTitle ?? 'Blitz Mode',
+        title: 'Blitz Mode',
         message:
-            localizations?.instructionBlitzModeMessage ??
             'Blitz mode is ultra-fast!\n\nYou have just 3 seconds to memorize and 5 seconds to select.\n\nOnly for the quickest minds!',
         showOnce: false,
       ),
       // Marathon Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'marathon_mode',
-        title: localizations?.instructionMarathonModeTitle ?? 'Marathon Mode',
+        title: 'Marathon Mode',
         message:
-            localizations?.instructionMarathonModeMessage ??
             'Marathon mode: Infinite rounds with progressive difficulty!\n\nEarly rounds: 10s memorize, 20s play\nLater rounds: Faster and faster!\n\nHow long can you last?',
         showOnce: false,
       ),
       // Perfect Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'perfect_mode',
-        title: localizations?.instructionPerfectModeTitle ?? 'Perfect Mode',
+        title: 'Perfect Mode',
         message:
-            localizations?.instructionPerfectModeMessage ??
             'Perfect mode: Zero tolerance for mistakes!\n\nYou must get all ${GameService.expectedCorrectAnswers} correct answers.\n\nOne wrong answer = game over. Precision is everything!',
         showOnce: false,
       ),
       // Survival Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'survival_mode',
-        title: localizations?.instructionSurvivalModeTitle ?? 'Survival Mode',
+        title: 'Survival Mode',
         message:
-            localizations?.instructionSurvivalModeMessage ??
             'Survival mode: Start with just 1 life!\n\nGain an extra life every 3 perfect rounds.\n\nCan you build your lives and survive?',
         showOnce: false,
       ),
       // Precision Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'precision_mode',
-        title: localizations?.instructionPrecisionModeTitle ?? 'Precision Mode',
+        title: 'Precision Mode',
         message:
-            localizations?.instructionPrecisionModeMessage ??
             'Precision mode: Wrong selection = lose life immediately!\n\nUnlike other modes, you lose a life as soon as you select a wrong answer.\n\nThink carefully before tapping!',
         showOnce: false,
       ),
       // Flip Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'flip_mode',
-        title: localizations?.instructionFlipModeTitle ?? 'Flip Mode',
+        title: 'Flip Mode',
         message:
-            localizations?.instructionFlipModeMessage ??
             'Flip Mode: Memory challenge!\n\nStudy phase (10s): Tiles are visible for 4 seconds, then flip face-down one by one over 6 seconds.\n\nPlay phase (20s): All tiles are face-down. Tap them in the correct order you saw them!\n\nThis tests your memory and attention!',
         showOnce: true,
       ),
       // AI Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'ai_mode',
-        title: localizations?.instructionAIModeTitle ?? 'AI Mode',
+        title: 'AI Mode',
         message:
-            localizations?.instructionAIModeMessage ??
             'AI Mode: Adaptive difficulty that learns from you!\n\nThe AI adjusts timing and difficulty based on your performance.\n\nGet better? It gets harder. Struggling? It adapts to help you learn.\n\nPremium feature: Perfect for personalized learning!',
         showOnce: true,
       ),
       // Practice Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'practice_mode',
-        title: localizations?.instructionPracticeModeTitle ?? 'Practice Mode',
+        title: 'Practice Mode',
         message:
-            localizations?.instructionPracticeModeMessage ??
             'Practice Mode: Learn at your own pace!\n\n• No scoring or lives\n• Unlimited hints\n• Extended time (15s memorize, 30s play)\n• Review correct answers after each round\n\nPremium feature: Perfect for learning without pressure!',
         showOnce: true,
       ),
       // Learning Mode
-      InstructionMessage(
+      const InstructionMessage(
         id: 'learning_mode',
-        title: localizations?.instructionLearningModeTitle ?? 'Learning Mode',
+        title: 'Learning Mode',
         message:
-            localizations?.instructionLearningModeMessage ??
             'Learning Mode: Review and improve!\n\n• Focus on questions you\'ve missed before\n• Extended time to think (15s memorize, 30s play)\n• Learn from mistakes\n• Build confidence\n\nPremium feature: Master the content you struggle with!',
         showOnce: true,
       ),

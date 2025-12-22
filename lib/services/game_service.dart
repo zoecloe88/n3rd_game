@@ -3697,7 +3697,7 @@ class GameService extends ChangeNotifier {
                   _competitiveChallengeScoreSubmitted,
 
               // Mode-specific state
-              'currentMode': _currentMode.toString().split('.').last,
+              'currentMode': _currentMode.name,
               'streakMultiplier': _streakMultiplier,
               'survivalPerfectCount': _survivalPerfectCount,
 
@@ -3713,10 +3713,7 @@ class GameService extends ChangeNotifier {
 
               // CRITICAL: Round-level state for full game resumption
               // Phase, trivia, words, timers, selections - all needed to resume mid-round
-              'phase': _phase
-                  .toString()
-                  .split('.')
-                  .last, // memorize, play, or result
+              'phase': _phase.name, // memorize, play, or result
               'currentTrivia': _currentTrivia
                   ?.toJson(), // Current trivia item (null if no active round)
               'shuffledWords': _shuffledWords, // Current shuffled word list
@@ -4213,7 +4210,7 @@ class GameService extends ChangeNotifier {
               if (modeString != null) {
                 try {
                   _currentMode = GameMode.values.firstWhere(
-                    (mode) => mode.toString().split('.').last == modeString,
+                    (mode) => mode.name == modeString,
                     orElse: () => GameMode.classic,
                   );
                 } catch (e) {
@@ -4265,7 +4262,7 @@ class GameService extends ChangeNotifier {
                 if (_playTimeAtFreeze! > config.playTime) {
                   if (kDebugMode) {
                     debugPrint(
-                      '⚠️ Warning: playTimeAtFreeze ($_playTimeAtFreeze) exceeds mode playTime (${config.playTime}) for ${_currentMode.toString().split('.').last} mode - clamping',
+                      '⚠️ Warning: playTimeAtFreeze ($_playTimeAtFreeze) exceeds mode playTime (${config.playTime}) for ${_currentMode.name} mode - clamping',
                     );
                   }
                   _playTimeAtFreeze = config.playTime.clamp(0, 999);
@@ -4288,7 +4285,7 @@ class GameService extends ChangeNotifier {
               if (phaseString != null) {
                 try {
                   _phase = GamePhase.values.firstWhere(
-                    (phase) => phase.toString().split('.').last == phaseString,
+                    (phase) => phase.name == phaseString,
                     orElse: () => GamePhase.memorize,
                   );
                 } catch (e) {

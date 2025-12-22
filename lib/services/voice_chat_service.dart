@@ -288,7 +288,7 @@ class VoiceChatService extends ChangeNotifier {
         .set({
           'offer': {'sdp': offer.sdp, 'type': offer.type},
           'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true),);
   }
 
   Future<void> _sendAnswer(
@@ -305,7 +305,7 @@ class VoiceChatService extends ChangeNotifier {
         .set({
           'answer': {'sdp': answer.sdp, 'type': answer.type},
           'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true),);
   }
 
   Future<void> _sendIceCandidate(
@@ -326,7 +326,7 @@ class VoiceChatService extends ChangeNotifier {
             'sdpMLineIndex': candidate.sdpMLineIndex,
           },
           'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true),);
   }
 
   @override

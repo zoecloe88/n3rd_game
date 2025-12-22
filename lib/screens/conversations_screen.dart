@@ -45,6 +45,28 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     }
   }
 
+  Future<void> _refreshConversations() async {
+    HapticService().lightImpact();
+    if (!_hasPremium) return;
+    try {
+      await _messageService.loadConversations();
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild to show updated data
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _messageService.dispose();
@@ -158,40 +180,52 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               final conversations = messageService.conversations;
 
               if (conversations.isEmpty) {
-                return EmptyStateWidget(
-                  icon: Icons.message_outlined,
-                  title:
-                      AppLocalizations.of(context)?.noChatMessages ??
-                      'No messages yet',
-                  description:
-                      AppLocalizations.of(context)?.noChatMessagesDescription ??
-                      'Start a conversation!',
+                return RefreshIndicator(
+                  onRefresh: _refreshConversations,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.6,
+                      child: EmptyStateWidget(
+                        icon: Icons.message_outlined,
+                        title:
+                            AppLocalizations.of(context)?.noChatMessages ??
+                            'No messages yet',
+                        description:
+                            AppLocalizations.of(context)?.noChatMessagesDescription ??
+                            'Start a conversation!',
+                      ),
+                    ),
+                  ),
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: conversations.length,
-                itemBuilder: (context, index) {
-                  final conversation = conversations[index];
-                  final authService = Provider.of<AuthService>(
-                    context,
-                    listen: false,
-                  );
-                  final currentUserId = authService.currentUser?.uid ?? '';
-                  final otherUserId = conversation.getOtherUserId(
-                    currentUserId,
-                  );
-                  final otherDisplayName =
-                      conversation.getOtherDisplayName(currentUserId) ?? 'User';
+              return RefreshIndicator(
+                onRefresh: _refreshConversations,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = conversations[index];
+                    final authService = Provider.of<AuthService>(
+                      context,
+                      listen: false,
+                    );
+                    final currentUserId = authService.currentUser?.uid ?? '';
+                    final otherUserId = conversation.getOtherUserId(
+                      currentUserId,
+                    );
+                    final otherDisplayName =
+                        conversation.getOtherDisplayName(currentUserId) ?? 'User';
 
-                  return _buildConversationItem(
-                    context,
-                    conversation,
-                    otherUserId,
-                    otherDisplayName,
-                  );
-                },
+                    return _buildConversationItem(
+                      context,
+                      conversation,
+                      otherUserId,
+                      otherDisplayName,
+                    );
+                  },
+                ),
               );
             },
           ),
@@ -214,9 +248,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       child: InkWell(
         onTap: () {
           HapticService().lightImpact();
-          Navigator.of(
+          NavigationHelper.safeNavigate(
             context,
-          ).pushNamed('/direct-message', arguments: otherUserId);
+            '/direct-message',
+            arguments: otherUserId,
+          );
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(

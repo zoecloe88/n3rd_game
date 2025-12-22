@@ -189,7 +189,11 @@ class TriviaEnhancementService {
     final toList = pools[toTier]!;
 
     while (toList.length < targetCount && fromList.isNotEmpty) {
-      final item = fromList.removeAt(_random.nextInt(fromList.length));
+      // CRITICAL: Re-check isNotEmpty inside loop to prevent index errors
+      // Defensive check in case list becomes empty during iteration
+      if (fromList.isEmpty) break;
+      final index = _random.nextInt(fromList.length);
+      final item = fromList.removeAt(index);
       toList.add(item);
     }
   }

@@ -90,6 +90,15 @@ class DirectMessageService extends ChangeNotifier {
                 data['participants'] as List,
               );
 
+              // CRITICAL: Check participants array has exactly 2 elements before accessing indices
+              // Direct messages require exactly 2 participants (userId1 and userId2)
+              if (participants.length != 2) {
+                debugPrint(
+                  'Invalid conversation: participants array must have exactly 2 elements, got ${participants.length}',
+                );
+                continue; // Skip this conversation
+              }
+
               _conversations.add(
                 Conversation(
                   id: doc.id,

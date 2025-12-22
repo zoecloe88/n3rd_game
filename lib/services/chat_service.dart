@@ -185,7 +185,7 @@ class ChatService extends ChangeNotifier {
               'timestamp': FieldValue.serverTimestamp(),
               'roomId': _currentRoomId,
             });
-      }, operationName: 'Send chat message');
+      }, operationName: 'Send chat message',);
 
       // Success - remove any pending retries for this message
       _pendingMessages.removeWhere((p) => p.message == sanitizedMessage);

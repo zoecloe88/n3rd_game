@@ -1,3 +1,5 @@
+import 'package:n3rd_game/services/logger_service.dart';
+
 class Friend {
   final String userId;
   final String? displayName;
@@ -26,7 +28,19 @@ class Friend {
     displayName: json['displayName'] as String?,
     email: json['email'] as String?,
     addedAt: json['addedAt'] != null
-        ? DateTime.parse(json['addedAt'] as String)
+        ? () {
+            try {
+              return DateTime.parse(json['addedAt'] as String);
+            } catch (e) {
+              // CRITICAL: Handle malformed date strings to prevent crashes
+              // Log warning and return null for optional field
+              LoggerService.warning(
+                'Failed to parse Friend addedAt date: ${json['addedAt']}',
+                error: e,
+              );
+              return null;
+            }
+          }()
         : null,
     isOnline: json['isOnline'] as bool? ?? false,
   );
@@ -58,7 +72,7 @@ class FriendRequest {
     'fromDisplayName': fromDisplayName,
     'fromEmail': fromEmail,
     'createdAt': createdAt.toIso8601String(),
-    'status': status.toString().split('.').last,
+    'status': status.name,
   };
 
   factory FriendRequest.fromJson(Map<String, dynamic> json) => FriendRequest(
@@ -67,9 +81,21 @@ class FriendRequest {
     toUserId: json['toUserId'] as String,
     fromDisplayName: json['fromDisplayName'] as String?,
     fromEmail: json['fromEmail'] as String?,
-    createdAt: DateTime.parse(json['createdAt'] as String),
+    createdAt: () {
+      try {
+        return DateTime.parse(json['createdAt'] as String);
+      } catch (e) {
+        // CRITICAL: Handle malformed date strings to prevent crashes
+        // Use current time as fallback for required field
+        LoggerService.warning(
+          'Failed to parse FriendRequest createdAt date: ${json['createdAt']}, using current time as fallback',
+          error: e,
+        );
+        return DateTime.now();
+      }
+    }(),
     status: FriendRequestStatus.values.firstWhere(
-      (e) => e.toString().split('.').last == json['status'],
+      (e) => e.name == json['status'],
       orElse: () => FriendRequestStatus.pending,
     ),
   );

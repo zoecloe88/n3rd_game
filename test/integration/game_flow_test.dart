@@ -39,7 +39,7 @@ void main() {
       // Verify initial game state
       expect(gameService.state.score, 0);
       expect(gameService.state.lives, 3);
-      expect(gameService.state.round, 0);
+      expect(gameService.state.round, 1); // Game starts at round 1
       expect(gameService.state.isGameOver, false);
     });
 

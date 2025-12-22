@@ -46,7 +46,19 @@ class DailyStats {
   };
 
   factory DailyStats.fromJson(Map<String, dynamic> json) => DailyStats(
-    date: DateTime.parse(json['date'] as String),
+    date: () {
+      try {
+        return DateTime.parse(json['date'] as String);
+      } catch (e) {
+        // CRITICAL: Handle malformed date strings to prevent crashes
+        // Use current date as fallback for required field
+        LoggerService.warning(
+          'Failed to parse DailyStats date: ${json['date']}, using current date as fallback',
+          error: e,
+        );
+        return DateTime.now();
+      }
+    }(),
     gamesPlayed: json['gamesPlayed'] ?? 0,
     correctAnswers: json['correctAnswers'] ?? 0,
     wrongAnswers: json['wrongAnswers'] ?? 0,
@@ -134,7 +146,19 @@ class GameStats {
     currentStreak: json['currentStreak'] ?? 0,
     longestStreak: json['longestStreak'] ?? 0,
     lastPlayDate: json['lastPlayDate'] != null
-        ? DateTime.parse(json['lastPlayDate'] as String)
+        ? () {
+            try {
+              return DateTime.parse(json['lastPlayDate'] as String);
+            } catch (e) {
+              // CRITICAL: Handle malformed date strings to prevent crashes
+              // Return null if parsing fails for optional field
+              LoggerService.warning(
+                'Failed to parse GameStats lastPlayDate: ${json['lastPlayDate']}',
+                error: e,
+              );
+              return null;
+            }
+          }()
         : null,
   );
 

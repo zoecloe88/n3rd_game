@@ -380,7 +380,7 @@ class SettingsScreen extends StatelessWidget {
                       title: 'Support Dashboard',
                       subtitle: 'View support analytics (Admin)',
                       onTap: () =>
-                          Navigator.of(context).pushNamed('/support-dashboard'),
+                          NavigationHelper.safeNavigate(context, '/support-dashboard'),
                     ),
                     _buildSettingTile(
                       context,

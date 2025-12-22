@@ -117,7 +117,7 @@ class ChallengeService extends ChangeNotifier {
       await _firestore!.collection('user_challenges').doc(userId).set({
         'challenges': _challenges.map((c) => c.toJson()).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
     } catch (e) {
       debugPrint('Failed to save challenges to Firestore: $e');
     }

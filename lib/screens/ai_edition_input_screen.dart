@@ -83,11 +83,14 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
   Future<void> _generateTrivia() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // RouteGuard handles subscription checking at route level
+    // Double-check subscription before expensive AI operation
     final subscriptionService = Provider.of<SubscriptionService>(
       context,
       listen: false,
     );
-    if (!subscriptionService.isPremium) {
+    if (!subscriptionService.hasEditionsAccess) {
+      if (!mounted) return;
       _showUpgradeDialog();
       return;
     }
@@ -95,6 +98,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) return;
 
+    if (!mounted) return;
     setState(() {
       _isGenerating = true;
       _errorMessage = null;
@@ -116,6 +120,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
       });
 
       if (triviaItems.isEmpty) {
+        if (!mounted) return;
         setState(() {
           _errorMessage =
               aiService.lastError ??
@@ -125,6 +130,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
       }
 
       // Navigate to game with generated trivia
+      if (!mounted || !context.mounted) return;
       NavigationHelper.safeNavigate(
         context,
         '/game',
@@ -456,15 +462,27 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
                         ),
                       ),
                       child: _isGenerating
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  'Generating...',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,

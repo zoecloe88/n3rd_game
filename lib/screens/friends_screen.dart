@@ -32,6 +32,27 @@ class _FriendsScreenState extends State<FriendsScreen> {
     _friendsService.init();
   }
 
+  Future<void> _refreshFriends() async {
+    HapticService().lightImpact();
+    try {
+      await _friendsService.refreshFriends();
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild to show updated data
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -310,22 +331,34 @@ class _FriendsScreenState extends State<FriendsScreen> {
         final friends = friendsService.friends;
 
         if (friends.isEmpty) {
-          return EmptyStateWidget(
-            icon: Icons.people_outline,
-            title: AppLocalizations.of(context)!.noFriends,
-            description: AppLocalizations.of(context)!.noFriendsDescription,
-            actionLabel: AppLocalizations.of(context)!.addFriend,
-            onAction: () => _showAddFriendDialog(),
+          return RefreshIndicator(
+            onRefresh: _refreshFriends,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: EmptyStateWidget(
+                  icon: Icons.people_outline,
+                  title: AppLocalizations.of(context)!.noFriends,
+                  description: AppLocalizations.of(context)!.noFriendsDescription,
+                  actionLabel: AppLocalizations.of(context)!.addFriend,
+                  onAction: () => _showAddFriendDialog(),
+                ),
+              ),
+            ),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          itemCount: friends.length,
-          itemBuilder: (context, index) {
-            final friend = friends[index];
-            return _buildFriendItem(context, friend);
-          },
+        return RefreshIndicator(
+          onRefresh: _refreshFriends,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: friends.length,
+            itemBuilder: (context, index) {
+              final friend = friends[index];
+              return _buildFriendItem(context, friend);
+            },
+          ),
         );
       },
     );
@@ -446,20 +479,32 @@ class _FriendsScreenState extends State<FriendsScreen> {
         final requests = friendsService.pendingRequests;
 
         if (requests.isEmpty) {
-          return const EmptyStateWidget(
-            icon: Icons.mark_email_read_outlined,
-            title: 'No pending requests',
-            description: 'Friend requests will appear here',
+          return RefreshIndicator(
+            onRefresh: _refreshFriends,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: const EmptyStateWidget(
+                  icon: Icons.mark_email_read_outlined,
+                  title: 'No pending requests',
+                  description: 'Friend requests will appear here',
+                ),
+              ),
+            ),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          itemCount: requests.length,
-          itemBuilder: (context, index) {
-            final request = requests[index];
-            return _buildRequestItem(context, request);
-          },
+        return RefreshIndicator(
+          onRefresh: _refreshFriends,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              return _buildRequestItem(context, request);
+            },
+          ),
         );
       },
     );

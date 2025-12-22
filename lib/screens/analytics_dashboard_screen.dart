@@ -3,14 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/widgets/performance_chart_widget.dart';
 import 'package:n3rd_game/widgets/heat_map_widget.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class AnalyticsDashboardScreen extends StatelessWidget {
@@ -18,87 +16,9 @@ class AnalyticsDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-
-    // Check if user has premium access
+    // NOTE: Subscription access is enforced by RouteGuard in main.dart
+    // No need for redundant check here
     final colors = AppColors.of(context);
-    if (!subscriptionService.isPremium) {
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.topRight,
-          animationPadding: const EdgeInsets.only(top: 60, right: 20),
-          child: SafeArea(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.large,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: colors.tertiaryText,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Premium Feature',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Advanced Analytics Dashboard is available for Premium subscribers.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 14,
-                        color: colors.secondaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(
-                          context,
-                        ).pushNamed('/subscription-management');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.primaryButton,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
-                        ),
-                      ),
-                      child: Text(
-                        'Upgrade to Premium',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     final route = ModalRoute.of(context)?.settings.name;
     final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 

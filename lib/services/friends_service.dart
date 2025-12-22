@@ -41,6 +41,20 @@ class FriendsService extends ChangeNotifier {
     _loadPendingRequests();
   }
 
+  /// Refresh friends and requests data
+  /// Useful for pull-to-refresh functionality
+  Future<void> refreshFriends() async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    // Reload both friends and requests
+    _loadFriends();
+    _loadPendingRequests();
+    
+    // Wait a bit to allow streams to update
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
   void _loadFriends() {
     final userId = _userId;
     final firestore = _firestore;
@@ -186,7 +200,9 @@ class FriendsService extends ChangeNotifier {
     await firestore.collection('friend_requests').add({
       'fromUserId': userId,
       'toUserId': friendUserId,
-      'fromDisplayName': currentUserEmail?.split('@').first,
+      'fromDisplayName': currentUserEmail?.contains('@') == true
+          ? currentUserEmail!.split('@').first
+          : currentUserEmail,
       'fromEmail': currentUserEmail,
       'toDisplayName': friendDisplayName,
       'toEmail': friendEmail,
@@ -243,7 +259,9 @@ class FriendsService extends ChangeNotifier {
     batch.set(friend2Ref, {
       'userId': fromUserId,
       'friendId': userId,
-      'friendDisplayName': currentUser?.email?.split('@').first,
+      'friendDisplayName': currentUser?.email?.contains('@') == true
+          ? currentUser!.email!.split('@').first
+          : currentUser?.email,
       'friendEmail': currentUser?.email,
       'status': 'accepted',
       'addedAt': FieldValue.serverTimestamp(),

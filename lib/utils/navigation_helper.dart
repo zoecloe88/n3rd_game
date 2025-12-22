@@ -107,4 +107,31 @@ class NavigationHelper {
       }
     }
   }
+
+  /// Safely push replacement named route
+  static Future<void> safePushReplacementNamed(
+    BuildContext context,
+    String route, {
+    Object? arguments,
+  }) async {
+    if (!context.mounted) return;
+
+    try {
+      await Navigator.of(context).pushReplacementNamed(
+        route,
+        arguments: arguments,
+      );
+    } catch (e) {
+      debugPrint('Navigation error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Navigation error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
 }

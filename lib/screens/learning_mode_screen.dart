@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/learning_service.dart';
-import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/models/reviewed_question.dart';
 import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class LearningModeScreen extends StatefulWidget {
@@ -34,89 +32,8 @@ class _LearningModeScreenState extends State<LearningModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-
-    // Check if user has premium access
-    if (!subscriptionService.isPremium) {
-      return Scaffold(
-        backgroundColor: AppColors.of(context).background,
-        body: Stack(
-          children: [
-            // Video background - fills entire screen perfectly
-            const VideoPlayerWidget(
-              videoPath: 'assets/videos/settings_video.mp4',
-              loop: true,
-              autoplay: true,
-            ),
-            SafeArea(
-              child: Center(
-                child: Container(
-                  margin: const EdgeInsets.all(24),
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppShadows.large,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        size: 64,
-                        color: AppColors.of(context).tertiaryText,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Premium Feature',
-                        style: AppTypography.headlineLarge.copyWith(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.of(context).primaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Learning Mode is available for Premium subscribers.',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontSize: 14,
-                          color: AppColors.of(context).secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () {
-                          NavigationHelper.safeNavigate(
-                            context,
-                            '/subscription-management',
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.of(context).primaryButton,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 16,
-                          ),
-                        ),
-                        child: Text(
-                          'Upgrade to Premium',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
+    // NOTE: Subscription access is enforced by RouteGuard in main.dart
+    // No need for redundant check here
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: Stack(

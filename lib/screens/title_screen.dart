@@ -8,6 +8,12 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/widgets/subscription_tier_indicator.dart';
+import 'package:n3rd_game/widgets/network_status_indicator.dart';
+import 'package:n3rd_game/widgets/upgrade_shortcut_button.dart';
+import 'package:n3rd_game/widgets/tier_progress_indicator.dart';
+import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -43,8 +49,9 @@ class _TitleScreenState extends State<TitleScreen> {
       maxSize: 20.0,
     );
 
-    // Responsive icon size: proportional to font size
-    final iconSize = fontSize * 1.1;
+    // Responsive icon size: proportional to font size with reasonable bounds
+    // Ensures icons are not too small on small screens or too large on tablets
+    final iconSize = (fontSize * 1.1).clamp(16.0, 28.0);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
@@ -52,7 +59,10 @@ class _TitleScreenState extends State<TitleScreen> {
         width: double.infinity,
         height: buttonHeight,
         child: ElevatedButton(
-          onPressed: onPressed,
+          onPressed: () {
+            HapticService().lightImpact();
+            onPressed();
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.primaryButton,
             foregroundColor: colors.buttonText,
@@ -66,7 +76,7 @@ class _TitleScreenState extends State<TitleScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: colors.buttonText, size: iconSize),
-              SizedBox(width: screenWidth * 0.02),
+              SizedBox(width: ResponsiveHelper.responsiveWidth(context, 0.02).clamp(4.0, 12.0)),
               Flexible(
                 child: Text(
                   label,
@@ -105,6 +115,27 @@ class _TitleScreenState extends State<TitleScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            // Subscription Tier Indicator
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SubscriptionTierIndicator(compact: true),
+                  ),
+                  SizedBox(width: 8),
+                  NetworkStatusIndicator(compact: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Tier Progress Indicator (for free users)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: TierProgressIndicator(showIcon: false),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.book_outlined),
               title: Text(
@@ -112,6 +143,7 @@ class _TitleScreenState extends State<TitleScreen> {
                 style: AppTypography.labelLarge,
               ),
               onTap: () {
+                HapticService().lightImpact();
                 if (context.mounted) {
                   Navigator.pop(context);
                   if (context.mounted) {
@@ -123,25 +155,30 @@ class _TitleScreenState extends State<TitleScreen> {
             Consumer<SubscriptionService>(
               builder: (context, subscriptionService, _) {
                 if (!subscriptionService.hasEditionsAccess) {
-                  return ListTile(
-                    leading: const Icon(Icons.collections_bookmark_outlined),
-                    title: Text(
-                      AppLocalizations.of(context)?.editions ?? 'Editions',
-                      style: AppTypography.labelLarge,
-                    ),
-                    trailing: const Icon(Icons.lock_outline, size: 16),
-                    onTap: () {
-                      if (context.mounted) {
-                        Navigator.pop(context);
+                  return FeatureTooltipWidget(
+                    featureName: 'Editions',
+                    requiresEditionsAccess: true,
+                    child: ListTile(
+                      leading: const Icon(Icons.collections_bookmark_outlined),
+                      title: Text(
+                        AppLocalizations.of(context)?.editions ?? 'Editions',
+                        style: AppTypography.labelLarge,
+                      ),
+                      trailing: const Icon(Icons.lock_outline, size: 16),
+                      onTap: () {
+                        HapticService().lightImpact();
                         if (context.mounted) {
-                          _showUpgradeDialog(
-                            context,
-                            'Editions',
-                            'Upgrade to Premium to access all editions!',
-                          );
+                          Navigator.pop(context);
+                          if (context.mounted) {
+                            _showUpgradeDialog(
+                              context,
+                              'Editions',
+                              'Upgrade to Premium to access all editions!',
+                            );
+                          }
                         }
-                      }
-                    },
+                      },
+                    ),
                   );
                 }
                 return ListTile(
@@ -151,6 +188,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     style: AppTypography.labelLarge,
                   ),
                   onTap: () {
+                    HapticService().lightImpact();
                     if (context.mounted) {
                       Navigator.pop(context);
                       if (context.mounted) {
@@ -175,6 +213,7 @@ class _TitleScreenState extends State<TitleScreen> {
                 style: AppTypography.labelLarge,
               ),
               onTap: () {
+                HapticService().lightImpact();
                 if (context.mounted) {
                   Navigator.pop(context);
                   if (context.mounted) {
@@ -190,6 +229,7 @@ class _TitleScreenState extends State<TitleScreen> {
                 style: AppTypography.labelLarge,
               ),
               onTap: () {
+                HapticService().lightImpact();
                 if (context.mounted) {
                   Navigator.pop(context);
                   if (context.mounted) {
@@ -211,6 +251,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     style: AppTypography.labelLarge,
                   ),
                   onTap: () {
+                    HapticService().lightImpact();
                     if (context.mounted) {
                       Navigator.pop(context);
                       if (context.mounted) {
@@ -224,25 +265,30 @@ class _TitleScreenState extends State<TitleScreen> {
             Consumer<SubscriptionService>(
               builder: (context, subscriptionService, _) {
                 if (!subscriptionService.hasOnlineAccess) {
-                  return ListTile(
-                    leading: const Icon(Icons.event_available_outlined),
-                    title: Text(
-                      'Daily Challenges',
-                      style: AppTypography.labelLarge,
-                    ),
-                    trailing: const Icon(Icons.lock_outline, size: 16),
-                    onTap: () {
-                      if (context.mounted) {
-                        Navigator.pop(context);
+                  return FeatureTooltipWidget(
+                    featureName: 'Daily Challenges',
+                    requiresOnlineAccess: true,
+                    child: ListTile(
+                      leading: const Icon(Icons.event_available_outlined),
+                      title: Text(
+                        'Daily Challenges',
+                        style: AppTypography.labelLarge,
+                      ),
+                      trailing: const Icon(Icons.lock_outline, size: 16),
+                      onTap: () {
+                        HapticService().lightImpact();
                         if (context.mounted) {
-                          _showUpgradeDialog(
-                            context,
-                            'Daily Challenges',
-                            'Upgrade to Premium to access daily challenges and leaderboards!',
-                          );
+                          Navigator.pop(context);
+                          if (context.mounted) {
+                            _showUpgradeDialog(
+                              context,
+                              'Daily Challenges',
+                              'Upgrade to Premium to access daily challenges and leaderboards!',
+                            );
+                          }
                         }
-                      }
-                    },
+                      },
+                    ),
                   );
                 }
                 return ListTile(
@@ -252,6 +298,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     style: AppTypography.labelLarge,
                   ),
                   onTap: () {
+                    HapticService().lightImpact();
                     if (context.mounted) {
                       Navigator.pop(context);
                       if (context.mounted) {
@@ -272,6 +319,7 @@ class _TitleScreenState extends State<TitleScreen> {
                 style: AppTypography.labelLarge,
               ),
               onTap: () {
+                HapticService().lightImpact();
                 if (context.mounted) {
                   Navigator.pop(context);
                   if (context.mounted) {
@@ -290,6 +338,7 @@ class _TitleScreenState extends State<TitleScreen> {
                 style: AppTypography.labelLarge,
               ),
               onTap: () {
+                HapticService().lightImpact();
                 if (context.mounted) {
                   Navigator.pop(context);
                   if (context.mounted) {
@@ -320,7 +369,10 @@ class _TitleScreenState extends State<TitleScreen> {
         content: Text(message, style: AppTypography.bodyMedium),
         actions: [
           TextButton(
-            onPressed: () => NavigationHelper.safePop(context),
+            onPressed: () {
+              HapticService().lightImpact();
+              NavigationHelper.safePop(context);
+            },
             child: Text(
               AppLocalizations.of(context)?.cancel ?? 'Cancel',
               style: AppTypography.labelLarge,
@@ -328,6 +380,7 @@ class _TitleScreenState extends State<TitleScreen> {
           ),
           ElevatedButton(
             onPressed: () {
+              HapticService().lightImpact();
               NavigationHelper.safePop(context);
               NavigationHelper.safeNavigate(
                 context,
@@ -428,12 +481,18 @@ class _TitleScreenState extends State<TitleScreen> {
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
         animationPath: animationPath,
-        animationAlignment: Alignment.center,
-        animationPadding: const EdgeInsets.only(bottom: 60),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
+        animationAlignment: Alignment.bottomCenter,
+        animationPadding: EdgeInsets.only(
+          // Responsive bottom padding: 15% of screen height, min 80px, max 120px
+          // Ensures animation doesn't overlap buttons on any screen size
+          bottom: ResponsiveHelper.responsiveHeight(context, 0.15).clamp(80.0, 120.0),
+        ),
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
               // Top app bar (minimal)
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -725,6 +784,10 @@ class _TitleScreenState extends State<TitleScreen> {
               ),
             ],
           ),
+        ),
+            // Upgrade shortcut button for free users
+            const UpgradeShortcutButton(),
+          ],
         ),
       ),
     );

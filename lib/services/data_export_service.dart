@@ -131,7 +131,7 @@ class DataExportService {
         if (await file.exists()) {
           await Share.shareXFiles([
             XFile(filePath),
-          ], text: 'My N3RD Trivia Data Export');
+          ], text: 'My N3RD Trivia Data Export',);
         }
       }
     } catch (e) {

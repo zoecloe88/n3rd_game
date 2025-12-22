@@ -116,7 +116,7 @@ class LearningService extends ChangeNotifier {
       await _firestore!.collection('user_learning').doc(userId).set({
         'questions': _reviewedQuestions.map((q) => q.toJson()).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
     } catch (e) {
       debugPrint('Failed to save learning data to Firestore: $e');
     }

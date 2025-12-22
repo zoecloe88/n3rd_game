@@ -81,7 +81,7 @@ class MoreMenuScreen extends StatelessWidget {
                       title: 'Daily Challenges',
                       subtitle: 'Complete daily challenges',
                       onTap: () =>
-                          Navigator.of(context).pushNamed('/daily-challenges'),
+                          NavigationHelper.safeNavigate(context, '/daily-challenges'),
                     ),
                     Consumer<SubscriptionService>(
                       builder: (context, subscriptionService, _) {

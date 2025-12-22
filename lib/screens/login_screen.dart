@@ -37,14 +37,23 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _termsRecognizer = TapGestureRecognizer()
-      ..onTap = () {
-        NavigationHelper.safeNavigate(context, '/terms-of-service');
-      };
-    _privacyRecognizer = TapGestureRecognizer()
-      ..onTap = () {
-        NavigationHelper.safeNavigate(context, '/privacy-policy');
-      };
+    // Initialize gesture recognizers after first frame to ensure context is safe
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _termsRecognizer = TapGestureRecognizer()
+          ..onTap = () {
+            if (mounted && context.mounted) {
+              NavigationHelper.safeNavigate(context, '/terms-of-service');
+            }
+          };
+        _privacyRecognizer = TapGestureRecognizer()
+          ..onTap = () {
+            if (mounted && context.mounted) {
+              NavigationHelper.safeNavigate(context, '/privacy-policy');
+            }
+          };
+      }
+    });
   }
 
   @override
@@ -59,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleAuth() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_formKey.currentState?.validate() != true) return;
 
     setState(() => _loading = true);
 

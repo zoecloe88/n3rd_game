@@ -8,7 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart';
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/services/logger_service.dart';
 
 class AnalyticsService extends ChangeNotifier {
@@ -46,24 +46,24 @@ class AnalyticsService extends ChangeNotifier {
 
       // Track trivia template initialization status (templates initialized before AnalyticsService)
       try {
-        final templatesInitialized = EditionTriviaTemplates.isInitialized;
-        final lastError = EditionTriviaTemplates.lastValidationError;
-        final initDuration = EditionTriviaTemplates.lastInitializationDuration;
+        final templatesInitialized = templates.EditionTriviaTemplates.isInitialized;
+        final lastError = templates.EditionTriviaTemplates.lastValidationError;
+        final initDuration = templates.EditionTriviaTemplates.lastInitializationDuration;
         final initTemplateCount =
-            EditionTriviaTemplates.lastInitializationTemplateCount;
+            templates.EditionTriviaTemplates.lastInitializationTemplateCount;
         final initRetryCount =
-            EditionTriviaTemplates.lastInitializationRetryCount;
+            templates.EditionTriviaTemplates.lastInitializationRetryCount;
 
         // Get template count (count all templates across all themes)
         int templateCount = 0;
         if (templatesInitialized) {
           try {
-            final themes = EditionTriviaTemplates.getAvailableThemes();
+            final themes = templates.EditionTriviaTemplates.getAvailableThemes();
             for (final theme in themes) {
-              final templates = EditionTriviaTemplates.getTemplatesForTheme(
+              final themeTemplates = templates.EditionTriviaTemplates.getTemplatesForTheme(
                 theme,
               );
-              templateCount += templates.length;
+              templateCount += themeTemplates.length;
             }
           } catch (e) {
             // If we can't count templates, use stored count or 0
@@ -193,7 +193,7 @@ class AnalyticsService extends ChangeNotifier {
       await _firestore!.collection('user_analytics').doc(userId).set({
         'metrics': _metrics.map((m) => m.toJson()).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
     } catch (e) {
       debugPrint('Failed to save analytics to Firestore: $e');
     }
@@ -1320,6 +1320,96 @@ class AnalyticsService extends ChangeNotifier {
       success: success,
       additionalParams: {
         'template_count': templateCount,
+        'retry_count': retryCount,
+      },
+    );
+  }
+
+  /// Track multiplayer room creation performance
+  Future<void> logRoomCreation(
+    Duration duration, {
+    bool success = true,
+    String? mode,
+    int maxPlayers = 0,
+    int retryCount = 0,
+  }) async {
+    await logPerformanceMetric(
+      metricName: 'room_creation',
+      duration: duration,
+      success: success,
+      additionalParams: {
+        if (mode != null) 'mode': mode,
+        'max_players': maxPlayers,
+        'retry_count': retryCount,
+      },
+    );
+  }
+
+  /// Track multiplayer room joining performance
+  Future<void> logRoomJoining(
+    Duration duration, {
+    bool success = true,
+    int retryCount = 0,
+  }) async {
+    await logPerformanceMetric(
+      metricName: 'room_joining',
+      duration: duration,
+      success: success,
+      additionalParams: {
+        'retry_count': retryCount,
+      },
+    );
+  }
+
+  /// Track AI edition generation performance
+  Future<void> logAIEditionGeneration(
+    Duration duration, {
+    bool success = true,
+    bool isYouth = false,
+    int retryCount = 0,
+    String? errorType,
+  }) async {
+    await logPerformanceMetric(
+      metricName: 'ai_edition_generation',
+      duration: duration,
+      success: success,
+      additionalParams: {
+        'is_youth': isYouth,
+        'retry_count': retryCount,
+        if (errorType != null) 'error_type': errorType,
+      },
+    );
+  }
+
+  /// Track app startup time
+  Future<void> logAppStartup(
+    Duration duration, {
+    bool success = true,
+    bool firebaseInitialized = false,
+    bool templatesInitialized = false,
+  }) async {
+    await logPerformanceMetric(
+      metricName: 'app_startup',
+      duration: duration,
+      success: success,
+      additionalParams: {
+        'firebase_initialized': firebaseInitialized,
+        'templates_initialized': templatesInitialized,
+      },
+    );
+  }
+
+  /// Track family group creation performance
+  Future<void> logFamilyGroupCreation(
+    Duration duration, {
+    bool success = true,
+    int retryCount = 0,
+  }) async {
+    await logPerformanceMetric(
+      metricName: 'family_group_creation',
+      duration: duration,
+      success: success,
+      additionalParams: {
         'retry_count': retryCount,
       },
     );

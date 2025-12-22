@@ -126,7 +126,7 @@ class ThemeService extends ChangeNotifier {
       await _firestore!.collection('user_preferences').doc(userId).set({
         'themeId': _currentTheme.id,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true),);
     } catch (e) {
       debugPrint('Failed to save theme to Firestore: $e');
     }
@@ -170,8 +170,15 @@ class ThemeService extends ChangeNotifier {
 
   AppTheme? getThemeById(String id) {
     try {
-      return AppThemes.themes.firstWhere((t) => t.id == id);
+      if (AppThemes.themes.isEmpty) return null;
+      final theme = AppThemes.themes.firstWhere(
+        (t) => t.id == id,
+        orElse: () => AppThemes.themes.first, // Safe fallback to default theme
+      );
+      // Only return theme if it actually matches the requested ID
+      return theme.id == id ? theme : null;
     } catch (e) {
+      // Additional safety: if firstWhere throws or themes list is empty, return null
       return null;
     }
   }

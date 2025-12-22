@@ -84,7 +84,7 @@ class NotificationService extends ChangeNotifier {
       await firestore.collection('user_tokens').doc(user.uid).set({
         'fcmToken': token,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true),);
     } catch (e) {
       debugPrint('Error saving FCM token: $e');
     }

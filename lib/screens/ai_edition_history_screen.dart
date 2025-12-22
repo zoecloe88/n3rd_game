@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/ai_edition_service.dart';
+import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
+import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/config/screen_animations_config.dart';
+import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/upgrade_dialog.dart';
+import 'package:n3rd_game/widgets/error_recovery_widget.dart';
+import 'package:n3rd_game/widgets/skeleton_loader.dart';
 
 /// Screen to view and replay past AI Edition generations
 class AIEditionHistoryScreen extends StatefulWidget {
@@ -25,7 +33,46 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    // Check subscription access before loading
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final subscriptionService = Provider.of<SubscriptionService>(
+        context,
+        listen: false,
+      );
+      if (!subscriptionService.hasEditionsAccess) {
+        _showUpgradeDialog();
+        return;
+      }
+      _loadHistory();
+    });
+  }
+
+  void _showUpgradeDialog() {
+    final analyticsService = Provider.of<AnalyticsService>(
+      context,
+      listen: false,
+    );
+
+    analyticsService.logUpgradeDialogShown(
+      source: 'ai_edition_history',
+      targetTier: 'premium',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => const UpgradeDialog(
+        title: 'Premium Feature',
+        message: 'AI Edition History is available for Premium subscribers.',
+        targetTier: 'premium',
+        source: 'ai_edition_history',
+        features: [
+          'Access to AI Edition generation history',
+          'Replay past AI-generated trivia',
+          'All Premium features',
+        ],
+      ),
+    );
   }
 
   Future<void> _loadHistory() async {
@@ -118,6 +165,92 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final subscriptionService = Provider.of<SubscriptionService>(context);
+
+    // Check subscription access
+    if (!subscriptionService.hasEditionsAccess) {
+      final route = ModalRoute.of(context)?.settings.name;
+      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
+
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: UnifiedBackgroundWidget(
+          animationPath: animationPath,
+          animationAlignment: Alignment.bottomCenter,
+          animationPadding: const EdgeInsets.only(bottom: 20),
+          child: SafeArea(
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppShadows.large,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: colors.tertiaryText,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Premium Feature',
+                      style: AppTypography.headlineLarge.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: colors.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'AI Edition History is available for Premium subscribers.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontSize: 14,
+                        color: colors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        _showUpgradeDialog();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primaryButton,
+                        foregroundColor: colors.buttonText,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: Text(
+                        'Upgrade to Premium',
+                        style: AppTypography.labelLarge,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => NavigationHelper.safePop(context),
+                      child: Text(
+                        'Go Back',
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: colors.secondaryText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -146,32 +279,17 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const SkeletonLoader(
+                itemCount: 5,
+                showAvatar: false,
+                showSubtitle: true,
+              )
             : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 48,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      _error!,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    ElevatedButton(
-                      onPressed: _loadHistory,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+            ? ErrorRecoveryWidget(
+                title: 'Failed to Load History',
+                message: _error!,
+                onRetry: _loadHistory,
+                icon: Icons.error_outline,
               )
             : _history.isEmpty
             ? EmptyStateWidget(

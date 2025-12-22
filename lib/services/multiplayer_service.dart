@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:async' show unawaited, StreamSubscription, TimeoutException;
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +8,7 @@ import 'package:n3rd_game/models/game_room.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/rate_limiter_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
 
 class MultiplayerService extends ChangeNotifier {
@@ -15,6 +16,11 @@ class MultiplayerService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Connectivity _connectivity = Connectivity();
   final RateLimiterService _rateLimiter = RateLimiterService();
+  AnalyticsService? _analyticsService;
+
+  void setAnalyticsService(AnalyticsService? service) {
+    _analyticsService = service;
+  }
 
   GameRoom? _currentRoom;
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
@@ -278,8 +284,13 @@ class MultiplayerService extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
 
+    // Track performance for room creation
+    final startTime = DateTime.now();
+    int retryCount = 0;
+
     // Use retry logic for room creation
     final createdRoom = await _executeWithRetry<GameRoom>(() async {
+      retryCount++;
       final docRef = await _firestore
           .collection('game_rooms')
           .add(room.toJson());
@@ -291,7 +302,17 @@ class MultiplayerService extends ChangeNotifier {
       });
 
       return room.copyWith(id: docRef.id, players: [hostPlayer]);
-    }, operationName: 'Create room');
+    }, operationName: 'Create room',);
+
+    // Log performance metrics
+    final duration = DateTime.now().difference(startTime);
+    unawaited(_analyticsService?.logRoomCreation(
+      duration,
+      success: true,
+      mode: mode.name,
+      maxPlayers: maxPlayers,
+      retryCount: retryCount - 1, // Subtract 1 since first attempt isn't a retry
+    ),);
 
     _currentRoom = createdRoom;
     _listenToRoom(createdRoom.id);
@@ -337,9 +358,14 @@ class MultiplayerService extends ChangeNotifier {
       lastActive: DateTime.now(),
     );
 
+    // Track performance for room joining
+    final startTime = DateTime.now();
+    int retryCount = 0;
+
     // Use transaction to atomically check room capacity and add player
     // This prevents race condition where multiple players join simultaneously
     final room = await _executeWithRetry<GameRoom>(() async {
+      retryCount++;
       return await _firestore.runTransaction<GameRoom>((transaction) async {
         final docRef = _firestore.collection('game_rooms').doc(sanitizedRoomId);
         final doc = await transaction.get(docRef);
@@ -368,7 +394,15 @@ class MultiplayerService extends ChangeNotifier {
         // Return updated room state
         return room.copyWith(players: [...room.players, newPlayer]);
       });
-    }, operationName: 'Join room');
+    }, operationName: 'Join room',);
+
+    // Log performance metrics
+    final duration = DateTime.now().difference(startTime);
+    unawaited(_analyticsService?.logRoomJoining(
+      duration,
+      success: true,
+      retryCount: retryCount - 1, // Subtract 1 since first attempt isn't a retry
+    ),);
 
     _currentRoom = room;
     _listenToRoom(sanitizedRoomId);
@@ -449,13 +483,15 @@ class MultiplayerService extends ChangeNotifier {
             final updatedRoom = GameRoom.fromFirestore(updatedDoc);
             if (updatedRoom.players.isEmpty) {
               await docRef.delete();
-            } else {
+            } else if (updatedRoom.players.isNotEmpty) {
+              // CRITICAL: Double-check players list is not empty to prevent race condition
+              // List might become empty between isEmpty check and first access
               // Transfer host to first remaining player
               await docRef.update({'hostId': updatedRoom.players.first.userId});
             }
           }
         }
-      }, operationName: 'Leave room');
+      }, operationName: 'Leave room',);
     } catch (e) {
       LoggerService.warning('Error leaving room', error: e);
       // Continue with cleanup even if Firestore operation fails
@@ -485,7 +521,7 @@ class MultiplayerService extends ChangeNotifier {
       }).toList();
 
       await docRef.update({'players': players});
-    }, operationName: 'Set player ready');
+    }, operationName: 'Set player ready',);
   }
 
   // Start the game
@@ -510,7 +546,10 @@ class MultiplayerService extends ChangeNotifier {
     String? currentPlayerId;
     Map<String, bool>? playerSubmissions;
     if (_currentRoom!.mode == MultiplayerMode.battleRoyale) {
-      currentPlayerId = _currentRoom!.players.first.userId;
+      // CRITICAL: Check players list is not empty before accessing first element
+      if (_currentRoom!.players.isNotEmpty) {
+        currentPlayerId = _currentRoom!.players.first.userId;
+      }
       // Initialize submission tracking
       playerSubmissions = {
         for (final player in _currentRoom!.players) player.userId: false,
@@ -538,7 +577,7 @@ class MultiplayerService extends ChangeNotifier {
             .toIso8601String(),
         if (teams != null) 'teams': teams.map((t) => t.toJson()).toList(),
       });
-    }, operationName: 'Start game');
+    }, operationName: 'Start game',);
   }
 
   // Create teams for squad showdown
@@ -594,7 +633,7 @@ class MultiplayerService extends ChangeNotifier {
       }).toList();
 
       await docRef.update({'players': players});
-    }, operationName: 'Send ping');
+    }, operationName: 'Send ping',);
   }
 
   // Assign role to player (for squad showdown)
@@ -682,7 +721,7 @@ class MultiplayerService extends ChangeNotifier {
 
         transaction.update(docRef, updateData);
       });
-    }, operationName: 'Submit round answer');
+    }, operationName: 'Submit round answer',);
   }
 
   // Advance to next round (for battle royale, move to next player)
@@ -739,7 +778,7 @@ class MultiplayerService extends ChangeNotifier {
         'currentPlayerId': nextPlayerId,
         if (playerSubmissions != null) 'playerSubmissions': playerSubmissions,
       });
-    }, operationName: 'Advance round');
+    }, operationName: 'Advance round',);
   }
 
   // Finish the game
@@ -752,7 +791,7 @@ class MultiplayerService extends ChangeNotifier {
         'status': RoomStatus.finished.name,
         'finishedAt': DateTime.now().toIso8601String(),
       });
-    }, operationName: 'Finish game');
+    }, operationName: 'Finish game',);
   }
 
   // Listen to room changes

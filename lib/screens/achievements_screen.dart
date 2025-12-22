@@ -8,6 +8,7 @@ import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/skeleton_loader.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -32,13 +33,22 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
     try {
       final achievements = await _achievementService.getUserAchievements();
-      setState(() {
-        _userAchievements = achievements;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userAchievements = achievements;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _refreshAchievements() async {
+    HapticService().lightImpact();
+    await _loadAchievements();
   }
 
   @override
@@ -70,33 +80,49 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       ),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : allAchievements.isEmpty
-            ? EmptyStateWidget(
-                icon: Icons.emoji_events_outlined,
-                title:
-                    AppLocalizations.of(context)?.noAchievements ??
-                    'No achievements yet',
-                description:
-                    AppLocalizations.of(context)?.noAchievementsDescription ??
-                    'Keep playing to unlock achievements!',
+            ? const SkeletonLoader(
+                itemCount: 5,
+                showAvatar: false,
+                showSubtitle: true,
               )
-            : ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: allAchievements.length,
-                itemBuilder: (context, index) {
-                  final achievement = allAchievements[index];
-                  final userAchievement = _userAchievements[achievement.id];
-                  final isUnlocked = userAchievement?.unlocked ?? false;
-                  final progress = userAchievement?.progress ?? 0;
+            : allAchievements.isEmpty
+            ? RefreshIndicator(
+                onRefresh: _refreshAchievements,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: EmptyStateWidget(
+                      icon: Icons.emoji_events_outlined,
+                      title:
+                          AppLocalizations.of(context)?.noAchievements ??
+                          'No achievements yet',
+                      description:
+                          AppLocalizations.of(context)?.noAchievementsDescription ??
+                          'Keep playing to unlock achievements!',
+                    ),
+                  ),
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _refreshAchievements,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  itemCount: allAchievements.length,
+                  itemBuilder: (context, index) {
+                    final achievement = allAchievements[index];
+                    final userAchievement = _userAchievements[achievement.id];
+                    final isUnlocked = userAchievement?.unlocked ?? false;
+                    final progress = userAchievement?.progress ?? 0;
 
-                  return _buildAchievementCard(
-                    context,
-                    achievement,
-                    isUnlocked,
-                    progress,
-                  );
-                },
+                    return _buildAchievementCard(
+                      context,
+                      achievement,
+                      isUnlocked,
+                      progress,
+                    );
+                  },
+                ),
               ),
       ),
     );

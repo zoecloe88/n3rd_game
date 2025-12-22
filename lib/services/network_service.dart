@@ -49,6 +49,23 @@ class NetworkService extends ChangeNotifier {
   Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     final wasConnected = _isConnected;
     final hadInternet = _hasInternetReachability;
+    
+    // CRITICAL: Check if results list is not empty before accessing first element
+    // connectivity_plus can theoretically return an empty list
+    if (results.isEmpty) {
+      // Default to no connection if results are empty
+      _connectionType = ConnectivityResult.none;
+      _isConnected = false;
+      _hasInternetReachability = false;
+      if (wasConnected != _isConnected || hadInternet != _hasInternetReachability) {
+        LoggerService.info(
+          'Network status changed: Disconnected (No connectivity data available)',
+        );
+        notifyListeners();
+      }
+      return;
+    }
+    
     _connectionType = results.first;
     _isConnected = results.first != ConnectivityResult.none;
 

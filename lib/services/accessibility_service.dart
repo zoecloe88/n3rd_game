@@ -109,7 +109,7 @@ class AccessibilityService extends ChangeNotifier {
       await _firestore!.collection('user_preferences').doc(userId).set({
         'accessibility': _settings.toJson(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true,),);
     } catch (e) {
       debugPrint('Failed to save accessibility settings to Firestore: $e');
     }

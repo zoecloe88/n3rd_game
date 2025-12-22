@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/config/app_config.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class WordOfTheDay {
   final String word;
@@ -44,7 +45,19 @@ class WordOfTheDay {
     synonyms: json['synonyms'] != null
         ? List<String>.from(json['synonyms'] as List)
         : null,
-    date: DateTime.parse(json['date'] as String),
+    date: () {
+      try {
+        return DateTime.parse(json['date'] as String);
+      } catch (e) {
+        // CRITICAL: Handle malformed date strings to prevent crashes
+        // Use current date as fallback
+        LoggerService.warning(
+          'Failed to parse WordOfTheDay date: ${json['date']}, using current date as fallback',
+          error: e,
+        );
+        return DateTime.now();
+      }
+    }(),
   );
 }
 

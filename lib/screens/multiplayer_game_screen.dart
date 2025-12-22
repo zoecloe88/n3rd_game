@@ -12,6 +12,7 @@ import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/chat_service.dart';
 import 'package:n3rd_game/services/voice_chat_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -44,9 +45,73 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _setupNetworkListener();
-    _loadPendingSubmission();
-    _initializeGame();
+    // CRITICAL: Check subscription access before initializing game
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final subscriptionService = Provider.of<SubscriptionService>(
+        context,
+        listen: false,
+      );
+      if (!subscriptionService.hasOnlineAccess) {
+        // User doesn't have online access - show upgrade dialog and navigate back
+        _showUpgradeDialogAndNavigateBack();
+        return;
+      }
+      _setupNetworkListener();
+      _loadPendingSubmission();
+      _initializeGame();
+    });
+  }
+
+  void _showUpgradeDialogAndNavigateBack() {
+    final analyticsService = Provider.of<AnalyticsService>(
+      context,
+      listen: false,
+    );
+
+    analyticsService.logUpgradeDialogShown(
+      source: 'multiplayer_game',
+      targetTier: 'premium',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Premium Feature'),
+        content: const Text(
+          'Multiplayer games are available for Premium subscribers. '
+          'Upgrade to access online multiplayer features!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              analyticsService.logUpgradeDialogDismissed(
+                source: 'multiplayer_game',
+                targetTier: 'premium',
+              );
+              NavigationHelper.safePop(dialogContext);
+              NavigationHelper.safePop(context); // Go back to previous screen
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              analyticsService.logConversionFunnelStep(
+                step: 3,
+                stepName: 'subscription_screen_opened',
+                source: 'multiplayer_game',
+                targetTier: 'premium',
+              );
+              NavigationHelper.safePop(dialogContext);
+              NavigationHelper.safePop(context); // Go back
+              NavigationHelper.safeNavigate(context, '/subscription-management');
+            },
+            child: const Text('Upgrade to Premium'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Load pending submission from persistent storage

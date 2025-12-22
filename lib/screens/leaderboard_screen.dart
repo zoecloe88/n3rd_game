@@ -9,6 +9,7 @@ import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -54,6 +55,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     });
 
     try {
+      // CRITICAL: Capture context before async operations to avoid BuildContext async gap
+      if (!mounted) return;
       final authService = Provider.of<AuthService>(context, listen: false);
       final userId = authService.currentUser?.uid;
 
@@ -104,6 +107,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         });
       }
     }
+  }
+
+  Future<void> _refreshLeaderboard() async {
+    HapticService().lightImpact();
+    await _loadLeaderboard();
   }
 
   @override
@@ -224,42 +232,57 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: _loadLeaderboard,
+                              onPressed: () {
+                                HapticService().lightImpact();
+                                _loadLeaderboard();
+                              },
                               child: const Text('Retry'),
                             ),
                           ],
                         ),
                       )
                     : _entries.isEmpty
-                    ? EmptyStateWidget(
-                        icon: Icons.emoji_events_outlined,
-                        title:
-                            AppLocalizations.of(context)?.noLeaderboard ??
-                            'No leaderboard data',
-                        description:
-                            AppLocalizations.of(
-                              context,
-                            )?.noLeaderboardDescription ??
-                            'Be the first to play and set a record!',
+                    ? RefreshIndicator(
+                        onRefresh: _refreshLeaderboard,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: EmptyStateWidget(
+                              icon: Icons.emoji_events_outlined,
+                              title:
+                                  AppLocalizations.of(context)?.noLeaderboard ??
+                                  'No leaderboard data',
+                              description:
+                                  AppLocalizations.of(
+                                    context,
+                                  )?.noLeaderboardDescription ??
+                                  'Be the first to play and set a record!',
+                            ),
+                          ),
+                        ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _entries.length,
-                        itemBuilder: (context, index) {
-                          final entry = _entries[index] as dynamic;
-                          final isCurrentUser =
-                              entry.userId ==
-                              Provider.of<AuthService>(
-                                context,
-                                listen: false,
-                              ).currentUser?.uid;
+                    : RefreshIndicator(
+                        onRefresh: _refreshLeaderboard,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _entries.length,
+                          itemBuilder: (context, index) {
+                            final entry = _entries[index] as dynamic;
+                            final isCurrentUser =
+                                entry.userId ==
+                                Provider.of<AuthService>(
+                                  context,
+                                  listen: false,
+                                ).currentUser?.uid;
 
-                          return _buildLeaderboardItem(
-                            context,
-                            entry,
-                            isCurrentUser,
-                          );
-                        },
+                            return _buildLeaderboardItem(
+                              context,
+                              entry,
+                              isCurrentUser,
+                            );
+                          },
+                        ),
                       ),
               ),
             ],

@@ -296,7 +296,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     _controller?.dispose();
     _controller = null;
 
-    // Retry initialization
+    // Retry initialization with proper error handling
     _initializeVideo().then((_) {
       // Track successful retry in analytics
       if (!mounted) return;
@@ -316,7 +316,22 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           }
         } catch (e) {
           // Ignore analytics errors
+          if (kDebugMode) {
+            debugPrint('Failed to log video retry success: $e');
+          }
         }
+      }
+    }).catchError((error) {
+      // Handle retry initialization errors gracefully
+      if (kDebugMode) {
+        debugPrint('Video retry initialization failed: $error');
+      }
+      // Update state to show error UI if widget is still mounted
+      if (mounted) {
+        setState(() {
+          _isInitialized = false;
+          _hasError = true;
+        });
       }
     });
   }

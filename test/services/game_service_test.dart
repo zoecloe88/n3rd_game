@@ -1,23 +1,61 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('GameService', () {
     late GameService gameService;
 
     setUp(() {
+      // Mock SharedPreferences for testing
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/shared_preferences'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'getAll') {
+            return <String, dynamic>{}; // Return empty map
+          }
+          if (methodCall.method == 'getString') {
+            return null; // Return null for getString calls
+          }
+          if (methodCall.method == 'setString') {
+            return true; // Return success for setString calls
+          }
+          if (methodCall.method == 'remove') {
+            return true; // Return success for remove calls
+          }
+          if (methodCall.method == 'clear') {
+            return true; // Return success for clear calls
+          }
+          return null;
+        },
+      );
+
       gameService = GameService();
     });
 
     tearDown(() {
+      // Clear mock handler
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/shared_preferences'),
+        null,
+      );
+    });
+
+    tearDown(() {
       gameService.dispose();
+      // Mock handler cleanup is in the outer tearDown
     });
 
     test('should initialize with default state', () {
       expect(gameService.state.score, 0);
       expect(gameService.state.lives, 3);
-      expect(gameService.state.round, 0);
+      // GameState initializes with round: 1 (1-based, not 0-based)
+      expect(gameService.state.round, 1);
       expect(gameService.state.isGameOver, false);
     });
 

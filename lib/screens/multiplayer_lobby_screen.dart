@@ -749,47 +749,57 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
               if (!isHost)
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final currentReady = room.players
-                          .firstWhere(
-                            (p) => p.userId == multiplayerService.currentUserId,
-                          )
-                          .isReady;
-                      await multiplayerService.setPlayerReady(!currentReady);
+                  child: Builder(
+                    builder: (context) {
+                      // CRITICAL: Safely get current player with defensive checks
+                      // Check players list is not empty before accessing first element
+                      if (room.players.isEmpty) {
+                        return ElevatedButton(
+                          onPressed: null, // Disable if no players
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: lobbyColors.primaryButton,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'Ready',
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Safe to access - we've checked isEmpty above
+                      final currentPlayer = room.players.firstWhere(
+                        (p) => p.userId == multiplayerService.currentUserId,
+                        orElse: () => room.players.first, // Safe - checked isEmpty
+                      );
+                      final isReady = currentPlayer.isReady;
+
+                      return ElevatedButton(
+                        onPressed: () async {
+                          await multiplayerService.setPlayerReady(!isReady);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isReady
+                              ? AppColors.secondaryButton
+                              : lobbyColors.primaryButton,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          isReady ? 'Not Ready' : 'Ready',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          room.players
-                              .firstWhere(
-                                (p) =>
-                                    p.userId ==
-                                    multiplayerService.currentUserId,
-                                orElse: () => room.players.first,
-                              )
-                              .isReady
-                          ? AppColors.secondaryButton
-                          : lobbyColors.primaryButton,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      room.players
-                              .firstWhere(
-                                (p) =>
-                                    p.userId ==
-                                    multiplayerService.currentUserId,
-                                orElse: () => room.players.first,
-                              )
-                              .isReady
-                          ? 'Not Ready'
-                          : 'Ready',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
                   ),
                 ),
 

@@ -3,6 +3,7 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/direct_message_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/models/direct_message.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -10,6 +11,7 @@ import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 
 class DirectMessageScreen extends StatefulWidget {
   const DirectMessageScreen({super.key});
@@ -45,6 +47,22 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   Future<void> _initialize() async {
     if (!mounted) return;
+    
+    // CRITICAL: Check subscription access first using SubscriptionService
+    final subscriptionService = Provider.of<SubscriptionService>(
+      context,
+      listen: false,
+    );
+    
+    if (!subscriptionService.hasOnlineAccess) {
+      if (!mounted) return;
+      setState(() {
+        _hasPremium = false;
+        _loading = false;
+      });
+      return;
+    }
+
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is String) {
       _otherUserId = args;
@@ -60,7 +78,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     final currentUserId =
         Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
 
-    // Check premium access
+    // Double-check premium access via message service
     final hasPremium = await _messageService.hasPremiumAccess();
     if (!hasPremium) {
       if (!mounted) return;
@@ -145,9 +163,11 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF000000),
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: AppColors.of(context).background,
+        body: const StandardizedLoadingWidget(
+          message: 'Loading messages...',
+        ),
       );
     }
 

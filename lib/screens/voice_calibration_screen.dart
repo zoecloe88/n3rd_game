@@ -4,7 +4,6 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
-import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -25,86 +24,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-
-    // Check if user has premium access
-    if (!subscriptionService.isPremium) {
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
-      return Scaffold(
-        backgroundColor: AppColors.of(context).background,
-        body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
-          child: SafeArea(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.large,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: AppColors.of(context).tertiaryText,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Premium Feature',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.of(context).primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Voice calibration is available for Premium subscribers.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 14,
-                        color: AppColors.of(context).secondaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(
-                          context,
-                        ).pushNamed('/subscription-management');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.of(context).primaryButton,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
-                        ),
-                      ),
-                      child: Text(
-                        'Upgrade to Premium',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
+    // RouteGuard handles subscription checking at route level
     final route = ModalRoute.of(context)?.settings.name;
     final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 

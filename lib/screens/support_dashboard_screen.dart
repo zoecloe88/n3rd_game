@@ -44,12 +44,22 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
       ]);
 
       if (mounted) {
-        setState(() {
-          _analytics = results[0] as FeedbackAnalytics;
-          _aiAnalytics = results[1] as Map<String, dynamic>;
-          _surveyAnalytics = results[2] as SurveyAnalytics;
-          _isLoading = false;
-        });
+        // CRITICAL: Check array bounds before accessing results
+        // Future.wait may fail or return fewer items than expected
+        if (results.length >= 3) {
+          setState(() {
+            _analytics = results[0] as FeedbackAnalytics? ?? FeedbackAnalytics.empty();
+            _aiAnalytics = results[1] as Map<String, dynamic>? ?? <String, dynamic>{};
+            _surveyAnalytics = results[2] as SurveyAnalytics? ?? SurveyAnalytics.empty();
+            _isLoading = false;
+          });
+        } else {
+          // Handle partial failure - set error state
+          setState(() {
+            _error = 'Failed to load dashboard data: incomplete results (${results.length}/3)';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

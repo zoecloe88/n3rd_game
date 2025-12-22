@@ -38,7 +38,7 @@ void main() {
       expect(subscriptionService.canAccessMode(GameMode.classic), isTrue);
       expect(subscriptionService.canAccessMode(GameMode.speed), isTrue);
       expect(subscriptionService.canAccessMode(GameMode.ai), isFalse, 
-        reason: 'AI mode requires Premium tier');
+        reason: 'AI mode requires Premium tier',);
     });
 
     test('Premium tier allows all modes including AI', () async {
@@ -86,9 +86,9 @@ void main() {
       
       expect(subscriptionService.hasAllModesAccess, isTrue);
       expect(subscriptionService.hasEditionsAccess, isFalse, 
-        reason: 'Editions require Premium tier');
+        reason: 'Editions require Premium tier',);
       expect(subscriptionService.hasOnlineAccess, isFalse,
-        reason: 'Online features require Premium tier');
+        reason: 'Online features require Premium tier',);
     });
 
     test('Premium tier users have full access', () async {

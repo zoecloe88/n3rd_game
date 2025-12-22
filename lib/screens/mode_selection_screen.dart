@@ -11,6 +11,7 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 
 class ModeSelectionScreen extends StatefulWidget {
   const ModeSelectionScreen({super.key});
@@ -648,7 +649,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               : subscriptionService.canAccessMode(mode));
     final isLocked = mode != null && !isAccessible;
 
-    return Semantics(
+    final Widget cardContent = Semantics(
       label: isLocked ? '$title - Locked' : title,
       hint: description,
       button: true,
@@ -787,5 +788,16 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         ),
       ),
     );
+
+    // Wrap with feature tooltip if locked and premium
+    if (isLocked && isPremium) {
+      return FeatureTooltipWidget(
+        featureName: title,
+        requiresPremium: true,
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 }
