@@ -1857,13 +1857,21 @@ class _GameScreenState extends State<GameScreen>
                                 service.lastSelectedAnswers.contains(word)
                           ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  word,
-                                  style: AppTypography.labelLarge.copyWith(
-                                    fontSize: tileFontSize,
-                                    color: textColor,
-                                    letterSpacing: 0.3,
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      word,
+                                      style: AppTypography.labelLarge.copyWith(
+                                        fontSize: tileFontSize,
+                                        color: textColor,
+                                        letterSpacing: 0.3,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.visible,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: AppSpacing.sm),
@@ -1874,12 +1882,17 @@ class _GameScreenState extends State<GameScreen>
                                 ),
                               ],
                             )
-                          : Text(
-                              showWord ? word : '?',
-                              style: AppTypography.labelLarge.copyWith(
-                                fontSize: tileFontSize,
-                                color: textColor,
-                                letterSpacing: 0.3,
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                showWord ? word : '?',
+                                style: AppTypography.labelLarge.copyWith(
+                                  fontSize: tileFontSize,
+                                  color: textColor,
+                                  letterSpacing: 0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                     ),
@@ -3439,7 +3452,8 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!mounted) return;
+    // CRITICAL: Check mounted before any context operations
+    if (!mounted || !context.mounted) return;
 
     final gameService = Provider.of<GameService>(context, listen: false);
 
@@ -3448,11 +3462,17 @@ class _GameScreenState extends State<GameScreen>
       // Pause game when app backgrounds or becomes inactive
       // This ensures timers don't continue running when user switches apps
       LoggerService.debug('App backgrounded - pausing game timers');
-      gameService.pauseGame();
+      // CRITICAL: Check context.mounted before service operations that might trigger UI updates
+      if (mounted && context.mounted) {
+        gameService.pauseGame();
+      }
     } else if (state == AppLifecycleState.resumed) {
       // Resume game when app comes to foreground
       // This restores timers and game state
       LoggerService.debug('App foregrounded - resuming game timers');
+
+      // CRITICAL: Check context.mounted before accessing context
+      if (!mounted || !context.mounted) return;
 
       // Check if game state was recovered (game is in progress)
       final hasActiveGame =
@@ -3469,7 +3489,10 @@ class _GameScreenState extends State<GameScreen>
         );
       }
 
-      gameService.resumeGame();
+      // CRITICAL: Check context.mounted before resuming game
+      if (mounted && context.mounted) {
+        gameService.resumeGame();
+      }
     }
   }
 }

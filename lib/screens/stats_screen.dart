@@ -24,7 +24,9 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - stats screen should be clean
+        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/stat screen.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
           child: Consumer<StatsService>(
             builder: (context, statsService, _) {

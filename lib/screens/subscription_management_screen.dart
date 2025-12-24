@@ -204,7 +204,8 @@ class _SubscriptionManagementScreenState
                           isCurrent: subscriptionTier == 'Family & Friends',
                           isPremium: true,
                           highlight: true,
-                          onTap: _isPurchasing && _purchasingTier == 'Family & Friends'
+                          onTap: _isPurchasing &&
+                                  _purchasingTier == 'Family & Friends'
                               ? () {} // Disabled during purchase
                               : () {
                                   _showSubscriptionDialog('Family & Friends');
@@ -213,7 +214,8 @@ class _SubscriptionManagementScreenState
                         const SizedBox(height: 24),
 
                         // Manage subscription section
-                        if (isPremium || subscriptionTier == 'Family & Friends') ...[
+                        if (isPremium ||
+                            subscriptionTier == 'Family & Friends') ...[
                           _buildManageSection(),
                           const SizedBox(height: 24),
                         ],
@@ -254,7 +256,8 @@ class _SubscriptionManagementScreenState
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.success,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
                                     ),
                                     child: const Text('Manage Group'),
                                   ),
@@ -275,9 +278,9 @@ class _SubscriptionManagementScreenState
                             );
                             final revenueCatService =
                                 Provider.of<RevenueCatService>(
-                                  context,
-                                  listen: false,
-                                );
+                              context,
+                              listen: false,
+                            );
                             await revenueCatService.restorePurchases();
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -311,100 +314,104 @@ class _SubscriptionManagementScreenState
 
   Widget _buildSubscriptionCard() {
     final cardColors = AppColors.of(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-    final freeTierService = Provider.of<FreeTierService>(context);
-    final isFree = subscriptionService.isFree;
-    final isPremium = subscriptionService.isPremium;
-    final subscriptionTier = subscriptionService.tierName;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppShadows.medium,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Use Consumer to listen for subscription and free tier changes
+    return Consumer2<SubscriptionService, FreeTierService>(
+      builder: (context, subscriptionService, freeTierService, _) {
+        final isFree = subscriptionService.isFree;
+        final isPremium = subscriptionService.isPremium;
+        final subscriptionTier = subscriptionService.tierName;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: AppShadows.medium,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Current Plan',
-                style: AppTypography.headlineLarge.copyWith(
-                  fontSize: 18,
-                  color: AppColors.of(context).primaryText,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Current Plan',
+                    style: AppTypography.headlineLarge.copyWith(
+                      fontSize: 18,
+                      color: AppColors.of(context).primaryText,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isPremium
+                          ? AppColors.success.withValues(alpha: 0.2)
+                          : cardColors.tertiaryText.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      subscriptionTier,
+                      style: AppTypography.labelSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isPremium
+                            ? AppColors.success
+                            : cardColors.tertiaryText,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isPremium
-                      ? AppColors.success.withValues(alpha: 0.2)
-                      : cardColors.tertiaryText.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  subscriptionTier,
-                  style: AppTypography.labelSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isPremium
-                        ? AppColors.success
-                        : cardColors.tertiaryText,
+              const SizedBox(height: 12),
+              if (isFree) ...[
+                // Show free tier game limit info
+                Text(
+                  'Games today: ${freeTierService.gamesStartedToday}/${freeTierService.maxGamesPerDay}',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: cardColors.secondaryText,
                   ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                if (freeTierService.hasGamesRemaining) ...[
+                  Text(
+                    'Games remaining: ${freeTierService.gamesRemaining}',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontSize: 13,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Resets: ${freeTierService.getNextResetString()}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: cardColors.secondaryText,
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'Daily limit reached. Resets: ${freeTierService.getNextResetString()}',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontSize: 13,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Text(
+                  'Active subscription',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: cardColors.secondaryText,
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          if (isFree) ...[
-            // Show free tier game limit info
-            Text(
-              'Games today: ${freeTierService.gamesStartedToday}/${freeTierService.maxGamesPerDay}',
-              style: AppTypography.bodyMedium.copyWith(
-                color: cardColors.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (freeTierService.hasGamesRemaining) ...[
-              Text(
-                'Games remaining: ${freeTierService.gamesRemaining}',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 13,
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Resets: ${freeTierService.getNextResetString()}',
-                style: AppTypography.labelSmall.copyWith(
-                  color: cardColors.secondaryText,
-                ),
-              ),
-            ] else ...[
-              Text(
-                'Daily limit reached. Resets: ${freeTierService.getNextResetString()}',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 13,
-                  color: AppColors.error,
-                ),
-              ),
-            ],
-          ] else ...[
-            Text(
-              'Active subscription',
-              style: AppTypography.bodyMedium.copyWith(
-                color: cardColors.secondaryText,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -714,11 +721,12 @@ class _SubscriptionManagementScreenState
                 }
 
                 Package? targetPackage;
-                if (tier.toLowerCase().contains('family') || 
+                if (tier.toLowerCase().contains('family') ||
                     tier.toLowerCase().contains('friends')) {
                   targetPackage = packages.firstWhere(
-                    (p) => p.identifier.contains('family') || 
-                           p.identifier.contains('friends'),
+                    (p) =>
+                        p.identifier.contains('family') ||
+                        p.identifier.contains('friends'),
                     orElse: () => packages.first,
                   );
                 } else if (tier.toLowerCase().contains('basic')) {
@@ -782,9 +790,8 @@ class _SubscriptionManagementScreenState
                     // Log funnel step 6: Purchase completed
                     await analyticsService.logConversionFunnelStep(
                       step: 6,
-                      stepName: success
-                          ? 'purchase_completed'
-                          : 'purchase_failed',
+                      stepName:
+                          success ? 'purchase_completed' : 'purchase_failed',
                       source: 'subscription_screen',
                       targetTier: tier.toLowerCase(),
                       additionalData: {
@@ -827,7 +834,9 @@ class _SubscriptionManagementScreenState
                         } catch (e) {
                           // Log but don't fail - group creation can happen later
                           if (kDebugMode) {
-                            debugPrint('Failed to create family group after purchase: $e');
+                            debugPrint(
+                              'Failed to create family group after purchase: $e',
+                            );
                           }
                         }
                       }
@@ -835,11 +844,13 @@ class _SubscriptionManagementScreenState
                       // Check context.mounted directly (not State.mounted)
                       if (!context.mounted) return;
 
-                      final successMessage = tier.toLowerCase().contains('family') ||
+                      final successMessage = tier
+                                  .toLowerCase()
+                                  .contains('family') ||
                               tier.toLowerCase().contains('friends')
                           ? 'Family & Friends plan purchased! You can now invite up to 3 more members.'
                           : 'Subscription purchased successfully! Premium features are now available.';
-                      
+
                       ErrorHandler.showSuccess(context, successMessage);
                     } else {
                       // Check context.mounted directly (not State.mounted)

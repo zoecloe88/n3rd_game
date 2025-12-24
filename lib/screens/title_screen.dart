@@ -9,7 +9,6 @@ import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/subscription_tier_indicator.dart';
 import 'package:n3rd_game/widgets/network_status_indicator.dart';
-import 'package:n3rd_game/widgets/upgrade_shortcut_button.dart';
 import 'package:n3rd_game/widgets/tier_progress_indicator.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
@@ -92,278 +91,295 @@ class _TitleScreenState extends State<TitleScreen> {
   }
 
   void _showMenuDrawer(BuildContext context) {
-    final colors = AppColors.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true, // Allow full expansion
-      builder: (context) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9, // Allow up to 90% of screen
-        ),
-        decoration: BoxDecoration(
-          color: colors.cardBackground,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9, // Allow up to 90% of screen
+          ),
+          decoration: BoxDecoration(
+            color: colors.cardBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            // Subscription Tier Indicator
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SubscriptionTierIndicator(compact: true),
-                  ),
-                  SizedBox(width: 8),
-                  NetworkStatusIndicator(compact: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Tier Progress Indicator (for free users)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: TierProgressIndicator(showIcon: false),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            // Make drawer scrollable to prevent overflow - use Expanded instead of Flexible
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              const SizedBox(height: 20),
+              // Subscription Tier Indicator
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
                   children: [
-                    ListTile(
-              leading: _buildLeadingIcon(Icons.book_outlined),
-              title: Text(
-                AppLocalizations.of(context)?.wordOfTheDay ?? 'Word of the Day',
-                style: AppTypography.labelLarge,
-              ),
-              onTap: () {
-                HapticService().lightImpact();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (context.mounted) {
-                    NavigationHelper.safeNavigate(context, '/word-of-day');
-                  }
-                }
-              },
-            ),
-            Consumer<SubscriptionService>(
-              builder: (context, subscriptionService, _) {
-                if (!subscriptionService.hasEditionsAccess) {
-                  return FeatureTooltipWidget(
-                    featureName: 'Editions',
-                    requiresEditionsAccess: true,
-                    child: ListTile(
-                      leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
-                      title: Text(
-                        AppLocalizations.of(context)?.editions ?? 'Editions',
-                        style: AppTypography.labelLarge,
-                      ),
-                      trailing: const Icon(Icons.lock_outline, size: 16),
-                      onTap: () {
-                        HapticService().lightImpact();
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          if (context.mounted) {
-                            _showUpgradeDialog(
-                              context,
-                              'Editions',
-                              'Upgrade to Premium to access all editions!',
-                            );
-                          }
-                        }
-                      },
+                    Expanded(
+                      child: SubscriptionTierIndicator(compact: true),
                     ),
-                  );
-                }
-                return ListTile(
-                  leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
-                  title: Text(
-                    AppLocalizations.of(context)?.editions ?? 'Editions',
-                    style: AppTypography.labelLarge,
-                  ),
-                  onTap: () {
-                    HapticService().lightImpact();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      if (context.mounted) {
-                        NavigationHelper.safeNavigate(
-                          context,
-                          '/general-transition',
-                          arguments: {
-                            'routeAfter': '/editions-selection',
-                            'routeArgs': null,
-                          },
-                        );
-                      }
-                    }
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: _buildLeadingIcon(Icons.leaderboard_outlined),
-              title: Text(
-                AppLocalizations.of(context)?.leaderboard ?? 'Leaderboard',
-                style: AppTypography.labelLarge,
-              ),
-              onTap: () {
-                HapticService().lightImpact();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (context.mounted) {
-                    NavigationHelper.switchToTab(context, 3);
-                  }
-                }
-              },
-            ),
-            ListTile(
-              leading: _buildLeadingIcon(Icons.history_outlined),
-              title: Text(
-                AppLocalizations.of(context)?.gameHistory ?? 'Game History',
-                style: AppTypography.labelLarge,
-              ),
-              onTap: () {
-                HapticService().lightImpact();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (context.mounted) {
-                    NavigationHelper.switchToTab(context, 2);
-                  }
-                }
-              },
-            ),
-            Consumer<SubscriptionService>(
-              builder: (context, subscriptionService, _) {
-                if (!subscriptionService.isPremium) {
-                  return const SizedBox.shrink();
-                }
-                return ListTile(
-                  leading: _buildLeadingIcon(Icons.school_outlined),
-                  title: Text(
-                    AppLocalizations.of(context)?.learningMode ??
-                        'Learning Mode',
-                    style: AppTypography.labelLarge,
-                  ),
-                  onTap: () {
-                    HapticService().lightImpact();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      if (context.mounted) {
-                        NavigationHelper.safeNavigate(context, '/learning');
-                      }
-                    }
-                  },
-                );
-              },
-            ),
-            Consumer<SubscriptionService>(
-              builder: (context, subscriptionService, _) {
-                if (!subscriptionService.hasOnlineAccess) {
-                  return FeatureTooltipWidget(
-                    featureName: 'Daily Challenges',
-                    requiresOnlineAccess: true,
-                    child: ListTile(
-                      leading: _buildLeadingIcon(Icons.event_available_outlined),
-                      title: Text(
-                        'Daily Challenges',
-                        style: AppTypography.labelLarge,
-                      ),
-                      trailing: const Icon(Icons.lock_outline, size: 16),
-                      onTap: () {
-                        HapticService().lightImpact();
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          if (context.mounted) {
-                            _showUpgradeDialog(
-                              context,
-                              'Daily Challenges',
-                              'Upgrade to Premium to access daily challenges and leaderboards!',
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  );
-                }
-                return ListTile(
-                  leading: _buildLeadingIcon(Icons.event_available_outlined),
-                  title: Text(
-                    'Daily Challenges',
-                    style: AppTypography.labelLarge,
-                  ),
-                  onTap: () {
-                    HapticService().lightImpact();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      if (context.mounted) {
-                        NavigationHelper.safeNavigate(
-                          context,
-                          '/daily-challenges',
-                        );
-                      }
-                    }
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: _buildLeadingIcon(Icons.card_membership_outlined),
-              title: Text(
-                'Manage Subscriptions',
-                style: AppTypography.labelLarge,
-              ),
-              onTap: () {
-                HapticService().lightImpact();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (context.mounted) {
-                    NavigationHelper.safeNavigate(
-                      context,
-                      '/subscription-management',
-                    );
-                  }
-                }
-              },
-            ),
-            ListTile(
-              leading: _buildLeadingIcon(Icons.info_outline),
-              title: Text(
-                AppLocalizations.of(context)?.about ?? 'About',
-                style: AppTypography.labelLarge,
-              ),
-              onTap: () {
-                HapticService().lightImpact();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (context.mounted) {
-                    _showAboutDialog(context);
-                  }
-                }
-              },
-            ),
+                    SizedBox(width: 8),
+                    NetworkStatusIndicator(compact: true),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 16),
+              // Tier Progress Indicator (for free users)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: TierProgressIndicator(showIcon: false),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              // Make drawer scrollable to prevent overflow
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: _buildLeadingIcon(Icons.book_outlined),
+                        title: Text(
+                          AppLocalizations.of(context)?.wordOfTheDay ?? 'Word of the Day',
+                          style: AppTypography.labelLarge,
+                        ),
+                        onTap: () {
+                          HapticService().lightImpact();
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              NavigationHelper.safeNavigate(context, '/word-of-day');
+                            }
+                          }
+                        },
+                      ),
+                      Consumer<SubscriptionService>(
+                        builder: (context, subscriptionService, _) {
+                          if (!subscriptionService.hasEditionsAccess) {
+                            return FeatureTooltipWidget(
+                              featureName: 'Editions',
+                              requiresEditionsAccess: true,
+                              child: ListTile(
+                                leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
+                                title: Text(
+                                  AppLocalizations.of(context)?.editions ?? 'Editions',
+                                  style: AppTypography.labelLarge,
+                                ),
+                                trailing: const Icon(Icons.lock_outline, size: 16),
+                                onTap: () {
+                                  HapticService().lightImpact();
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    if (context.mounted) {
+                                      _showUpgradeDialog(
+                                        context,
+                                        'Editions',
+                                        'Upgrade to Premium to access all editions!',
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            );
+                          }
+                          return ListTile(
+                            leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
+                            title: Text(
+                              AppLocalizations.of(context)?.editions ?? 'Editions',
+                              style: AppTypography.labelLarge,
+                            ),
+                            onTap: () {
+                              HapticService().lightImpact();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                if (context.mounted) {
+                                  NavigationHelper.safeNavigate(
+                                    context,
+                                    '/general-transition',
+                                    arguments: {
+                                      'routeAfter': '/editions-selection',
+                                      'routeArgs': null,
+                                    },
+                                  );
+                                }
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: _buildLeadingIcon(Icons.leaderboard_outlined),
+                        title: Text(
+                          AppLocalizations.of(context)?.leaderboard ?? 'Leaderboard',
+                          style: AppTypography.labelLarge,
+                        ),
+                        onTap: () {
+                          HapticService().lightImpact();
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              NavigationHelper.switchToTab(context, 3);
+                            }
+                          }
+                        },
+                      ),
+                      ListTile(
+                        leading: _buildLeadingIcon(Icons.history_outlined),
+                        title: Text(
+                          AppLocalizations.of(context)?.gameHistory ?? 'Game History',
+                          style: AppTypography.labelLarge,
+                        ),
+                        onTap: () {
+                          HapticService().lightImpact();
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              NavigationHelper.switchToTab(context, 2);
+                            }
+                          }
+                        },
+                      ),
+                      Consumer<SubscriptionService>(
+                        builder: (context, subscriptionService, _) {
+                          if (!subscriptionService.isPremium) {
+                            return const SizedBox.shrink();
+                          }
+                          return ListTile(
+                            leading: _buildLeadingIcon(Icons.school_outlined),
+                            title: Text(
+                              AppLocalizations.of(context)?.learningMode ??
+                                  'Learning Mode',
+                              style: AppTypography.labelLarge,
+                            ),
+                            onTap: () {
+                              HapticService().lightImpact();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                if (context.mounted) {
+                                  NavigationHelper.safeNavigate(context, '/learning');
+                                }
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      Consumer<SubscriptionService>(
+                        builder: (context, subscriptionService, _) {
+                          if (!subscriptionService.hasOnlineAccess) {
+                            return FeatureTooltipWidget(
+                              featureName: 'Daily Challenges',
+                              requiresOnlineAccess: true,
+                              child: ListTile(
+                                leading: _buildLeadingIcon(Icons.event_available_outlined),
+                                title: Text(
+                                  'Daily Challenges',
+                                  style: AppTypography.labelLarge,
+                                ),
+                                trailing: const Icon(Icons.lock_outline, size: 16),
+                                onTap: () {
+                                  HapticService().lightImpact();
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    if (context.mounted) {
+                                      _showUpgradeDialog(
+                                        context,
+                                        'Daily Challenges',
+                                        'Upgrade to Premium to access daily challenges and leaderboards!',
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            );
+                          }
+                          return ListTile(
+                            leading: _buildLeadingIcon(Icons.event_available_outlined),
+                            title: Text(
+                              'Daily Challenges',
+                              style: AppTypography.labelLarge,
+                            ),
+                            onTap: () {
+                              HapticService().lightImpact();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                if (context.mounted) {
+                                  NavigationHelper.safeNavigate(
+                                    context,
+                                    '/daily-challenges',
+                                  );
+                                }
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: _buildLeadingIcon(Icons.card_membership_outlined),
+                        title: Text(
+                          'Manage Subscriptions',
+                          style: AppTypography.labelLarge,
+                        ),
+                        onTap: () {
+                          HapticService().lightImpact();
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              NavigationHelper.safeNavigate(
+                                context,
+                                '/subscription-management',
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      ListTile(
+                        leading: _buildLeadingIcon(Icons.info_outline),
+                        title: Text(
+                          AppLocalizations.of(context)?.about ?? 'About',
+                          style: AppTypography.labelLarge,
+                        ),
+                        onTap: () {
+                          HapticService().lightImpact();
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              _showAboutDialog(context);
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Bottom copyright
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  'Copyright N3RD Trivia ${DateTime.now().year}',
+                  style: AppTypography.labelSmall.copyWith(
+                    fontSize: 11,
+                    color: colors.onDarkText.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      );
+      },
     );
   }
 
@@ -497,6 +513,9 @@ class _TitleScreenState extends State<TitleScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
+        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: Stack(
           children: [
             SafeArea(
@@ -783,24 +802,10 @@ class _TitleScreenState extends State<TitleScreen> {
                   },
                 ),
               ),
-
-              // Bottom copyright
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Text(
-                  'Copyright N3RD Trivia ${DateTime.now().year}',
-                  style: AppTypography.labelSmall.copyWith(
-                    fontSize: 11,
-                    color: colors.onDarkText.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
-            // Upgrade shortcut button for free users
-            const UpgradeShortcutButton(),
-          ],
+      ],
         ),
       ),
     );

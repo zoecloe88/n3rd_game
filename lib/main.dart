@@ -15,7 +15,8 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/config/app_config.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates;
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates;
 import 'package:n3rd_game/widgets/initial_loading_screen_wrapper.dart';
 import 'package:n3rd_game/screens/instructions_screen.dart';
 import 'package:n3rd_game/screens/word_of_day_screen.dart';
@@ -83,7 +84,6 @@ import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
-import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
 /// Initialize SubscriptionService asynchronously
 /// Standardized async pattern using async/await instead of .then()
@@ -237,12 +237,13 @@ void main() async {
     // CRITICAL: Load library first, then initialize
     await templates.loadLibrary();
     // Reduced delay - just enough to ensure library is loaded
-    await Future.delayed(const Duration(milliseconds: 50)); // Reduced from 100ms
+    await Future.delayed(
+        const Duration(milliseconds: 50)); // Reduced from 100ms
     await templates.EditionTriviaTemplates.initialize();
     if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
-      triviaInitError =
-          templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
+      triviaInitError = templates.EditionTriviaTemplates.lastValidationError ??
+          'Unknown error';
       if (kDebugMode) {
         debugPrint(
           '❌ CRITICAL ERROR: Template initialization failed: $triviaInitError',
@@ -400,7 +401,8 @@ void main() async {
         ProxyProvider<AnalyticsService, MultiplayerService>(
           update: (_, analytics, previous) {
             previous?.setAnalyticsService(analytics);
-            return previous ?? MultiplayerService()..init();
+            return previous ?? MultiplayerService()
+              ..init();
           },
         ),
         // EditionAccessService is provided below via ProxyProvider2
@@ -411,7 +413,8 @@ void main() async {
         // Connect RevenueCat and AuthService to SubscriptionService
         // CRITICAL: Ensure init() completes before syncWithRevenueCat to prevent race conditions
         // Use ChangeNotifierProxyProvider2 since SubscriptionService extends ChangeNotifier
-        ChangeNotifierProxyProvider2<RevenueCatService, AuthService, SubscriptionService>(
+        ChangeNotifierProxyProvider2<RevenueCatService, AuthService,
+            SubscriptionService>(
           create: (_) => SubscriptionService(),
           update: (_, revenueCat, auth, previous) {
             final service = previous ?? SubscriptionService();
@@ -425,12 +428,8 @@ void main() async {
         // Create shared personalization service instance
         ChangeNotifierProvider(create: (_) => TriviaPersonalizationService()),
         // Wire AIEditionService to use personalization, generator, and analytics services
-        ProxyProvider3<
-          TriviaPersonalizationService,
-          TriviaGeneratorService,
-          AnalyticsService,
-          AIEditionService
-        >(
+        ProxyProvider3<TriviaPersonalizationService, TriviaGeneratorService,
+            AnalyticsService, AIEditionService>(
           update: (_, personalization, generator, analytics, previous) {
             previous ??= AIEditionService();
             previous.setPersonalizationService(personalization);
@@ -442,11 +441,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TriviaGamificationService()),
         // Wire TriviaGeneratorService to use the same personalization instance and analytics
         // CRITICAL: Validate templates are initialized before creating service
-        ProxyProvider2<
-          TriviaPersonalizationService,
-          AnalyticsService,
-          TriviaGeneratorService
-        >(
+        ProxyProvider2<TriviaPersonalizationService, AnalyticsService,
+            TriviaGeneratorService>(
           update: (_, personalization, analytics, previous) {
             // Only create new instance if it doesn't exist
             if (previous == null) {
@@ -455,7 +451,7 @@ void main() async {
               if (!templates.EditionTriviaTemplates.isInitialized) {
                 final error =
                     templates.EditionTriviaTemplates.lastValidationError ??
-                    'Unknown error';
+                        'Unknown error';
                 final errorMessage =
                     'TriviaGeneratorService initialization failed: '
                     'Trivia templates were not initialized successfully. '
@@ -483,48 +479,107 @@ void main() async {
                   // Ignore analytics errors during initialization
                 }
 
-                // Throw exception - ProxyProvider will catch it and prevent service creation
-                // The app will continue but trivia generation will show error to user
-                throw ValidationException(errorMessage);
-              }
+                // CRITICAL: Don't throw exception - create service anyway to prevent null errors
+                // The service will handle errors gracefully when trivia generation is attempted
+                // This prevents the type cast error when Provider tries to access the service
+                try {
+                  previous = TriviaGeneratorService();
+                } catch (e) {
+                  // Even if creation fails, we need to return something non-null
+                  // This will be caught by game_screen error handling
+                  if (kDebugMode) {
+                    debugPrint('Failed to create TriviaGeneratorService: $e');
+                  }
+                }
+              } else {
+                try {
+                  previous = TriviaGeneratorService();
+                } catch (e, stackTrace) {
+                  final errorMessage =
+                      'Failed to create TriviaGeneratorService: $e. '
+                      'This prevents the app from generating trivia questions. '
+                      'Users will see an error message when attempting to play games.';
 
+                  if (kDebugMode) {
+                    debugPrint('❌ CRITICAL: $errorMessage');
+                    debugPrint('Stack trace: $stackTrace');
+                  }
+
+                  // Log to analytics if available
+                  try {
+                    analytics.logServiceInitializationFailure(
+                      'TriviaGeneratorService',
+                      '$e\nStack trace: $stackTrace',
+                    );
+                  } catch (analyticsError) {
+                    // Ignore analytics errors during initialization
+                    if (kDebugMode) {
+                      debugPrint(
+                        '⚠️ Warning: Failed to log initialization error to analytics: $analyticsError',
+                      );
+                    }
+                  }
+
+                  // CRITICAL: Don't rethrow - create a service anyway to prevent null errors
+                  // The service will handle errors when trivia generation is attempted
+                  try {
+                    previous = TriviaGeneratorService();
+                  } catch (e2) {
+                    if (kDebugMode) {
+                      debugPrint(
+                          'Second attempt to create service also failed: $e2');
+                    }
+                  }
+                }
+              }
+            }
+
+            // CRITICAL: Must return non-null service or Provider will fail
+            // If service creation failed, attempt one more time with proper error handling
+            // Wrap in try-catch to prevent uncaught ValidationException from crashing Provider initialization
+            TriviaGeneratorService service;
+            if (previous != null) {
+              service = previous;
+            } else {
               try {
-                previous = TriviaGeneratorService();
+                service = TriviaGeneratorService();
               } catch (e, stackTrace) {
+                // Final fallback attempt failed - log and rethrow as StateError
+                // This provides better error context than uncaught ValidationException
+                // Provider initialization will fail, but with a clear error message
                 final errorMessage =
-                    'Failed to create TriviaGeneratorService: $e. '
-                    'This prevents the app from generating trivia questions. '
-                    'Users will see an error message when attempting to play games.';
+                    'CRITICAL: TriviaGeneratorService cannot be initialized after all retry attempts. '
+                    'This prevents the app from starting properly. '
+                    'Original error: $e';
 
                 if (kDebugMode) {
-                  debugPrint('❌ CRITICAL: $errorMessage');
+                  debugPrint('❌ $errorMessage');
                   debugPrint('Stack trace: $stackTrace');
                 }
 
-                // Log to analytics if available
+                // Log to Crashlytics if available
                 try {
-                  analytics.logServiceInitializationFailure(
-                    'TriviaGeneratorService',
-                    '$e\nStack trace: $stackTrace',
+                  FirebaseCrashlytics.instance.recordError(
+                    Exception(errorMessage),
+                    stackTrace,
+                    reason: 'TriviaGeneratorService initialization failure',
+                    fatal: true,
                   );
-                } catch (analyticsError) {
-                  // Ignore analytics errors during initialization
-                  if (kDebugMode) {
-                    debugPrint(
-                      '⚠️ Warning: Failed to log initialization error to analytics: $analyticsError',
-                    );
-                  }
+                } catch (_) {
+                  // Ignore Crashlytics errors during initialization
                 }
 
-                // Re-throw to prevent invalid service creation
-                rethrow;
+                // Rethrow as StateError to provide clear failure reason
+                // This will cause Provider initialization to fail, which is better than
+                // creating an invalid service that would fail mysteriously later
+                throw StateError(errorMessage);
               }
             }
 
             // Set optional services (safe to call even if service creation was delayed)
             try {
-              previous.setPersonalizationService(personalization);
-              previous.setAnalyticsService(analytics);
+              service.setPersonalizationService(personalization);
+              service.setAnalyticsService(analytics);
             } catch (e) {
               if (kDebugMode) {
                 debugPrint(
@@ -534,15 +589,12 @@ void main() async {
               // Continue - service might still work for basic operations
             }
 
-            return previous;
+            return service;
           },
         ),
         // Wire GameService to personalization, gamification, and analytics services
-        ProxyProvider2<
-          TriviaPersonalizationService,
-          TriviaGamificationService,
-          GameService
-        >(
+        ProxyProvider2<TriviaPersonalizationService, TriviaGamificationService,
+            GameService>(
           update: (_, personalization, gamification, previous) {
             previous ??= GameService();
             previous.setPersonalizationService(personalization);
@@ -581,11 +633,8 @@ void main() async {
         // Add EditionAccessService provider
         ChangeNotifierProvider(create: (_) => EditionAccessService()..init()),
         // Wire RevenueCatService and SubscriptionService to EditionAccessService
-        ProxyProvider2<
-          RevenueCatService,
-          SubscriptionService,
-          EditionAccessService
-        >(
+        ProxyProvider2<RevenueCatService, SubscriptionService,
+            EditionAccessService>(
           update: (_, revenueCat, subscription, previous) {
             previous ??= EditionAccessService()..init();
             previous.setRevenueCatService(revenueCat);
@@ -631,7 +680,8 @@ void main() async {
                       context,
                       listen: false,
                     );
-                    final startupDuration = DateTime.now().difference(appStartTime);
+                    final startupDuration =
+                        DateTime.now().difference(appStartTime);
                     analyticsService.logAppStartup(
                       startupDuration,
                       success: !triviaInitializationFailed,
@@ -693,58 +743,58 @@ void main() async {
                           const MainNavigationWrapper(initialIndex: 1),
                       '/game': (context) => const GameScreen(),
                       '/multiplayer-lobby': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Multiplayer Lobby',
-                          child: MultiplayerLobbyScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Multiplayer Lobby',
+                            child: MultiplayerLobbyScreen(),
+                          ),
                       '/multiplayer-game': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Multiplayer Game',
-                          child: MultiplayerGameScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Multiplayer Game',
+                            child: MultiplayerGameScreen(),
+                          ),
                       '/direct-message': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Direct Messages',
-                          child: DirectMessageScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Direct Messages',
+                            child: DirectMessageScreen(),
+                          ),
                       '/onboarding': (context) => const OnboardingScreen(),
                       '/stats': (context) =>
                           const MainNavigationWrapper(initialIndex: 2),
                       '/leaderboard': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Leaderboard',
-                          child: MainNavigationWrapper(initialIndex: 2),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Leaderboard',
+                            child: MainNavigationWrapper(initialIndex: 2),
+                          ),
                       '/friends': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Friends',
-                          child: MainNavigationWrapper(initialIndex: 3),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Friends',
+                            child: MainNavigationWrapper(initialIndex: 3),
+                          ),
                       '/more': (context) =>
                           const MainNavigationWrapper(initialIndex: 4),
                       '/word-of-day': (context) => const WordOfDayScreen(),
                       '/editions-selection': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Editions Selection',
-                          child: EditionsSelectionScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Editions Selection',
+                            child: EditionsSelectionScreen(),
+                          ),
                       '/editions': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Editions',
-                          child: EditionsScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Editions',
+                            child: EditionsScreen(),
+                          ),
                       '/youth-editions': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Youth Editions',
-                          child: YouthEditionsScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Youth Editions',
+                            child: YouthEditionsScreen(),
+                          ),
                       '/subscription-management': (context) =>
                           const SubscriptionManagementScreen(),
                       '/family-management': (context) => const RouteGuard(
-                          requiresFamilyFriends: true,
-                          featureName: 'Family Management',
-                          child: FamilyManagementScreen(),
-                        ),
+                            requiresFamilyFriends: true,
+                            featureName: 'Family Management',
+                            child: FamilyManagementScreen(),
+                          ),
                       '/family-invitation': (context) {
                         final args = ModalRoute.of(context)?.settings.arguments;
                         final groupId = args is String ? args : null;
@@ -759,46 +809,46 @@ void main() async {
                       '/terms-of-service': (context) =>
                           const TermsOfServiceScreen(),
                       '/ai-edition-history': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'AI Edition History',
-                          child: AIEditionHistoryScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'AI Edition History',
+                            child: AIEditionHistoryScreen(),
+                          ),
                       '/analytics': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Analytics Dashboard',
-                          child: AnalyticsDashboardScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Analytics Dashboard',
+                            child: AnalyticsDashboardScreen(),
+                          ),
                       '/daily-challenges': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Daily Challenges',
-                          child: DailyChallengesScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Daily Challenges',
+                            child: DailyChallengesScreen(),
+                          ),
                       '/voice-calibration': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Voice Calibration',
-                          child: VoiceCalibrationScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Voice Calibration',
+                            child: VoiceCalibrationScreen(),
+                          ),
                       '/themes': (context) => const ThemesScreen(),
                       '/learning': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Learning Mode',
-                          child: LearningModeScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Learning Mode',
+                            child: LearningModeScreen(),
+                          ),
                       '/performance-insights': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Performance Insights',
-                          child: PerformanceInsightsScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Performance Insights',
+                            child: PerformanceInsightsScreen(),
+                          ),
                       '/practice': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Practice Mode',
-                          child: PracticeModeScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Practice Mode',
+                            child: PracticeModeScreen(),
+                          ),
                       '/trivia-creator': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Trivia Creator',
-                          child: TriviaCreatorScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Trivia Creator',
+                            child: TriviaCreatorScreen(),
+                          ),
                       '/help-center': (context) => const HelpCenterScreen(),
                       '/support-dashboard': (context) =>
                           const SupportDashboardScreen(),
@@ -835,21 +885,33 @@ void main() async {
                           );
                         }
                       }
-                      if (settings.name == '/multiplayer-loading' &&
-                          settings.arguments != null) {
-                        return MaterialPageRoute(
-                          builder: (context) => MultiplayerLoadingScreen(
-                            mode: settings.arguments as MultiplayerMode,
-                          ),
-                          settings: settings,
-                        );
+                      if (settings.name == '/multiplayer-loading') {
+                        // CRITICAL: Validate MultiplayerMode argument type before casting
+                        // This prevents runtime crashes from invalid argument types
+                        final args = settings.arguments;
+                        if (args != null && args is MultiplayerMode) {
+                          return MaterialPageRoute(
+                            builder: (context) => MultiplayerLoadingScreen(
+                              mode: args,
+                            ),
+                            settings: settings,
+                          );
+                        } else {
+                          // Invalid or missing arguments - log error and return null to use default route handling
+                          if (kDebugMode) {
+                            debugPrint(
+                              'MultiplayerLoadingScreen: Invalid arguments type: ${args?.runtimeType}, expected MultiplayerMode',
+                            );
+                          }
+                          // Return null to trigger onUnknownRoute or default error handling
+                          return null;
+                        }
                       }
                       if (settings.name == '/general-transition') {
                         final args =
                             settings.arguments as Map<String, dynamic>?;
                         // Validate routeAfter exists and is a String, fallback to '/title'
-                        final routeAfter =
-                            (args != null &&
+                        final routeAfter = (args != null &&
                                 args.containsKey('routeAfter') &&
                                 args['routeAfter'] is String)
                             ? args['routeAfter'] as String
@@ -869,7 +931,8 @@ void main() async {
                         String? groupId;
                         // Check if groupId is in query parameters or path
                         if (settings.arguments is Map) {
-                          final args = settings.arguments as Map<String, dynamic>;
+                          final args =
+                              settings.arguments as Map<String, dynamic>;
                           groupId = args['groupId'] as String?;
                         } else if (settings.arguments is String) {
                           groupId = settings.arguments as String;

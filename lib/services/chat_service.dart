@@ -50,30 +50,30 @@ class ChatService extends ChangeNotifier {
         .limitToLast(50)
         .snapshots()
         .listen((snapshot) {
-          // Store subscription for proper cleanup
-          // Subscription is cancelled in stopListening() which is called from dispose()
-          _messages.clear();
-          for (final doc in snapshot.docs) {
-            try {
-              final data = doc.data();
-              final message = ChatMessage(
-                id: doc.id,
-                userId: data['userId'] as String,
-                userName: data['userName'] as String,
-                message: data['message'] as String,
-                timestamp: (data['timestamp'] as Timestamp).toDate(),
-                roomId: roomId,
-              );
-              _messages.add(message);
-            } catch (e) {
-              debugPrint('Error parsing chat message: $e');
-            }
-          }
-          // Only notify if service is still active (not disposed)
-          if (hasListeners) {
-            notifyListeners();
-          }
-        });
+      // Store subscription for proper cleanup
+      // Subscription is cancelled in stopListening() which is called from dispose()
+      _messages.clear();
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final message = ChatMessage(
+            id: doc.id,
+            userId: data['userId'] as String,
+            userName: data['userName'] as String,
+            message: data['message'] as String,
+            timestamp: (data['timestamp'] as Timestamp).toDate(),
+            roomId: roomId,
+          );
+          _messages.add(message);
+        } catch (e) {
+          debugPrint('Error parsing chat message: $e');
+        }
+      }
+      // Only notify if service is still active (not disposed)
+      if (hasListeners) {
+        notifyListeners();
+      }
+    });
   }
 
   /// Check rate limits for message sending
@@ -160,7 +160,11 @@ class ChatService extends ChangeNotifier {
       sanitizedMessage: sanitizedMessage,
       userId: user.uid,
       userName: InputSanitizer.sanitizeText(
-        user.displayName ?? user.email?.split('@').first ?? 'Player',
+        user.displayName ??
+            (user.email?.contains('@') == true
+                ? user.email!.split('@').first
+                : user.email) ??
+            'Player',
       ),
     );
   }
@@ -173,19 +177,22 @@ class ChatService extends ChangeNotifier {
     int attempt = 0,
   }) async {
     try {
-      await _executeWithTimeout(() async {
-        await _firestore
-            .collection('game_rooms')
-            .doc(_currentRoomId!)
-            .collection('messages')
-            .add({
-              'userId': userId,
-              'userName': userName,
-              'message': sanitizedMessage,
-              'timestamp': FieldValue.serverTimestamp(),
-              'roomId': _currentRoomId,
-            });
-      }, operationName: 'Send chat message',);
+      await _executeWithTimeout(
+        () async {
+          await _firestore
+              .collection('game_rooms')
+              .doc(_currentRoomId!)
+              .collection('messages')
+              .add({
+            'userId': userId,
+            'userName': userName,
+            'message': sanitizedMessage,
+            'timestamp': FieldValue.serverTimestamp(),
+            'roomId': _currentRoomId,
+          });
+        },
+        operationName: 'Send chat message',
+      );
 
       // Success - remove any pending retries for this message
       _pendingMessages.removeWhere((p) => p.message == sanitizedMessage);

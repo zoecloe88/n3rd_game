@@ -102,9 +102,23 @@ class WordService extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   // Get or initialize SharedPreferences
+  // CRITICAL: Handle SharedPreferences initialization failures to prevent crashes
   Future<SharedPreferences> _getPrefs() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
+    if (_prefs != null) return _prefs!;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      return _prefs!;
+    } catch (e) {
+      // SharedPreferences initialization failed - log and rethrow
+      // This prevents silent failures that could cause data loss
+      LoggerService.error(
+        'WordService: Failed to initialize SharedPreferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      rethrow; // Re-throw to let caller handle the error appropriately
+    }
   }
 
   // Create fallback word of the day
@@ -152,6 +166,10 @@ class WordService extends ChangeNotifier {
 
   // Extract the best example from API response
   String? _extractBestExample(List<dynamic> meanings) {
+    // CRITICAL: Check if meanings list is empty before iterating to prevent potential errors
+    if (meanings.isEmpty) {
+      return null;
+    }
     for (final meaning in meanings) {
       if (meaning is Map<String, dynamic>) {
         final definitions = meaning['definitions'] as List?;

@@ -82,47 +82,47 @@ class DirectMessageService extends ChangeNotifier {
         .orderBy('lastActivity', descending: true)
         .snapshots()
         .listen((snapshot) {
-          _conversations.clear();
-          for (final doc in snapshot.docs) {
-            try {
-              final data = doc.data();
-              final participants = List<String>.from(
-                data['participants'] as List,
-              );
+      _conversations.clear();
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final participants = List<String>.from(
+            data['participants'] as List,
+          );
 
-              // CRITICAL: Check participants array has exactly 2 elements before accessing indices
-              // Direct messages require exactly 2 participants (userId1 and userId2)
-              if (participants.length != 2) {
-                debugPrint(
-                  'Invalid conversation: participants array must have exactly 2 elements, got ${participants.length}',
-                );
-                continue; // Skip this conversation
-              }
-
-              _conversations.add(
-                Conversation(
-                  id: doc.id,
-                  userId1: participants[0],
-                  userId2: participants[1],
-                  user1DisplayName: data['user1DisplayName'] as String?,
-                  user2DisplayName: data['user2DisplayName'] as String?,
-                  lastMessage: data['lastMessage'] != null
-                      ? DirectMessage.fromJson(
-                          data['lastMessage'] as Map<String, dynamic>,
-                        )
-                      : null,
-                  unreadCount: data['unreadCount_$userId'] as int? ?? 0,
-                  lastActivity: data['lastActivity'] != null
-                      ? (data['lastActivity'] as Timestamp).toDate()
-                      : null,
-                ),
-              );
-            } catch (e) {
-              debugPrint('Error parsing conversation: $e');
-            }
+          // CRITICAL: Check participants array has exactly 2 elements before accessing indices
+          // Direct messages require exactly 2 participants (userId1 and userId2)
+          if (participants.length != 2) {
+            debugPrint(
+              'Invalid conversation: participants array must have exactly 2 elements, got ${participants.length}',
+            );
+            continue; // Skip this conversation
           }
-          notifyListeners();
-        });
+
+          _conversations.add(
+            Conversation(
+              id: doc.id,
+              userId1: participants[0],
+              userId2: participants[1],
+              user1DisplayName: data['user1DisplayName'] as String?,
+              user2DisplayName: data['user2DisplayName'] as String?,
+              lastMessage: data['lastMessage'] != null
+                  ? DirectMessage.fromJson(
+                      data['lastMessage'] as Map<String, dynamic>,
+                    )
+                  : null,
+              unreadCount: data['unreadCount_$userId'] as int? ?? 0,
+              lastActivity: data['lastActivity'] != null
+                  ? (data['lastActivity'] as Timestamp).toDate()
+                  : null,
+            ),
+          );
+        } catch (e) {
+          debugPrint('Error parsing conversation: $e');
+        }
+      }
+      notifyListeners();
+    });
   }
 
   /// Start listening to messages in a conversation
@@ -154,25 +154,25 @@ class DirectMessageService extends ChangeNotifier {
         .limitToLast(50)
         .snapshots()
         .listen((snapshot) {
-          _messages.clear();
-          for (final doc in snapshot.docs) {
-            try {
-              _messages.add(
-                DirectMessage.fromJson({
-                  'id': doc.id,
-                  'conversationId': conversationId,
-                  ...doc.data(),
-                }),
-              );
-            } catch (e) {
-              debugPrint('Error parsing message: $e');
-            }
-          }
-          notifyListeners();
+      _messages.clear();
+      for (final doc in snapshot.docs) {
+        try {
+          _messages.add(
+            DirectMessage.fromJson({
+              'id': doc.id,
+              'conversationId': conversationId,
+              ...doc.data(),
+            }),
+          );
+        } catch (e) {
+          debugPrint('Error parsing message: $e');
+        }
+      }
+      notifyListeners();
 
-          // Mark messages as read
-          _markMessagesAsRead(conversationId);
-        });
+      // Mark messages as read
+      _markMessagesAsRead(conversationId);
+    });
   }
 
   /// Ensure conversation exists
@@ -182,16 +182,17 @@ class DirectMessageService extends ChangeNotifier {
     if (userId == null || firestore == null) return;
 
     final conversationId = _getConversationId(userId, otherUserId);
-    final conversationRef = firestore
-        .collection('conversations')
-        .doc(conversationId);
+    final conversationRef =
+        firestore.collection('conversations').doc(conversationId);
 
     final conversationDoc = await conversationRef.get();
     if (!conversationDoc.exists) {
       final currentUser = FirebaseAuth.instance.currentUser;
       await conversationRef.set({
         'participants': [userId, otherUserId],
-        'user1DisplayName': currentUser?.email?.split('@').first,
+        'user1DisplayName': currentUser?.email?.contains('@') == true
+            ? currentUser!.email!.split('@').first
+            : currentUser?.email,
         'user2DisplayName':
             null, // Will be updated when other user sends message
         'lastActivity': FieldValue.serverTimestamp(),
@@ -226,7 +227,9 @@ class DirectMessageService extends ChangeNotifier {
     final messageData = {
       'fromUserId': userId,
       'toUserId': otherUserId,
-      'fromDisplayName': currentUser?.email?.split('@').first,
+      'fromDisplayName': currentUser?.email?.contains('@') == true
+          ? currentUser!.email!.split('@').first
+          : currentUser?.email,
       'message': message.trim(),
       'timestamp': FieldValue.serverTimestamp(),
       'isRead': false,
@@ -348,10 +351,9 @@ class DirectMessageService extends ChangeNotifier {
     if (userId == null || firestore == null) return;
 
     final conversationId = _getConversationId(userId, otherUserId);
-    await firestore
-        .collection('conversations')
-        .doc(conversationId)
-        .update({'typing_$userId': isTyping ? FieldValue.serverTimestamp() : null});
+    await firestore.collection('conversations').doc(conversationId).update(
+        {'typing_$userId': isTyping ? FieldValue.serverTimestamp() : null},
+    );
   }
 
   /// Stop listening to messages

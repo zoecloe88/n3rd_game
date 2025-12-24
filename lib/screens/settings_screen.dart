@@ -23,13 +23,18 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
     final colors = AppColors.of(context);
 
-    return Scaffold(
+    // Use Consumer to listen for auth state changes
+    return Consumer<AuthService>(
+      builder: (context, authService, _) {
+        return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        // Content positioned to avoid overlapping animated logos in upper portion
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/setting screen.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
           child: Column(
             children: [
@@ -43,12 +48,12 @@ class SettingsScreen extends StatelessWidget {
                       button: true,
                       child: IconButton(
                         onPressed: () {
-                          // Ensure we don't go back to title menu - check if we can pop
+                          // Go back to previous screen, or to title if no back stack
                           if (Navigator.of(context).canPop()) {
                             NavigationHelper.safePop(context);
                           } else {
-                            // If no back stack, navigate to home
-                            NavigationHelper.safeNavigate(context, '/home');
+                            // Navigate to title screen if no back stack
+                            NavigationHelper.safeNavigate(context, '/title');
                           }
                         },
                         icon: Icon(Icons.arrow_back, color: colors.onDarkText),
@@ -68,7 +73,9 @@ class SettingsScreen extends StatelessWidget {
               ),
 
               // Spacer to push content to lower portion (logos are in upper portion)
-              SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.15).clamp(80.0, 150.0)),
+              SizedBox(
+                  height: ResponsiveHelper.responsiveHeight(context, 0.15)
+                      .clamp(80.0, 150.0)),
 
               // Profile card
               Padding(
@@ -113,7 +120,7 @@ class SettingsScreen extends StatelessWidget {
                                 color: colors.primaryText,
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.xs / 2),
+                            const SizedBox(height: 2),
                             Text(
                               AppLocalizations.of(context)?.n3rdPlayer ??
                                   'N3RD Player',
@@ -152,8 +159,7 @@ class SettingsScreen extends StatelessWidget {
                               icon: Icons.person_outline,
                               title:
                                   localizations?.editProfile ?? 'Edit Profile',
-                              subtitle:
-                                  localizations?.editProfileSubtitle ??
+                              subtitle: localizations?.editProfileSubtitle ??
                                   'Update display name and avatar',
                               onTap: () =>
                                   _showEditProfileDialog(context, authService),
@@ -161,11 +167,9 @@ class SettingsScreen extends StatelessWidget {
                             _buildSettingTile(
                               context,
                               icon: Icons.email_outlined,
-                              title:
-                                  localizations?.emailSettings ??
+                              title: localizations?.emailSettings ??
                                   'Email Settings',
-                              subtitle:
-                                  localizations?.emailSettingsSubtitle ??
+                              subtitle: localizations?.emailSettingsSubtitle ??
                                   'Manage email notifications',
                               onTap: () => _showEmailSettingsDialog(context),
                             ),
@@ -180,11 +184,9 @@ class SettingsScreen extends StatelessWidget {
                             _buildSettingTile(
                               context,
                               icon: Icons.notifications_outlined,
-                              title:
-                                  localizations?.notifications ??
+                              title: localizations?.notifications ??
                                   'Notifications',
-                              subtitle:
-                                  localizations?.notificationsSubtitle ??
+                              subtitle: localizations?.notificationsSubtitle ??
                                   'Push notifications and reminders',
                               onTap: () => _showNotificationsSettings(context),
                             ),
@@ -193,8 +195,7 @@ class SettingsScreen extends StatelessWidget {
                               icon: Icons.emoji_events_outlined,
                               title:
                                   localizations?.achievements ?? 'Achievements',
-                              subtitle:
-                                  localizations?.achievementsSubtitle ??
+                              subtitle: localizations?.achievementsSubtitle ??
                                   'View your achievements and badges',
                               onTap: () {
                                 NavigationHelper.safeNavigate(
@@ -208,8 +209,7 @@ class SettingsScreen extends StatelessWidget {
                               icon: Icons.leaderboard_outlined,
                               title:
                                   localizations?.leaderboard ?? 'Leaderboard',
-                              subtitle:
-                                  localizations?.leaderboardSubtitle ??
+                              subtitle: localizations?.leaderboardSubtitle ??
                                   'View global rankings',
                               onTap: () {
                                 NavigationHelper.safeNavigate(
@@ -228,11 +228,9 @@ class SettingsScreen extends StatelessWidget {
                             _buildSettingTile(
                               context,
                               icon: Icons.volume_up_outlined,
-                              title:
-                                  localizations?.soundAndMusic ??
+                              title: localizations?.soundAndMusic ??
                                   'Sound & Music',
-                              subtitle:
-                                  localizations?.soundAndMusicSubtitle ??
+                              subtitle: localizations?.soundAndMusicSubtitle ??
                                   'Adjust audio settings',
                               onTap: () => _showAudioSettings(context),
                             ),
@@ -244,12 +242,11 @@ class SettingsScreen extends StatelessWidget {
                                 return _buildSettingTile(
                                   context,
                                   icon: Icons.mic_outlined,
-                                  title:
-                                      localizations?.voiceSettings ??
+                                  title: localizations?.voiceSettings ??
                                       'Voice Settings',
                                   subtitle:
                                       localizations?.voiceSettingsSubtitle ??
-                                      'Text-to-speech and voice input',
+                                          'Text-to-speech and voice input',
                                   onTap: () => _showVoiceSettings(context),
                                 );
                               },
@@ -262,12 +259,11 @@ class SettingsScreen extends StatelessWidget {
                                 return _buildSettingTile(
                                   context,
                                   icon: Icons.record_voice_over_outlined,
-                                  title:
-                                      localizations?.voiceCalibration ??
+                                  title: localizations?.voiceCalibration ??
                                       'Voice Calibration',
                                   subtitle:
                                       localizations?.voiceCalibrationSubtitle ??
-                                      'Train voice recognition',
+                                          'Train voice recognition',
                                   onTap: () => Navigator.of(
                                     context,
                                   ).pushNamed('/voice-calibration'),
@@ -278,8 +274,7 @@ class SettingsScreen extends StatelessWidget {
                               context,
                               icon: Icons.dark_mode_outlined,
                               title: localizations?.appearance ?? 'Appearance',
-                              subtitle:
-                                  localizations?.appearanceSubtitle ??
+                              subtitle: localizations?.appearanceSubtitle ??
                                   'Theme and display settings',
                               onTap: () => _showAppearanceSettings(context),
                             ),
@@ -287,19 +282,16 @@ class SettingsScreen extends StatelessWidget {
                               context,
                               icon: Icons.language_outlined,
                               title: localizations?.language ?? 'Language',
-                              subtitle:
-                                  localizations?.languageSubtitle ??
+                              subtitle: localizations?.languageSubtitle ??
                                   'Change app language',
                               onTap: () => _showLanguageSettings(context),
                             ),
                             _buildSettingTile(
                               context,
                               icon: Icons.tune_outlined,
-                              title:
-                                  localizations?.gameSettingsTitle ??
+                              title: localizations?.gameSettingsTitle ??
                                   'Game Settings',
-                              subtitle:
-                                  localizations?.gameSettingsSubtitle ??
+                              subtitle: localizations?.gameSettingsSubtitle ??
                                   'Customize gameplay experience',
                               onTap: () => _showGameSettings(context),
                             ),
@@ -313,22 +305,18 @@ class SettingsScreen extends StatelessWidget {
                             _buildSettingTile(
                               context,
                               icon: Icons.privacy_tip_outlined,
-                              title:
-                                  localizations?.privacyPolicy ??
+                              title: localizations?.privacyPolicy ??
                                   'Privacy Policy',
-                              subtitle:
-                                  localizations?.privacyPolicySubtitle ??
+                              subtitle: localizations?.privacyPolicySubtitle ??
                                   'Read our privacy policy',
                               onTap: () => _showPrivacyPolicy(context),
                             ),
                             _buildSettingTile(
                               context,
                               icon: Icons.description_outlined,
-                              title:
-                                  localizations?.termsOfService ??
+                              title: localizations?.termsOfService ??
                                   'Terms of Service',
-                              subtitle:
-                                  localizations?.termsOfServiceSubtitle ??
+                              subtitle: localizations?.termsOfServiceSubtitle ??
                                   'Read our terms of service',
                               onTap: () => _showTermsOfService(context),
                             ),
@@ -336,8 +324,7 @@ class SettingsScreen extends StatelessWidget {
                               context,
                               icon: Icons.download_outlined,
                               title: localizations?.exportData ?? 'Export Data',
-                              subtitle:
-                                  localizations?.exportDataSubtitle ??
+                              subtitle: localizations?.exportDataSubtitle ??
                                   'Download your data',
                               onTap: () => _exportUserData(context),
                             ),
@@ -348,12 +335,11 @@ class SettingsScreen extends StatelessWidget {
                     _buildSettingTile(
                       context,
                       icon: Icons.delete_outline,
-                      title:
-                          AppLocalizations.of(context)?.deleteAccount ??
+                      title: AppLocalizations.of(context)?.deleteAccount ??
                           'Delete Account',
                       subtitle:
                           AppLocalizations.of(context)?.deleteAccountSubtitle ??
-                          'Permanently delete your account',
+                              'Permanently delete your account',
                       isDestructive: true,
                       onTap: () =>
                           _showDeleteAccountDialog(context, authService),
@@ -387,8 +373,8 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.dashboard_outlined,
                       title: 'Support Dashboard',
                       subtitle: 'View support analytics (Admin)',
-                      onTap: () =>
-                          NavigationHelper.safeNavigate(context, '/support-dashboard'),
+                      onTap: () => NavigationHelper.safeNavigate(
+                          context, '/support-dashboard'),
                     ),
                     _buildSettingTile(
                       context,
@@ -528,6 +514,8 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
+        );
+      },
     );
   }
 
@@ -615,7 +603,9 @@ class SettingsScreen extends StatelessWidget {
 
   void _showEditProfileDialog(BuildContext context, AuthService authService) {
     final nameController = TextEditingController(
-      text: authService.userEmail?.split('@')[0] ?? '',
+      text: authService.userEmail?.contains('@') == true
+          ? authService.userEmail!.split('@')[0]
+          : authService.userEmail ?? '',
     );
     showDialog(
       context: context,
@@ -709,8 +699,10 @@ class SettingsScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               final prefs = snapshot.data!;
-              final bool gameNotifications = prefs.getBool('email_game_notifications') ?? true;
-              final bool leaderboardUpdates = prefs.getBool('email_leaderboard_updates') ?? true;
+              final bool gameNotifications =
+                  prefs.getBool('email_game_notifications') ?? true;
+              final bool leaderboardUpdates =
+                  prefs.getBool('email_leaderboard_updates') ?? true;
 
               return AlertDialog(
                 title: Text(
@@ -784,9 +776,12 @@ class SettingsScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               final prefs = snapshot.data!;
-              final bool pushNotifications = prefs.getBool('push_notifications') ?? true;
-              final bool dailyReminders = prefs.getBool('daily_reminders') ?? true;
-              final bool achievementAlerts = prefs.getBool('achievement_alerts') ?? true;
+              final bool pushNotifications =
+                  prefs.getBool('push_notifications') ?? true;
+              final bool dailyReminders =
+                  prefs.getBool('daily_reminders') ?? true;
+              final bool achievementAlerts =
+                  prefs.getBool('achievement_alerts') ?? true;
 
               return AlertDialog(
                 title: Text(
@@ -814,7 +809,8 @@ class SettingsScreen extends StatelessWidget {
                       },
                     ),
                     SwitchListTile(
-                      title: Text('Daily Reminders', style: AppTypography.labelLarge),
+                      title: Text('Daily Reminders',
+                          style: AppTypography.labelLarge),
                       subtitle: Text(
                         'Remind me to play daily',
                         style: AppTypography.labelSmall,
@@ -877,7 +873,8 @@ class SettingsScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SwitchListTile(
-                    title: Text('Sound Effects', style: AppTypography.labelLarge),
+                    title:
+                        Text('Sound Effects', style: AppTypography.labelLarge),
                     subtitle: Text(
                       'Enable game sound effects',
                       style: AppTypography.labelSmall,
@@ -890,7 +887,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   if (soundService.soundEnabled) ...[
                     ListTile(
-                      title: Text('Sound Volume', style: AppTypography.labelLarge),
+                      title:
+                          Text('Sound Volume', style: AppTypography.labelLarge),
                       subtitle: Slider(
                         value: soundService.soundVolume,
                         min: 0.0,
@@ -913,7 +911,8 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                   SwitchListTile(
-                    title: Text('Background Music', style: AppTypography.labelLarge),
+                    title: Text('Background Music',
+                        style: AppTypography.labelLarge),
                     subtitle: Text(
                       'Enable background music during gameplay',
                       style: AppTypography.labelSmall,
@@ -926,7 +925,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   if (soundService.musicEnabled) ...[
                     ListTile(
-                      title: Text('Music Volume', style: AppTypography.labelLarge),
+                      title:
+                          Text('Music Volume', style: AppTypography.labelLarge),
                       subtitle: Slider(
                         value: soundService.musicVolume,
                         min: 0.0,
@@ -973,170 +973,169 @@ class SettingsScreen extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) =>
             Consumer2<TextToSpeechService, VoiceRecognitionService>(
-              builder: (context, ttsService, voiceService, _) => AlertDialog(
-                title: Text(
-                  'Voice Settings',
-                  style: AppTypography.headlineLarge.copyWith(
-                    fontWeight: FontWeight.bold,
+          builder: (context, ttsService, voiceService, _) => AlertDialog(
+            title: Text(
+              'Voice Settings',
+              style: AppTypography.headlineLarge.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Text-to-Speech Section
+                  Text(
+                    'Text-to-Speech',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Text-to-Speech Section
-                      Text(
-                        'Text-to-Speech',
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SwitchListTile(
+                    title: Text(
+                      'Enable TTS',
+                      style: AppTypography.labelLarge,
+                    ),
+                    subtitle: Text(
+                      'Read questions when revealed',
+                      style: AppTypography.labelSmall,
+                    ),
+                    value: ttsService.isEnabled,
+                    onChanged: (value) {
+                      ttsService.setEnabled(value);
+                      setState(() {});
+                    },
+                  ),
+                  if (ttsService.isEnabled) ...[
+                    ListTile(
+                      title: Text(
+                        'Speech Rate',
+                        style: AppTypography.bodyMedium,
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      SwitchListTile(
-                        title: Text(
-                          'Enable TTS',
-                          style: AppTypography.labelLarge,
-                        ),
-                        subtitle: Text(
-                          'Read questions when revealed',
-                          style: AppTypography.labelSmall,
-                        ),
-                        value: ttsService.isEnabled,
-                        onChanged: (value) {
-                          ttsService.setEnabled(value);
-                          setState(() {});
-                        },
-                      ),
-                      if (ttsService.isEnabled) ...[
-                        ListTile(
-                          title: Text(
-                            'Speech Rate',
-                            style: AppTypography.bodyMedium,
-                          ),
-                          trailing: SizedBox(
-                            width: 100,
-                            child: Slider(
-                              value: ttsService.speechRate,
-                              min: 0.0,
-                              max: 1.0,
-                              divisions: 10,
-                              label: ttsService.speechRate.toStringAsFixed(1),
-                              onChanged: (value) {
-                                ttsService.setSpeechRate(value);
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Volume',
-                            style: AppTypography.bodyMedium,
-                          ),
-                          trailing: SizedBox(
-                            width: 100,
-                            child: Slider(
-                              value: ttsService.volume,
-                              min: 0.0,
-                              max: 1.0,
-                              divisions: 10,
-                              label: ttsService.volume.toStringAsFixed(1),
-                              onChanged: (value) {
-                                ttsService.setVolume(value);
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ),
-                        ListTile(
-                          title: Text('Pitch', style: AppTypography.bodyMedium),
-                          trailing: SizedBox(
-                            width: 100,
-                            child: Slider(
-                              value: ttsService.pitch,
-                              min: 0.5,
-                              max: 2.0,
-                              divisions: 15,
-                              label: ttsService.pitch.toStringAsFixed(1),
-                              onChanged: (value) {
-                                ttsService.setPitch(value);
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Divider(),
-                      // Speech-to-Text Section
-                      Text(
-                        'Voice Input',
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      SwitchListTile(
-                        title: Text(
-                          'Enable Voice Input',
-                          style: AppTypography.labelLarge,
-                        ),
-                        subtitle: Text(
-                          'Speak answers instead of tapping',
-                          style: AppTypography.labelSmall,
-                        ),
-                        value: voiceService.isEnabled,
-                        onChanged: voiceService.isAvailable
-                            ? (value) {
-                                voiceService.setEnabled(value);
-                                setState(() {});
-                              }
-                            : null,
-                      ),
-                      if (!voiceService.isAvailable)
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            'Voice recognition not available on this device',
-                            style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.error,
-                            ),
-                          ),
-                        ),
-                      if (voiceService.isEnabled &&
-                          voiceService.isAvailable) ...[
-                        SwitchListTile(
-                          title: Text(
-                            'Push-to-Talk Mode',
-                            style: AppTypography.labelLarge,
-                          ),
-                          subtitle: Text(
-                            'Hold button to speak (vs always-on)',
-                            style: AppTypography.labelSmall,
-                          ),
-                          value: voiceService.pushToTalkMode,
+                      trailing: SizedBox(
+                        width: 100,
+                        child: Slider(
+                          value: ttsService.speechRate,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 10,
+                          label: ttsService.speechRate.toStringAsFixed(1),
                           onChanged: (value) {
-                            voiceService.setPushToTalkMode(value);
+                            ttsService.setSpeechRate(value);
                             setState(() {});
                           },
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
+                    ListTile(
+                      title: Text(
+                        'Volume',
+                        style: AppTypography.bodyMedium,
+                      ),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: Slider(
+                          value: ttsService.volume,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 10,
+                          label: ttsService.volume.toStringAsFixed(1),
+                          onChanged: (value) {
+                            ttsService.setVolume(value);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      title: Text('Pitch', style: AppTypography.bodyMedium),
+                      trailing: SizedBox(
+                        width: 100,
+                        child: Slider(
+                          value: ttsService.pitch,
+                          min: 0.5,
+                          max: 2.0,
+                          divisions: 15,
+                          label: ttsService.pitch.toStringAsFixed(1),
+                          onChanged: (value) {
+                            ttsService.setPitch(value);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Divider(),
+                  // Speech-to-Text Section
+                  Text(
+                    'Voice Input',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Text('Done', style: AppTypography.labelLarge),
+                  const SizedBox(height: AppSpacing.sm),
+                  SwitchListTile(
+                    title: Text(
+                      'Enable Voice Input',
+                      style: AppTypography.labelLarge,
+                    ),
+                    subtitle: Text(
+                      'Speak answers instead of tapping',
+                      style: AppTypography.labelSmall,
+                    ),
+                    value: voiceService.isEnabled,
+                    onChanged: voiceService.isAvailable
+                        ? (value) {
+                            voiceService.setEnabled(value);
+                            setState(() {});
+                          }
+                        : null,
                   ),
+                  if (!voiceService.isAvailable)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Voice recognition not available on this device',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  if (voiceService.isEnabled && voiceService.isAvailable) ...[
+                    SwitchListTile(
+                      title: Text(
+                        'Push-to-Talk Mode',
+                        style: AppTypography.labelLarge,
+                      ),
+                      subtitle: Text(
+                        'Hold button to speak (vs always-on)',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: voiceService.pushToTalkMode,
+                      onChanged: (value) {
+                        voiceService.setPushToTalkMode(value);
+                        setState(() {});
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text('Done', style: AppTypography.labelLarge),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

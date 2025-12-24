@@ -38,6 +38,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   bool _hasCalledCompletion = false;
   DateTime? _videoStartTime; // Track when video started playing
   Duration? _expectedDuration; // Track expected video duration for analytics
+  bool _disposed = false; // CRITICAL: Flag to prevent race condition between dispose and _initializeVideo
 
   @override
   void initState() {
@@ -51,7 +52,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   }
 
   Future<void> _initializeVideo() async {
-    if (!mounted) return;
+    // CRITICAL: Check disposed flag to prevent race condition with dispose()
+    if (!mounted || _disposed) return;
 
     // CRITICAL FIX: Animation files (BoxFit.contain) don't have variants
     // Only full-screen videos in assets/videos/ have variants
@@ -77,12 +79,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     try {
       final controller = VideoPlayerController.asset(pathToTry);
       await controller.initialize();
-      if (!mounted) {
+      // CRITICAL: Check both mounted and disposed flags after async operation
+      if (!mounted || _disposed) {
         controller.dispose();
         return;
       }
 
-      // Only set controller if still mounted
+      // Only set controller if still mounted and not disposed
       _controller = controller;
       _controller!.setLooping(widget.loop);
 
@@ -139,7 +142,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
           final controller = VideoPlayerController.asset(widget.videoPath);
           await controller.initialize();
-          if (!mounted) {
+          // CRITICAL: Check both mounted and disposed flags after async operation
+          if (!mounted || _disposed) {
             controller.dispose();
             return;
           }
@@ -294,7 +298,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   }
 
   void _retryVideo() {
-    if (_retryCount >= _maxRetries) return;
+    // CRITICAL: Check disposed flag before retrying
+    if (_retryCount >= _maxRetries || _disposed) return;
 
     setState(() {
       _hasError = false;
@@ -352,6 +357,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   void dispose() {
+    // CRITICAL: Set disposed flag first to prevent race condition with _initializeVideo()
+    _disposed = true;
+    
     // Remove listener and dispose controller
     final controller = _controller;
     _controller = null;

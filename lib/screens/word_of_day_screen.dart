@@ -125,6 +125,9 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: UnifiedBackgroundWidget(
+        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/word of the day.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
           child: _checkingAuth
               ? const StandardizedLoadingWidget(
