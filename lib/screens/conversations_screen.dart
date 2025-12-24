@@ -8,7 +8,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -107,11 +106,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           ),
         ),
         body: UnifiedBackgroundWidget(
-          animationPath: ScreenAnimationsConfig.getAnimationForRoute(
-            ModalRoute.of(context)?.settings.name,
-          ),
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
+          // Remove large animation overlay - use icon-sized animations only
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
@@ -147,8 +142,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       );
     }
 
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -171,9 +164,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         ),
       ),
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
+        // Remove large animation overlay - use icon-sized animations only
         child: SafeArea(
           child: Consumer<DirectMessageService>(
             builder: (context, messageService, _) {
@@ -223,6 +214,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       conversation,
                       otherUserId,
                       otherDisplayName,
+                      messageService,
                     );
                   },
                 ),
@@ -239,6 +231,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     Conversation conversation,
     String otherUserId,
     String otherDisplayName,
+    DirectMessageService messageService,
   ) {
     final hasUnread = conversation.unreadCount > 0;
     final itemColors = AppColors.of(context);
@@ -254,6 +247,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             arguments: otherUserId,
           );
         },
+        onLongPress: () => _showConversationOptions(context, conversation, messageService),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -356,5 +350,84 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     } else {
       return '${dateTime.month}/${dateTime.day}';
     }
+  }
+
+  void _showConversationOptions(
+    BuildContext context,
+    Conversation conversation,
+    DirectMessageService messageService,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.of(context).cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: AppColors.error),
+              title: Text(
+                'Delete Conversation',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Conversation'),
+                    content: const Text(
+                      'Are you sure you want to delete this conversation? All messages will be permanently deleted.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  try {
+                    await messageService.deleteConversation(conversation.id);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Conversation deleted'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: ${e.toString()}'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

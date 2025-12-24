@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,8 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
   bool _hasPremium = false;
   bool _loading = true;
   bool _initialized = false;
+  bool _isTyping = false;
+  Timer? _typingTimer;
 
   @override
   void initState() {
@@ -124,14 +127,43 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _messageService.stopListening();
     super.dispose();
   }
 
+  void _onTextChanged(String text) {
+    if (!_hasPremium || _otherUserId == null) return;
+
+    // Set typing indicator
+    if (text.trim().isNotEmpty && !_isTyping) {
+      _isTyping = true;
+      _messageService.setTypingIndicator(_otherUserId!, true);
+    }
+
+    // Cancel previous timer
+    _typingTimer?.cancel();
+
+    // Clear typing indicator after 2 seconds of no typing
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      if (_isTyping) {
+        _isTyping = false;
+        _messageService.setTypingIndicator(_otherUserId!, false);
+      }
+    });
+  }
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _otherUserId == null) return;
+
+    // Clear typing indicator
+    _typingTimer?.cancel();
+    if (_isTyping) {
+      _isTyping = false;
+      _messageService.setTypingIndicator(_otherUserId!, false);
+    }
 
     HapticService().lightImpact();
     final message = _messageController.text.trim();
@@ -277,6 +309,81 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
             color: colors.primaryText,
           ),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: colors.primaryText),
+            onSelected: (value) async {
+              HapticService().lightImpact();
+              if (value == 'delete' && _otherUserId != null) {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Conversation'),
+                    content: const Text(
+                      'Are you sure you want to delete this conversation? All messages will be permanently deleted.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true && _otherUserId != null) {
+                  try {
+                    final conversationId = _messageService.currentConversationId;
+                    if (conversationId != null) {
+                      await _messageService.deleteConversation(conversationId);
+                      if (mounted) {
+                        NavigationHelper.safePop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Conversation deleted'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: ${e.toString()}'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Delete Conversation',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -289,11 +396,29 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
                   if (messages.isEmpty) {
                     return Center(
-                      child: Text(
-                        'No messages yet',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: colors.secondaryText,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.message_outlined,
+                            size: 64,
+                            color: colors.tertiaryText,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            'No messages yet',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Start the conversation!',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: colors.tertiaryText,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -301,8 +426,12 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: messages.length,
+                    itemCount: messages.length + 1, // +1 for typing indicator
                     itemBuilder: (context, index) {
+                      if (index == messages.length) {
+                        // Typing indicator
+                        return _buildTypingIndicator();
+                      }
                       final message = messages[index];
                       final authService = Provider.of<AuthService>(
                         context,
@@ -349,6 +478,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                       ),
                       maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
+                      onChanged: _onTextChanged,
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
@@ -380,42 +510,158 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   Widget _buildMessageBubble(DirectMessage message, bool isMe) {
     final bubbleColors = AppColors.of(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final isMyMessage = message.fromUserId == authService.currentUser?.uid;
+    
+    return GestureDetector(
+      onLongPress: isMyMessage
+          ? () => _showMessageOptions(message)
+          : null,
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveHelper.responsiveWidth(context, 0.75),
+          ),
+          decoration: BoxDecoration(
+            color: isMe
+                ? bubbleColors.primaryButton
+                : Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message.message,
+                style: AppTypography.bodyMedium.copyWith(
+                  fontSize: 14,
+                  color: isMe ? Colors.white : bubbleColors.primaryText,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTime(message.timestamp),
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontSize: 10,
+                      color: isMe
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : bubbleColors.secondaryText,
+                    ),
+                  ),
+                  if (isMe) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      message.isRead ?? false
+                          ? Icons.done_all
+                          : Icons.done,
+                      size: 12,
+                      color: message.isRead ?? false
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
-        constraints: BoxConstraints(
-          maxWidth: ResponsiveHelper.responsiveWidth(context, 0.75),
-        ),
         decoration: BoxDecoration(
-          color: isMe
-              ? bubbleColors.primaryButton
-              : Colors.white.withValues(alpha: 0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              message.message,
-              style: AppTypography.bodyMedium.copyWith(
-                fontSize: 14,
-                color: isMe ? Colors.white : bubbleColors.primaryText,
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppColors.of(context).primaryButton,
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.sm),
             Text(
-              _formatTime(message.timestamp),
-              style: AppTypography.bodyMedium.copyWith(
-                fontSize: 10,
-                color: isMe
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : bubbleColors.secondaryText,
+              'Typing...',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.of(context).secondaryText,
+                fontStyle: FontStyle.italic,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMessageOptions(DirectMessage message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.of(context).cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: AppColors.error),
+              title: Text(
+                'Delete Message',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  await _messageService.deleteMessage(message.id);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Message deleted'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
             ),
           ],
         ),

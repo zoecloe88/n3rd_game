@@ -276,6 +276,84 @@ class DirectMessageService extends ChangeNotifier {
     await batch.commit();
   }
 
+  /// Delete a message
+  Future<void> deleteMessage(String messageId) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    final conversationId = _currentConversationId;
+    if (conversationId == null) {
+      throw ValidationException('No active conversation');
+    }
+
+    // Get message to verify ownership
+    final messageDoc = await firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .get();
+
+    if (!messageDoc.exists) {
+      throw ValidationException('Message not found');
+    }
+
+    final messageData = messageDoc.data();
+    if (messageData?['fromUserId'] != userId) {
+      throw ValidationException('You can only delete your own messages');
+    }
+
+    // Delete message
+    await firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .delete();
+  }
+
+  /// Delete a conversation
+  Future<void> deleteConversation(String conversationId) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    // Delete all messages in conversation
+    final messagesSnapshot = await firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .get();
+
+    final batch = firestore.batch();
+    for (final doc in messagesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete conversation
+    batch.delete(firestore.collection('conversations').doc(conversationId));
+
+    await batch.commit();
+  }
+
+  /// Set typing indicator
+  Future<void> setTypingIndicator(String otherUserId, bool isTyping) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) return;
+
+    final conversationId = _getConversationId(userId, otherUserId);
+    await firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .update({'typing_$userId': isTyping ? FieldValue.serverTimestamp() : null});
+  }
+
   /// Stop listening to messages
   void stopListening() {
     _messagesSubscription?.cancel();

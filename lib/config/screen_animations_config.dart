@@ -19,6 +19,8 @@ class ScreenAnimationsConfig {
     '/login': 'assets/animations/shared/8.mp4',
     '/leaderboard': 'assets/animations/shared/11.mp4',
     '/friends': 'assets/animations/shared/10.mp4',
+    '/direct-message': 'assets/animations/shared/10.mp4',
+    '/conversations': 'assets/animations/shared/10.mp4',
 
     // Feature screens
     '/daily-challenges': 'assets/animations/shared/11.mp4',

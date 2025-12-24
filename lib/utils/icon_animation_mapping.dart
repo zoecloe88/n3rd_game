@@ -29,6 +29,11 @@ class IconAnimationMapping {
         // More menu uses settings animation (similar screen type)
         result = 'assets/animations/settings/setting screen.mp4';
         break;
+      case '/friends':
+      case '/direct-message':
+      case '/conversations':
+        result = 'assets/animations/shared/10.mp4';
+        break;
       default:
         result = null;
     }

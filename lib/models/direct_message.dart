@@ -6,7 +6,7 @@ class DirectMessage {
   final String? fromDisplayName;
   final String message;
   final DateTime timestamp;
-  final bool isRead;
+  final bool? isRead;
 
   DirectMessage({
     required this.id,
@@ -16,7 +16,7 @@ class DirectMessage {
     this.fromDisplayName,
     required this.message,
     required this.timestamp,
-    this.isRead = false,
+    this.isRead,
   });
 
   Map<String, dynamic> toJson() => {
@@ -38,7 +38,7 @@ class DirectMessage {
     fromDisplayName: json['fromDisplayName'] as String?,
     message: json['message'] as String,
     timestamp: DateTime.parse(json['timestamp'] as String),
-    isRead: json['isRead'] as bool? ?? false,
+    isRead: json['isRead'] as bool?,
   );
 }
 

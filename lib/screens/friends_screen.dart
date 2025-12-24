@@ -223,6 +223,171 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  Future<void> _blockFriend(String friendUserId) async {
+    HapticService().lightImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block Friend'),
+        content: const Text(
+          'Are you sure you want to block this friend? They will be removed from your friends list and won\'t be able to message you.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Block',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _friendsService.blockUser(friendUserId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Friend blocked'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showFriendProfile(BuildContext context, dynamic friend) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: AppColors.of(context).cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.of(context).tertiaryText,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Profile content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.of(context).primaryButton,
+                      child: Text(
+                        (friend.displayName ?? friend.email?.split('@').first ?? 'U')
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: AppTypography.displayLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      friend.displayName ?? friend.email?.split('@').first ?? 'Unknown',
+                      style: AppTypography.headlineLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.of(context).primaryText,
+                      ),
+                    ),
+                    if (friend.email != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        friend.email!,
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.of(context).secondaryText,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    // Online status
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: friend.isOnline ? AppColors.success : AppColors.of(context).tertiaryText,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          friend.isOnline ? 'Online' : 'Offline',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.of(context).secondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (friend.addedAt != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Friends since ${_formatDate(friend.addedAt!)}',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.of(context).tertiaryText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays < 1) {
+      return 'Today';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else {
+      return '${date.month}/${date.day}/${date.year}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -246,6 +411,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
         ),
         actions: [
+          Semantics(
+            label: 'Friend Suggestions',
+            button: true,
+            child: IconButton(
+              icon: Icon(Icons.people_outline, color: colors.primaryText),
+              tooltip: 'Friend Suggestions',
+              onPressed: () {
+                HapticService().lightImpact();
+                _showFriendSuggestions();
+              },
+            ),
+          ),
           Semantics(
             label: AppLocalizations.of(context)?.addFriend ?? 'Add Friend',
             button: true,
@@ -433,34 +610,91 @@ class _FriendsScreenState extends State<FriendsScreen> {
           Consumer<SubscriptionService>(
             builder: (context, subscriptionService, _) {
               final hasPremium = subscriptionService.isPremium;
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasPremium)
-                    IconButton(
-                      icon: Icon(
-                        Icons.message,
-                        color: AppColors.of(context).primaryButton,
-                      ),
-                      onPressed: () {
-                        HapticService().lightImpact();
+              return PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: itemColors.primaryText,
+                ),
+                onSelected: (value) async {
+                  HapticService().lightImpact();
+                  switch (value) {
+                    case 'message':
+                      if (hasPremium) {
                         NavigationHelper.safeNavigate(
                           context,
                           '/direct-message',
                           arguments: friend.userId,
                         );
-                      },
-                      tooltip: AppLocalizations.of(context)?.chat ?? 'Message',
+                      }
+                      break;
+                    case 'profile':
+                      _showFriendProfile(context, friend);
+                      break;
+                    case 'block':
+                      await _blockFriend(friend.userId);
+                      break;
+                    case 'remove':
+                      await _removeFriend(friend.userId);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (hasPremium)
+                    PopupMenuItem(
+                      value: 'message',
+                      child: Row(
+                        children: [
+                          Icon(Icons.message, size: 20, color: itemColors.primaryText),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            AppLocalizations.of(context)?.chat ?? 'Message',
+                            style: AppTypography.labelLarge,
+                          ),
+                        ],
+                      ),
                     ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: AppColors.error,
+                  PopupMenuItem(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline, size: 20, color: itemColors.primaryText),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'View Profile',
+                          style: AppTypography.labelLarge,
+                        ),
+                      ],
                     ),
-                    onPressed: () => _removeFriend(friend.userId),
-                    tooltip:
-                        AppLocalizations.of(context)?.deleteButton ??
-                        'Remove Friend',
+                  ),
+                  PopupMenuItem(
+                    value: 'block',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.block, size: 20, color: AppColors.error),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'Block',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'remove',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          AppLocalizations.of(context)?.deleteButton ?? 'Remove',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               );
@@ -676,5 +910,106 @@ class _FriendsScreenState extends State<FriendsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _showFriendSuggestions() async {
+    HapticService().lightImpact();
+    try {
+      final suggestions = await _friendsService.getFriendSuggestions();
+      if (!mounted) return;
+
+      if (suggestions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No friend suggestions available'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          final dialogColors = AppColors.of(context);
+          return AlertDialog(
+            backgroundColor: dialogColors.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Friend Suggestions',
+              style: AppTypography.headlineLarge.copyWith(
+                fontWeight: FontWeight.bold,
+                color: dialogColors.primaryText,
+              ),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: suggestions.length,
+                itemBuilder: (context, index) {
+                  final user = suggestions[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: dialogColors.primaryButton,
+                      child: Text(
+                        (user['displayName'] ?? user['email']?.split('@').first ?? 'U')
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: AppTypography.titleLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      user['displayName'] ?? user['email']?.split('@').first ?? 'Unknown',
+                      style: AppTypography.labelLarge,
+                    ),
+                    subtitle: Text(
+                      user['email'] ?? '',
+                      style: AppTypography.labelSmall,
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.person_add),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _sendFriendRequest(
+                          user['userId'],
+                          user['email'],
+                          user['displayName'],
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Close',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: dialogColors.secondaryText,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading suggestions: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }

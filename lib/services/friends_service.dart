@@ -316,6 +316,100 @@ class FriendsService extends ChangeNotifier {
     await batch.commit();
   }
 
+  /// Block a user
+  Future<void> blockUser(String userIdToBlock) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    // Remove friendship if exists
+    try {
+      await removeFriend(userIdToBlock);
+    } catch (e) {
+      // Ignore if not friends
+    }
+
+    // Add to blocked list
+    await firestore.collection('user_blocks').doc('$userId-$userIdToBlock').set({
+      'userId': userId,
+      'blockedUserId': userIdToBlock,
+      'blockedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Unblock a user
+  Future<void> unblockUser(String userIdToUnblock) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    await firestore.collection('user_blocks').doc('$userId-$userIdToUnblock').delete();
+  }
+
+  /// Check if a user is blocked
+  Future<bool> isUserBlocked(String userIdToCheck) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) return false;
+
+    final blockDoc = await firestore
+        .collection('user_blocks')
+        .doc('$userId-$userIdToCheck')
+        .get();
+    return blockDoc.exists;
+  }
+
+  /// Get friend suggestions (users you might know)
+  Future<List<Map<String, dynamic>>> getFriendSuggestions() async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) return [];
+
+    try {
+      // Get current friends
+      final friendsSnapshot = await firestore
+          .collection('friends')
+          .where('userId', isEqualTo: userId)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+
+      final friendIds = friendsSnapshot.docs
+          .map((doc) => doc.data()['friendId'] as String)
+          .toSet();
+      friendIds.add(userId); // Exclude self
+
+      // Get random users (excluding friends and self)
+      final suggestionsSnapshot = await firestore
+          .collection('user_profiles')
+          .limit(20)
+          .get();
+
+      final suggestions = <Map<String, dynamic>>[];
+      for (final doc in suggestionsSnapshot.docs) {
+        if (!friendIds.contains(doc.id)) {
+          final data = doc.data();
+          suggestions.add({
+            'userId': doc.id,
+            'email': data['email'],
+            'displayName': data['displayName'],
+          });
+          if (suggestions.length >= 5) break; // Limit to 5 suggestions
+        }
+      }
+
+      return suggestions;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error getting friend suggestions: $e');
+      }
+      return [];
+    }
+  }
+
   @override
   void dispose() {
     _friendsSubscription?.cancel();
