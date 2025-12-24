@@ -342,25 +342,23 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                     final conversationId = _messageService.currentConversationId;
                     if (conversationId != null) {
                       await _messageService.deleteConversation(conversationId);
-                      if (mounted) {
-                        NavigationHelper.safePop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Conversation deleted'),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    if (mounted) {
+                      if (!mounted) return;
+                      NavigationHelper.safePop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: ${e.toString()}'),
-                          backgroundColor: AppColors.error,
+                        const SnackBar(
+                          content: Text('Conversation deleted'),
+                          backgroundColor: AppColors.success,
                         ),
                       );
                     }
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
                   }
                 }
               }
@@ -370,7 +368,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                    const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Delete Conversation',
@@ -632,7 +630,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.delete_outline, color: AppColors.error),
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: Text(
                 'Delete Message',
                 style: AppTypography.labelLarge.copyWith(
@@ -643,23 +641,21 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 Navigator.pop(context);
                 try {
                   await _messageService.deleteMessage(message.id);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Message deleted'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Message deleted'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: ${e.toString()}'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
                 }
               },
             ),
