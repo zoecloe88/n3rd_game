@@ -7,8 +7,6 @@ import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
-import 'package:n3rd_game/widgets/animation_icon.dart';
-import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 class MoreMenuScreen extends StatelessWidget {
   const MoreMenuScreen({super.key});
@@ -227,20 +225,7 @@ class MoreMenuScreen extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        leading: Builder(
-          builder: (context) {
-            final route = ModalRoute.of(context)?.settings.name ?? '/more';
-            final animationPath = IconAnimationMapping.getAnimationForScreen(route);
-            
-            return animationPath != null
-                ? AnimationIcon(
-                    animationPath: animationPath,
-                    size: 54, // 3/4 inch size
-                    color: itemColors.onDarkText,
-                  )
-                : Icon(icon, color: itemColors.onDarkText, size: 24);
-          },
-        ),
+        leading: Icon(icon, color: itemColors.onDarkText, size: 24),
         title: Text(
           title,
           style: AppTypography.titleLarge.copyWith(

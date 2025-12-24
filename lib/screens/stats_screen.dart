@@ -8,6 +8,7 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/stats_chart_widgets.dart';
+import 'package:n3rd_game/utils/responsive_helper.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -30,7 +31,7 @@ class _StatsScreenState extends State<StatsScreen> {
               final stats = statsService.stats;
               return Column(
                 children: [
-                  // Header
+                  // Minimal header (logos are in upper portion)
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Row(
@@ -105,6 +106,10 @@ class _StatsScreenState extends State<StatsScreen> {
                       ],
                     ),
                   ),
+                  
+                  // Spacer to push content to lower portion (logos are in upper portion)
+                  SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.12).clamp(60.0, 120.0)),
+                  
                   // Stats Cards
                   Expanded(
                     child: ListView(

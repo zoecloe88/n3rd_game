@@ -11,7 +11,6 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -192,15 +191,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     // CRITICAL: Check if user has Family & Friends tier access
     if (!subscriptionService.isFamilyFriends && group == null) {
       // User doesn't have Family & Friends tier and is not in a group
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
       return Scaffold(
         backgroundColor: colors.background,
         body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
           child: SafeArea(
             child: Center(
               child: Container(

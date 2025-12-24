@@ -8,7 +8,6 @@ import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/models/daily_challenge.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
@@ -63,15 +62,9 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
     // Check if user has online access (Base or Premium)
     final colors = AppColors.of(context);
     if (!subscriptionService.hasOnlineAccess) {
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
       return Scaffold(
         backgroundColor: colors.background,
         body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
           child: SafeArea(
             child: Center(
               child: Container(
@@ -140,15 +133,9 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
       );
     }
 
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
         child: SafeArea(
           child: Column(
             children: [
@@ -236,6 +223,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
   }
 
   Widget _buildChallengeCard(DailyChallenge challenge) {
+    final colors = AppColors.of(context);
     final progress = challenge.progress.toDouble();
     final target =
         (challenge.target['count'] ??

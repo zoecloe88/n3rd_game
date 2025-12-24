@@ -16,8 +16,7 @@ import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/services/data_export_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
-import 'package:n3rd_game/widgets/animation_icon.dart';
-import 'package:n3rd_game/utils/icon_animation_mapping.dart';
+import 'package:n3rd_game/utils/responsive_helper.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -30,11 +29,11 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+        // Content positioned to avoid overlapping animated logos in upper portion
         child: SafeArea(
           child: Column(
             children: [
-              // Top app bar
+              // Minimal top app bar (logos are in upper portion)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
@@ -67,6 +66,9 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // Spacer to push content to lower portion (logos are in upper portion)
+              SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.15).clamp(80.0, 150.0)),
 
               // Profile card
               Padding(
@@ -568,24 +570,10 @@ class SettingsScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Use screen-specific animation if available, otherwise use icon
-              Builder(
-                builder: (context) {
-                  final route = ModalRoute.of(context)?.settings.name ?? '/settings';
-                  final animationPath = IconAnimationMapping.getAnimationForScreen(route);
-                  
-                  return animationPath != null && !isDestructive
-                      ? AnimationIcon(
-                          animationPath: animationPath,
-                          size: 54, // 3/4 inch size
-                          color: colors.primaryText,
-                        )
-                      : Icon(
-                          icon,
-                          color: isDestructive ? AppColors.error : colors.primaryText,
-                          size: 24, // Standard icon size
-                        );
-                },
+              Icon(
+                icon,
+                color: isDestructive ? AppColors.error : colors.primaryText,
+                size: 24, // Standard icon size
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

@@ -196,13 +196,13 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: colors.background,
       resizeToAvoidBottomInset: false, // Prevent screen narrowing
       body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+        // Content positioned in lower portion to avoid overlapping animated logos in upper portion
         child: SafeArea(
           child: Align(
-            alignment: Alignment.topCenter,
+            alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(
-                top: 40,
+                top: AppSpacing.xl,
                 left: AppSpacing.lg,
                 right: AppSpacing.lg,
                 bottom: AppSpacing.lg,

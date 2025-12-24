@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -14,8 +13,6 @@ import 'package:n3rd_game/widgets/upgrade_shortcut_button.dart';
 import 'package:n3rd_game/widgets/tier_progress_indicator.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/animation_icon.dart';
-import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -375,6 +372,7 @@ class _TitleScreenState extends State<TitleScreen> {
     String feature,
     String message,
   ) {
+    final colors = AppColors.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -487,37 +485,19 @@ class _TitleScreenState extends State<TitleScreen> {
     NavigationHelper.safeNavigate(context, '/more', replace: true);
   }
 
-  /// Helper to build leading widget - uses screen animation if available, otherwise icon
-  Widget _buildLeadingIcon(IconData icon, {double size = 54}) {
+  /// Helper to build leading icon
+  Widget _buildLeadingIcon(IconData icon, {double size = 24}) {
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name ?? '/title';
-    final animationPath = IconAnimationMapping.getAnimationForScreen(route);
-    
-    return animationPath != null
-        ? AnimationIcon(
-            animationPath: animationPath,
-            size: size, // 3/4 inch size
-            color: colors.primaryText,
-          )
-        : Icon(icon, size: 24); // Keep icon size smaller
+    return Icon(icon, size: size, color: colors.primaryText);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name ?? '/title';
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: EdgeInsets.only(
-          // Responsive bottom padding: 15% of screen height, min 80px, max 120px
-          // Ensures animation doesn't overlap buttons on any screen size
-          bottom: ResponsiveHelper.responsiveHeight(context, 0.15).clamp(80.0, 120.0),
-        ),
         child: Stack(
           children: [
             SafeArea(
@@ -580,9 +560,12 @@ class _TitleScreenState extends State<TitleScreen> {
                         vertical: verticalPadding,
                       ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Spacer to push content to lower portion (logos are in upper portion)
+                          SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.35).clamp(200.0, 400.0)),
+                          
                           // Title - Professional Serif (responsive)
                           Builder(
                             builder: (context) {

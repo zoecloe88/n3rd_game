@@ -9,7 +9,6 @@ import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -169,15 +168,9 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
 
     // Check subscription access
     if (!subscriptionService.hasEditionsAccess) {
-      final route = ModalRoute.of(context)?.settings.name;
-      final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
       return Scaffold(
         backgroundColor: colors.background,
         body: UnifiedBackgroundWidget(
-          animationPath: animationPath,
-          animationAlignment: Alignment.bottomCenter,
-          animationPadding: const EdgeInsets.only(bottom: 20),
           child: SafeArea(
             child: Center(
               child: Container(

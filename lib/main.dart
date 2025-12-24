@@ -450,9 +450,8 @@ void main() async {
           update: (_, personalization, analytics, previous) {
             // Only create new instance if it doesn't exist
             if (previous == null) {
-              // CRITICAL: Check if library is loaded - if not, templates won't be initialized
-              // The library should be loaded in main() before runApp, but verify here
-              // Try to access the library - if not loaded, this will throw
+              // CRITICAL: Check if templates are initialized
+              // The library is loaded in main() before runApp, so we can safely check initialization
               if (!templates.EditionTriviaTemplates.isInitialized) {
                 final error =
                     templates.EditionTriviaTemplates.lastValidationError ??
