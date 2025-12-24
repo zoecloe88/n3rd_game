@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +16,7 @@ class VideoPlayerWidget extends StatefulWidget {
   final bool loop;
   final bool autoplay;
   final VoidCallback? onVideoComplete;
+  final BoxFit fit; // Add fit parameter for icon-sized animations
 
   const VideoPlayerWidget({
     super.key,
@@ -21,6 +24,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.loop = true,
     this.autoplay = true,
     this.onVideoComplete,
+    this.fit = BoxFit.cover, // Default to cover for full-screen videos
   });
 
   @override
@@ -59,6 +63,19 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       // Fallback to base path if helper fails
       actualPath = widget.videoPath;
     }
+    // #region agent log
+    final logData = {
+      'originalPath': widget.videoPath,
+      'actualPath': actualPath,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'sessionId': 'debug-session',
+      'runId': 'run1',
+      'hypothesisId': 'C',
+      'location': 'video_player_widget.dart:51',
+      'message': 'Initializing video - before controller',
+    };
+    File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
+    // #endregion
 
     try {
       final controller = VideoPlayerController.asset(actualPath);
@@ -89,7 +106,34 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           _isInitialized = true;
         });
       }
+      // #region agent log
+      final logData2 = {
+        'actualPath': actualPath,
+        'initialized': true,
+        'isPlaying': widget.autoplay,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'sessionId': 'debug-session',
+        'runId': 'run1',
+        'hypothesisId': 'C',
+        'location': 'video_player_widget.dart:87',
+        'message': 'Video initialized successfully',
+      };
+      File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData2)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
+      // #endregion
     } catch (e) {
+      // #region agent log
+      final logData3 = {
+        'actualPath': actualPath,
+        'error': e.toString(),
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'sessionId': 'debug-session',
+        'runId': 'run1',
+        'hypothesisId': 'C',
+        'location': 'video_player_widget.dart:92',
+        'message': 'Video initialization failed',
+      };
+      File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData3)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
+      // #endregion
       // Log error for debugging
       if (kDebugMode) {
         debugPrint(
@@ -420,15 +464,25 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       );
     }
 
+    // Use the specified fit mode (cover for full-screen, contain for icons)
     return SizedBox.expand(
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: controller.value.size.width,
-          height: controller.value.size.height,
-          child: VideoPlayer(controller),
-        ),
-      ),
+      child: widget.fit == BoxFit.contain
+          ? FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
+              ),
+            )
+          : FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
+              ),
+            ),
     );
   }
 }

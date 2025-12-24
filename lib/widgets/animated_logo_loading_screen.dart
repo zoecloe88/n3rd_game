@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/widgets/video_player_widget.dart';
 
 /// Animated logo loading screen with background
@@ -22,21 +22,23 @@ class AnimatedLogoLoadingScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: BackgroundImageWidget(
+      body: UnifiedBackgroundWidget(
+        // No animation overlay - just the logo in center
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Animated logo (responsive size, centered)
+              // Animated logo (responsive size, centered) - using splash/logo loading screen
               SizedBox(
                 width: finalSize,
                 height: finalSize,
-                child: const ClipRect(
-                  child: VideoPlayerWidget(
-                    videoPath:
-                        'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/Green Neutral Simple Serendipity Phone Wallpaper.mp4',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(finalSize * 0.1),
+                  child: const VideoPlayerWidget(
+                    videoPath: 'assets/animations/onboarding/2nd loading.mp4',
                     loop: true,
                     autoplay: true,
+                    fit: BoxFit.contain, // Use contain to prevent black boxes
                   ),
                 ),
               ),

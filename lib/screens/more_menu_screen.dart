@@ -4,10 +4,11 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/animation_icon.dart';
+import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 class MoreMenuScreen extends StatelessWidget {
   const MoreMenuScreen({super.key});
@@ -15,15 +16,11 @@ class MoreMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.topCenter,
-        animationPadding: const EdgeInsets.only(top: 60, right: 20),
+        // Remove animationPath - animations should be icon-sized only, not background
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,
@@ -230,7 +227,20 @@ class MoreMenuScreen extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        leading: Icon(icon, color: itemColors.onDarkText, size: 24),
+        leading: Builder(
+          builder: (context) {
+            final route = ModalRoute.of(context)?.settings.name ?? '/more';
+            final animationPath = IconAnimationMapping.getAnimationForScreen(route);
+            
+            return animationPath != null
+                ? AnimationIcon(
+                    animationPath: animationPath,
+                    size: 24,
+                    color: itemColors.onDarkText,
+                  )
+                : Icon(icon, color: itemColors.onDarkText, size: 24);
+          },
+        ),
         title: Text(
           title,
           style: AppTypography.titleLarge.copyWith(
@@ -244,9 +254,22 @@ class MoreMenuScreen extends StatelessWidget {
             color: itemColors.onDarkText.withValues(alpha: 0.8),
           ),
         ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: itemColors.onDarkText.withValues(alpha: 0.6),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Checkbox for menu option
+            Checkbox(
+              value: false, // TODO: Add state management for checkboxes if needed
+              onChanged: null, // Read-only for now
+              activeColor: itemColors.primaryButton,
+              checkColor: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right,
+              color: itemColors.onDarkText.withValues(alpha: 0.6),
+            ),
+          ],
         ),
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

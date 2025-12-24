@@ -24,98 +24,98 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   int _currentPage = 0;
   final PageController _pageController = PageController();
 
-  // All game modes
+  // All game modes with clearer descriptions
   final List<Map<String, dynamic>> _gameModes = [
     {
       'title': 'Classic',
-      'description': 'Memorize 10s, select 20s',
+      'description': 'Study words for 10 seconds, then select the correct answers in 20 seconds. Perfect for beginners.',
       'mode': GameMode.classic,
     },
     {
       'title': 'Classic II',
-      'description': 'Faster—5s memorize, 10s select',
+      'description': 'Faster-paced version: Study for 5 seconds, select answers in 10 seconds. For experienced players.',
       'mode': GameMode.classicII,
     },
     {
       'title': 'Speed',
-      'description': 'Words shown together, 7s answer',
+      'description': 'Words and question shown together. Answer quickly within 7 seconds. Test your reflexes!',
       'mode': GameMode.speed,
     },
     {
       'title': 'Regular',
-      'description': 'Words shown together, 15s answer',
+      'description': 'Words and question shown together. Take your time with 15 seconds to answer. Great for learning.',
       'mode': GameMode.regular,
     },
     {
       'title': 'Shuffle',
-      'description': 'Tiles shuffle during play',
+      'description': 'Tiles continuously shuffle during play. Stay focused and find the correct answers!',
       'mode': GameMode.shuffle,
     },
     {
       'title': 'Challenge',
-      'description': 'Gets harder each round',
+      'description': 'Difficulty increases each round. Can you survive the escalating challenge?',
       'mode': GameMode.challenge,
     },
     {
       'title': 'Random',
-      'description': 'Different mode each round',
+      'description': 'Experience a different game mode each round. Never know what\'s coming next!',
       'mode': GameMode.random,
     },
     {
       'title': 'Time Attack',
-      'description': 'Score as much as possible in 60s',
+      'description': 'Score as many points as possible within 60 seconds. Race against the clock!',
       'mode': GameMode.timeAttack,
     },
     {
       'title': 'Streak',
-      'description': 'Score multiplier increases with perfect rounds',
+      'description': 'Score multiplier increases with each perfect round. Build your streak for maximum points!',
       'mode': GameMode.streak,
     },
     {
       'title': 'Blitz',
-      'description': 'Ultra-fast: 3s memorize, 5s play',
+      'description': 'Ultra-fast mode: Study for 3 seconds, answer in 5 seconds. Only for the quickest minds!',
       'mode': GameMode.blitz,
     },
     {
       'title': 'Marathon',
-      'description': 'Infinite rounds, progressive difficulty',
+      'description': 'Infinite rounds with progressive difficulty. How long can you last?',
       'mode': GameMode.marathon,
     },
     {
       'title': 'Perfect',
-      'description': 'Must get all 3 correct, wrong = game over',
+      'description': 'Must get all 3 answers correct. One wrong answer ends the game. Precision is key!',
       'mode': GameMode.perfect,
     },
     {
       'title': 'Survival',
-      'description': 'Start with 1 life, gain lives every 3 perfect rounds',
+      'description': 'Start with 1 life. Gain a life every 3 perfect rounds. Survive as long as possible!',
       'mode': GameMode.survival,
     },
     {
       'title': 'Precision',
-      'description': 'Wrong selection = lose life immediately',
+      'description': 'Wrong selection loses a life immediately. Perfect accuracy required to succeed!',
       'mode': GameMode.precision,
     },
     {
       'title': 'Flip Mode',
-      'description': '10s study (4s visible, 6s flipping), 20s play',
+      'description': 'Study for 10 seconds (4s visible, 6s flipping), then play for 20 seconds with face-down tiles.',
       'mode': GameMode.flip,
     },
     {
       'title': 'AI Mode',
-      'description': 'Adaptive difficulty that learns from you',
+      'description': 'AI adapts difficulty based on your performance. Personalized challenge that learns from you.',
       'mode': GameMode.ai,
       'isPremium': true,
     },
     {
       'title': 'Practice',
-      'description': 'No scoring, unlimited hints, learn at your pace',
+      'description': 'No scoring, unlimited hints. Learn at your own pace without pressure.',
       'mode': GameMode.practice,
       'isPremium': true,
     },
     {
       'title': 'Learning',
-      'description': 'Review missed questions and improve',
+      'description': 'Review questions you missed and improve your knowledge. Track your progress over time.',
       'mode': GameMode.learning,
       'isPremium': true,
     },
@@ -401,11 +401,17 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.topCenter,
-        animationPadding: const EdgeInsets.only(top: 60, left: 20),
-        child: SafeArea(
+      body: Stack(
+        children: [
+          // Background animation - behind tiles
+          UnifiedBackgroundWidget(
+            animationPath: animationPath,
+            animationAlignment: Alignment.topCenter,
+            animationPadding: const EdgeInsets.only(top: 60, left: 20),
+            child: Container(), // Empty child, animation is background
+          ),
+          // Content on top
+          SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
@@ -583,7 +589,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               ),
             ],
           ),
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -677,6 +684,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   }),
         borderRadius: BorderRadius.circular(12),
         child: Container(
+          constraints: const BoxConstraints(
+            minHeight: 100, // Ensure equal minimum height for all cards
+          ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(12),
@@ -702,6 +712,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
                     children: [
                       Row(
                         children: [

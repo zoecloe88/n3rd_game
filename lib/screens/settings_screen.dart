@@ -16,6 +16,8 @@ import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/services/data_export_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/animation_icon.dart';
+import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -562,10 +564,24 @@ class SettingsScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                color: isDestructive ? AppColors.error : colors.primaryText,
-                size: 22,
+              // Use screen-specific animation if available, otherwise use icon
+              Builder(
+                builder: (context) {
+                  final route = ModalRoute.of(context)?.settings.name ?? '/settings';
+                  final animationPath = IconAnimationMapping.getAnimationForScreen(route);
+                  
+                  return animationPath != null && !isDestructive
+                      ? AnimationIcon(
+                          animationPath: animationPath,
+                          size: 22,
+                          color: colors.primaryText,
+                        )
+                      : Icon(
+                          icon,
+                          color: isDestructive ? AppColors.error : colors.primaryText,
+                          size: 22,
+                        );
+                },
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

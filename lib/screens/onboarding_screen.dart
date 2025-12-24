@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +14,7 @@ import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/animation_icon.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -25,6 +28,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _pageController = PageController();
   final OnboardingService _onboardingService = OnboardingService();
   int _currentPage = 0;
+  
+  // Preload animation paths for all pages
+  final List<String> _animationPaths = [
+    'assets/animations/shared/8.mp4', // Welcome page
+    'assets/animations/shared/10.mp4', // Features page
+    'assets/animations/shared/11.mp4', // Play solo/online page
+    'assets/animations/shared/8.mp4', // Track progress page
+  ];
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -34,11 +45,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.quiz_outlined,
     ),
     OnboardingPage(
-      title: 'Multiple Game Modes',
+      title: 'Features & Editions',
       description:
-          'Choose from Classic, Speed, Shuffle, Time Attack, and more!',
-      videoPath: 'assets/videos/2nd_loading_new.mp4',
-      videoDuration: const Duration(milliseconds: 4500),
+          'Access multiple trivia editions, AI-generated content, and personalized learning experiences.',
+      icon: Icons.collections_bookmark_outlined,
     ),
     OnboardingPage(
       title: 'Play Solo or Online',
@@ -52,6 +62,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.leaderboard_outlined,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Preload all animations when screen loads - they'll initialize when pages are built
+    // VideoPlayerWidget handles initialization in addPostFrameCallback
+  }
 
   @override
   void dispose() {
@@ -179,7 +196,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   },
                   itemCount: _pages.length,
                   itemBuilder: (context, index) {
-                    return _buildPage(_pages[index]);
+                    return _buildPage(_pages[index], index);
                   },
                 ),
               ),
@@ -203,7 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: ElevatedButton(
                     onPressed: _nextPage,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.of(context).background,
+                      backgroundColor: const Color(0xFF00D9FF),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         vertical: AppSpacing.md,
@@ -234,8 +251,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildPage(OnboardingPage page) {
+  Widget _buildPage(OnboardingPage page, int pageIndex) {
     final pageColors = AppColors.of(context);
+    // #region agent log
+    final logData = {
+      'pageIndex': pageIndex,
+      'hasVideoPath': page.videoPath != null,
+      'hasIcon': page.icon != null,
+      'animationPathsLength': _animationPaths.length,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'sessionId': 'debug-session',
+      'runId': 'run1',
+      'hypothesisId': 'A',
+      'location': 'onboarding_screen.dart:252',
+      'message': 'Building onboarding page',
+    };
+    File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
+    // #endregion
     // If page has video, show video player
     if (page.videoPath != null) {
       return Container(
@@ -254,7 +286,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Animated graphic (250px) or icon
+          // Animated graphic (250px) or animation icon
           if (page.icon == null)
             const Padding(
               padding: EdgeInsets.only(bottom: 24),
@@ -267,7 +299,38 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             )
           else
-            Icon(page.icon, size: 80, color: pageColors.primaryButton),
+            // Replace icon with resized animation - positioned out of the way, compact size
+            Builder(
+              builder: (context) {
+                // #region agent log
+                final animationPath = pageIndex < _animationPaths.length ? _animationPaths[pageIndex] : 'OUT_OF_BOUNDS';
+                final logData2 = {
+                  'pageIndex': pageIndex,
+                  'animationPath': animationPath,
+                  'isValidIndex': pageIndex < _animationPaths.length,
+                  'timestamp': DateTime.now().millisecondsSinceEpoch,
+                  'sessionId': 'debug-session',
+                  'runId': 'run1',
+      'hypothesisId': 'A',
+      'location': 'onboarding_screen.dart:292',
+      'message': 'Accessing animation path',
+    };
+                File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData2)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
+                // #endregion
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: AnimationIcon(
+                      animationPath: pageIndex < _animationPaths.length ? _animationPaths[pageIndex] : _animationPaths[0],
+                      size: 80,
+                      color: pageColors.primaryButton,
+                    ),
+                  ),
+                );
+              },
+            ),
           const SizedBox(height: AppSpacing.xl),
           Text(
             page.title,

@@ -14,6 +14,8 @@ import 'package:n3rd_game/widgets/upgrade_shortcut_button.dart';
 import 'package:n3rd_game/widgets/tier_progress_indicator.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
+import 'package:n3rd_game/widgets/animation_icon.dart';
+import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -137,7 +139,7 @@ class _TitleScreenState extends State<TitleScreen> {
             const SizedBox(height: 16),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.book_outlined),
+              leading: _buildLeadingIcon(Icons.book_outlined),
               title: Text(
                 AppLocalizations.of(context)?.wordOfTheDay ?? 'Word of the Day',
                 style: AppTypography.labelLarge,
@@ -159,7 +161,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     featureName: 'Editions',
                     requiresEditionsAccess: true,
                     child: ListTile(
-                      leading: const Icon(Icons.collections_bookmark_outlined),
+                      leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
                       title: Text(
                         AppLocalizations.of(context)?.editions ?? 'Editions',
                         style: AppTypography.labelLarge,
@@ -182,7 +184,7 @@ class _TitleScreenState extends State<TitleScreen> {
                   );
                 }
                 return ListTile(
-                  leading: const Icon(Icons.collections_bookmark_outlined),
+                  leading: _buildLeadingIcon(Icons.collections_bookmark_outlined),
                   title: Text(
                     AppLocalizations.of(context)?.editions ?? 'Editions',
                     style: AppTypography.labelLarge,
@@ -207,7 +209,7 @@ class _TitleScreenState extends State<TitleScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.leaderboard_outlined),
+              leading: _buildLeadingIcon(Icons.leaderboard_outlined),
               title: Text(
                 AppLocalizations.of(context)?.leaderboard ?? 'Leaderboard',
                 style: AppTypography.labelLarge,
@@ -223,7 +225,7 @@ class _TitleScreenState extends State<TitleScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.history_outlined),
+              leading: _buildLeadingIcon(Icons.history_outlined),
               title: Text(
                 AppLocalizations.of(context)?.gameHistory ?? 'Game History',
                 style: AppTypography.labelLarge,
@@ -244,7 +246,7 @@ class _TitleScreenState extends State<TitleScreen> {
                   return const SizedBox.shrink();
                 }
                 return ListTile(
-                  leading: const Icon(Icons.school_outlined),
+                  leading: _buildLeadingIcon(Icons.school_outlined),
                   title: Text(
                     AppLocalizations.of(context)?.learningMode ??
                         'Learning Mode',
@@ -269,7 +271,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     featureName: 'Daily Challenges',
                     requiresOnlineAccess: true,
                     child: ListTile(
-                      leading: const Icon(Icons.event_available_outlined),
+                      leading: _buildLeadingIcon(Icons.event_available_outlined),
                       title: Text(
                         'Daily Challenges',
                         style: AppTypography.labelLarge,
@@ -292,7 +294,7 @@ class _TitleScreenState extends State<TitleScreen> {
                   );
                 }
                 return ListTile(
-                  leading: const Icon(Icons.event_available_outlined),
+                  leading: _buildLeadingIcon(Icons.event_available_outlined),
                   title: Text(
                     'Daily Challenges',
                     style: AppTypography.labelLarge,
@@ -313,7 +315,7 @@ class _TitleScreenState extends State<TitleScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.card_membership_outlined),
+              leading: _buildLeadingIcon(Icons.card_membership_outlined),
               title: Text(
                 'Manage Subscriptions',
                 style: AppTypography.labelLarge,
@@ -332,7 +334,7 @@ class _TitleScreenState extends State<TitleScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
+              leading: _buildLeadingIcon(Icons.info_outline),
               title: Text(
                 AppLocalizations.of(context)?.about ?? 'About',
                 style: AppTypography.labelLarge,
@@ -469,6 +471,21 @@ class _TitleScreenState extends State<TitleScreen> {
 
   void _switchToMoreTab(BuildContext context) {
     NavigationHelper.safeNavigate(context, '/more', replace: true);
+  }
+
+  /// Helper to build leading widget - uses screen animation if available, otherwise icon
+  Widget _buildLeadingIcon(IconData icon, {double size = 24}) {
+    final colors = AppColors.of(context);
+    final route = ModalRoute.of(context)?.settings.name ?? '/title';
+    final animationPath = IconAnimationMapping.getAnimationForScreen(route);
+    
+    return animationPath != null
+        ? AnimationIcon(
+            animationPath: animationPath,
+            size: size,
+            color: colors.primaryText,
+          )
+        : Icon(icon, size: size);
   }
 
   @override

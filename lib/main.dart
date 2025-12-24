@@ -82,6 +82,7 @@ import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
+import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
 /// Initialize SubscriptionService asynchronously
@@ -402,11 +403,14 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => EditionAccessService()..init()),
         ChangeNotifierProvider(create: (_) => FamilyGroupService()..init()),
+        ChangeNotifierProvider(create: (_) => FriendsService()..init()),
         // Add RevenueCatService provider
         ChangeNotifierProvider.value(value: revenueCatService),
         // Connect RevenueCat and AuthService to SubscriptionService
         // CRITICAL: Ensure init() completes before syncWithRevenueCat to prevent race conditions
-        ProxyProvider2<RevenueCatService, AuthService, SubscriptionService>(
+        // Use ChangeNotifierProxyProvider2 since SubscriptionService extends ChangeNotifier
+        ChangeNotifierProxyProvider2<RevenueCatService, AuthService, SubscriptionService>(
+          create: (_) => SubscriptionService(),
           update: (_, revenueCat, auth, previous) {
             final service = previous ?? SubscriptionService();
             // Ensure init() completes before syncWithRevenueCat

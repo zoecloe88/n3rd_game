@@ -6,6 +6,8 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/animation_icon.dart';
+import 'package:n3rd_game/utils/icon_animation_mapping.dart';
 
 /// Screen that provides menu to choose between Stats and Leaderboard
 class StatsMenuScreen extends StatelessWidget {
@@ -113,7 +115,21 @@ class StatsMenuScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: optionColors.onDarkText, size: 32),
+            // Use screen-specific animation if available, otherwise use icon
+            Builder(
+              builder: (context) {
+                final route = ModalRoute.of(context)?.settings.name ?? '/stats';
+                final animationPath = IconAnimationMapping.getAnimationForScreen(route);
+                
+                return animationPath != null
+                    ? AnimationIcon(
+                        animationPath: animationPath,
+                        size: 32,
+                        color: optionColors.onDarkText,
+                      )
+                    : Icon(icon, color: optionColors.onDarkText, size: 32);
+              },
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

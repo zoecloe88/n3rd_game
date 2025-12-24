@@ -7,7 +7,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -262,27 +261,29 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ],
       ),
       body: UnifiedBackgroundWidget(
-        animationPath: ScreenAnimationsConfig.getAnimationForRoute(
-          ModalRoute.of(context)?.settings.name,
-        ),
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
+        // Remove animation overlay - use icon-sized animations only
         child: SafeArea(
           child: Column(
             children: [
-              // Tabs
-              Row(
-                children: [
-                  Expanded(child: _buildTab(0, 'Friends')),
-                  Expanded(child: _buildTab(1, 'Requests')),
-                ],
+              // Tabs - in cyan section
+              Container(
+                color: const Color(0xFF00D9FF), // Cyan background for tabs
+                child: Row(
+                  children: [
+                    Expanded(child: _buildTab(0, 'Friends')),
+                    Expanded(child: _buildTab(1, 'Requests')),
+                  ],
+                ),
               ),
 
-              // Content
+              // Content - black background
               Expanded(
-                child: _selectedTab == 0
-                    ? _buildFriendsList()
-                    : _buildRequestsList(),
+                child: Container(
+                  color: Colors.black, // Black content area
+                  child: _selectedTab == 0
+                      ? _buildFriendsList()
+                      : _buildRequestsList(),
+                ),
               ),
             ],
           ),
@@ -293,7 +294,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Widget _buildTab(int index, String label) {
     final isSelected = _selectedTab == index;
-    final tabColors = AppColors.of(context);
     return InkWell(
       onTap: () {
         HapticService().lightImpact();
@@ -306,7 +306,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isSelected ? tabColors.primaryButton : Colors.transparent,
+              color: isSelected ? Colors.black : Colors.transparent,
               width: 2,
             ),
           ),
@@ -316,9 +316,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           textAlign: TextAlign.center,
           style: AppTypography.labelLarge.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected
-                ? tabColors.primaryButton
-                : tabColors.secondaryText,
+            color: isSelected ? Colors.black : Colors.black.withValues(alpha: 0.6),
           ),
         ),
       ),

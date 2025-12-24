@@ -38,7 +38,7 @@ android {
             // Release signing will be configured via key.properties file
             val keystorePropertiesFile = rootProject.file("key.properties")
             if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = java.util.Properties()
+                val keystoreProperties = Properties()
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))
                 storeFile = file(keystoreProperties.getProperty("storeFile") ?: "")
                 storePassword = keystoreProperties.getProperty("storePassword") ?: ""
