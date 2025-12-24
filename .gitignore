@@ -88,3 +88,10 @@ Pods/
 *.env
 .env
 lib/config/app_config.dart.local
+
+# Firebase configuration files (contain API keys - public by design but should be restricted)
+# Note: These files are required for Firebase but contain API keys
+# API keys are client-side and protected by Firebase Security Rules
+# Consider enabling API key restrictions in Firebase Console
+# ios/Runner/GoogleService-Info.plist
+# android/app/google-services.json
