@@ -49,9 +49,23 @@ class AuthService extends ChangeNotifier {
   User? get currentUser => _firebaseUser;
 
   // Get or initialize SharedPreferences
+  // CRITICAL: Handle SharedPreferences initialization failures to prevent crashes
   Future<SharedPreferences> _getPrefs() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
+    if (_prefs != null) return _prefs!;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      return _prefs!;
+    } catch (e) {
+      // SharedPreferences initialization failed - log and rethrow
+      // This prevents silent failures that could cause data loss
+      LoggerService.error(
+        'AuthService: Failed to initialize SharedPreferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      rethrow; // Re-throw to let caller handle the error appropriately
+    }
   }
 
   // Email validation regex pattern
@@ -267,11 +281,11 @@ class AuthService extends ChangeNotifier {
     if (firebaseAuth != null) {
       try {
         // Create user with Firebase
-        final userCredential = await firebaseAuth
-            .createUserWithEmailAndPassword(
-              email: email.trim(),
-              password: password,
-            );
+        final userCredential =
+            await firebaseAuth.createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
 
         _firebaseUser = userCredential.user;
         _isAuthenticated = _firebaseUser != null;

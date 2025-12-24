@@ -48,7 +48,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      
+
       // Check if user is authenticated
       if (!authService.isAuthenticated) {
         if (mounted) {
@@ -65,8 +65,9 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
         return;
       }
 
-      final familyService = Provider.of<FamilyGroupService>(context, listen: false);
-      
+      final familyService =
+          Provider.of<FamilyGroupService>(context, listen: false);
+
       // Check if user is already in a group
       if (familyService.isInGroup) {
         if (mounted) {
@@ -100,8 +101,10 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
     setState(() => _isAccepting = true);
 
     try {
-      final familyService = Provider.of<FamilyGroupService>(context, listen: false);
-      final analyticsService = Provider.of<AnalyticsService>(context, listen: false);
+      final familyService =
+          Provider.of<FamilyGroupService>(context, listen: false);
+      final analyticsService =
+          Provider.of<AnalyticsService>(context, listen: false);
 
       await familyService.acceptInvitation(groupId);
 
@@ -120,7 +123,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
         context,
         'Successfully joined Family & Friends group!',
       );
-      
+
       // Navigate to family management screen after a delay
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted && context.mounted) {
@@ -149,7 +152,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final authService = Provider.of<AuthService>(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
     final groupId = widget.groupId;
 
     return Scaffold(
@@ -191,7 +194,8 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'Login Required',
-                          style: AppTypography.headlineLarge.copyWith(fontSize: 20),
+                          style: AppTypography.headlineLarge
+                              .copyWith(fontSize: 20),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -215,11 +219,13 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                           ),
                         ),
                       ] else if (groupId == null) ...[
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
                         const SizedBox(height: 16),
                         Text(
                           'Invalid Invitation',
-                          style: AppTypography.headlineLarge.copyWith(fontSize: 20),
+                          style: AppTypography.headlineLarge
+                              .copyWith(fontSize: 20),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -228,11 +234,13 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                           style: AppTypography.bodyMedium,
                         ),
                       ] else ...[
-                        const Icon(Icons.group, size: 64, color: AppColors.success),
+                        const Icon(Icons.group,
+                            size: 64, color: AppColors.success),
                         const SizedBox(height: 16),
                         Text(
                           'Family & Friends Invitation',
-                          style: AppTypography.headlineLarge.copyWith(fontSize: 20),
+                          style: AppTypography.headlineLarge
+                              .copyWith(fontSize: 20),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
@@ -257,7 +265,8 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
                                     ),
                                   )
                                 : const Text('Accept Invitation'),
@@ -280,4 +289,3 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
     );
   }
 }
-

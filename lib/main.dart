@@ -83,7 +83,6 @@ import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
-import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
 /// Initialize SubscriptionService asynchronously
 /// Standardized async pattern using async/await instead of .then()
@@ -369,7 +368,19 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()..init()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final authService = AuthService();
+            // DEBUG ONLY: Sign out on every app start to test login flow
+            authService.init().then((_) {
+              if (kDebugMode) {
+                // Sign out in debug mode to force login every time
+                authService.signOut();
+              }
+            });
+            return authService;
+          },
+        ),
         // GameService is now provided by ChangeNotifierProxyProvider below
         ChangeNotifierProvider(create: (_) => StatsService()),
         ChangeNotifierProvider(create: (_) => AnalyticsService()..init()),
@@ -483,48 +494,69 @@ void main() async {
                   // Ignore analytics errors during initialization
                 }
 
-                // Throw exception - ProxyProvider will catch it and prevent service creation
-                // The app will continue but trivia generation will show error to user
-                throw ValidationException(errorMessage);
-              }
-
-              try {
-                previous = TriviaGeneratorService();
-              } catch (e, stackTrace) {
-                final errorMessage =
-                    'Failed to create TriviaGeneratorService: $e. '
-                    'This prevents the app from generating trivia questions. '
-                    'Users will see an error message when attempting to play games.';
-
-                if (kDebugMode) {
-                  debugPrint('❌ CRITICAL: $errorMessage');
-                  debugPrint('Stack trace: $stackTrace');
-                }
-
-                // Log to analytics if available
+                // CRITICAL: Don't throw exception - create service anyway to prevent null errors
+                // The service will handle errors gracefully when trivia generation is attempted
+                // This prevents the type cast error when Provider tries to access the service
                 try {
-                  analytics.logServiceInitializationFailure(
-                    'TriviaGeneratorService',
-                    '$e\nStack trace: $stackTrace',
-                  );
-                } catch (analyticsError) {
-                  // Ignore analytics errors during initialization
+                  previous = TriviaGeneratorService();
+                } catch (e) {
+                  // Even if creation fails, we need to return something non-null
+                  // This will be caught by game_screen error handling
                   if (kDebugMode) {
-                    debugPrint(
-                      '⚠️ Warning: Failed to log initialization error to analytics: $analyticsError',
-                    );
+                    debugPrint('Failed to create TriviaGeneratorService: $e');
                   }
                 }
+              } else {
+                try {
+                  previous = TriviaGeneratorService();
+                } catch (e, stackTrace) {
+                  final errorMessage =
+                      'Failed to create TriviaGeneratorService: $e. '
+                      'This prevents the app from generating trivia questions. '
+                      'Users will see an error message when attempting to play games.';
 
-                // Re-throw to prevent invalid service creation
-                rethrow;
+                  if (kDebugMode) {
+                    debugPrint('❌ CRITICAL: $errorMessage');
+                    debugPrint('Stack trace: $stackTrace');
+                  }
+
+                  // Log to analytics if available
+                  try {
+                    analytics.logServiceInitializationFailure(
+                      'TriviaGeneratorService',
+                      '$e\nStack trace: $stackTrace',
+                    );
+                  } catch (analyticsError) {
+                    // Ignore analytics errors during initialization
+                    if (kDebugMode) {
+                      debugPrint(
+                        '⚠️ Warning: Failed to log initialization error to analytics: $analyticsError',
+                      );
+                    }
+                  }
+
+                  // CRITICAL: Don't rethrow - create a service anyway to prevent null errors
+                  // The service will handle errors when trivia generation is attempted
+                  try {
+                    previous = TriviaGeneratorService();
+                  } catch (e2) {
+                    if (kDebugMode) {
+                      debugPrint('Second attempt to create service also failed: $e2');
+                    }
+                  }
+                }
               }
             }
 
+            // CRITICAL: Must return non-null service or Provider will fail
+            // If service creation failed, return a newly created instance anyway
+            // It will fail gracefully when trivia generation is attempted
+            final service = previous ?? TriviaGeneratorService();
+
             // Set optional services (safe to call even if service creation was delayed)
             try {
-              previous.setPersonalizationService(personalization);
-              previous.setAnalyticsService(analytics);
+              service.setPersonalizationService(personalization);
+              service.setAnalyticsService(analytics);
             } catch (e) {
               if (kDebugMode) {
                 debugPrint(
@@ -534,7 +566,7 @@ void main() async {
               // Continue - service might still work for basic operations
             }
 
-            return previous;
+            return service;
           },
         ),
         // Wire GameService to personalization, gamification, and analytics services
@@ -835,14 +867,27 @@ void main() async {
                           );
                         }
                       }
-                      if (settings.name == '/multiplayer-loading' &&
-                          settings.arguments != null) {
-                        return MaterialPageRoute(
-                          builder: (context) => MultiplayerLoadingScreen(
-                            mode: settings.arguments as MultiplayerMode,
-                          ),
-                          settings: settings,
-                        );
+                      if (settings.name == '/multiplayer-loading') {
+                        // CRITICAL: Validate MultiplayerMode argument type before casting
+                        // This prevents runtime crashes from invalid argument types
+                        final args = settings.arguments;
+                        if (args != null && args is MultiplayerMode) {
+                          return MaterialPageRoute(
+                            builder: (context) => MultiplayerLoadingScreen(
+                              mode: args,
+                            ),
+                            settings: settings,
+                          );
+                        } else {
+                          // Invalid or missing arguments - log error and return null to use default route handling
+                          if (kDebugMode) {
+                            debugPrint(
+                              'MultiplayerLoadingScreen: Invalid arguments type: ${args?.runtimeType}, expected MultiplayerMode',
+                            );
+                          }
+                          // Return null to trigger onUnknownRoute or default error handling
+                          return null;
+                        }
                       }
                       if (settings.name == '/general-transition') {
                         final args =

@@ -7,9 +7,13 @@ import 'package:n3rd_game/config/screen_background_videos.dart';
 /// 
 /// Videos are intentionally oversized (2000x3000) to preserve logo animation quality
 /// and maintain responsiveness across all devices (phones and tablets)
+/// 
+/// Each screen can customize BoxFit and alignment based on where logos are positioned
 class UnifiedBackgroundWidget extends StatelessWidget {
   final Widget child;
   final String? videoPath; // Optional: override video path, otherwise auto-detects from route
+  final BoxFit fit; // How the video should be fitted - defaults to cover for full-screen
+  final Alignment alignment; // Alignment for the video - defaults to center
 
   // Fallback background configuration (used when no video is available)
   static const String fallbackBackgroundImage =
@@ -20,6 +24,8 @@ class UnifiedBackgroundWidget extends StatelessWidget {
     super.key,
     required this.child,
     this.videoPath,
+    this.fit = BoxFit.cover, // Default to cover for full-screen backgrounds
+    this.alignment = Alignment.center, // Default to center alignment
   });
 
   @override
@@ -42,15 +48,20 @@ class UnifiedBackgroundWidget extends StatelessWidget {
     );
   }
 
-  /// Build video background - fills screen, maintains aspect ratio
+  /// Build video background - fills screen with configurable fit and alignment
   /// Videos are 2000x3000 (oversized to preserve logo quality)
+  /// BoxFit.cover fills screen while maintaining aspect ratio (logos in upper portion)
+  /// BoxFit.contain shows full video with possible letterboxing (if logos need precise positioning)
   Widget _buildVideoBackground(String videoPath) {
     return Positioned.fill(
-      child: VideoPlayerWidget(
-        videoPath: videoPath,
-        loop: true,
-        autoplay: true,
-        fit: BoxFit.cover, // Cover entire screen, maintain aspect ratio
+      child: Align(
+        alignment: alignment,
+        child: VideoPlayerWidget(
+          videoPath: videoPath,
+          loop: true,
+          autoplay: true,
+          fit: fit, // Configurable per screen based on logo positioning needs
+        ),
       ),
     );
   }

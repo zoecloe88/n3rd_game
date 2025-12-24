@@ -13,7 +13,8 @@ class ThemesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    final subscriptionService =
+        Provider.of<SubscriptionService>(context, listen: false);
 
     // Check if user has premium access
     final colors = AppColors.of(context);
@@ -170,21 +171,21 @@ class ThemesScreen extends StatelessWidget {
                                     children: [
                                       Text(
                                         'Current Theme',
-                                        style: AppTypography.labelSmall
-                                            .copyWith(
-                                              fontSize: 12,
-                                              color: Colors.white.withValues(
-                                                alpha: 0.7,
-                                              ),
-                                            ),
+                                        style:
+                                            AppTypography.labelSmall.copyWith(
+                                          fontSize: 12,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                        ),
                                       ),
                                       Text(
                                         currentTheme.name,
-                                        style: AppTypography.titleLarge
-                                            .copyWith(
-                                              fontSize: 18,
-                                              color: Colors.white,
-                                            ),
+                                        style:
+                                            AppTypography.titleLarge.copyWith(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -199,11 +200,11 @@ class ThemesScreen extends StatelessWidget {
                             physics: const NeverScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                  childAspectRatio: 0.85,
-                                ),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.85,
+                            ),
                             itemCount: availableThemes.length,
                             itemBuilder: (context, index) {
                               final theme = availableThemes[index];
@@ -220,7 +221,7 @@ class ThemesScreen extends StatelessWidget {
                                     border: Border.all(
                                       color: isSelected
                                           ? theme.colors['accent'] ??
-                                                Colors.white
+                                              Colors.white
                                           : Colors.white.withValues(alpha: 0.2),
                                       width: isSelected ? 2 : 1,
                                     ),
@@ -233,16 +234,14 @@ class ThemesScreen extends StatelessWidget {
                                         width: 60,
                                         height: 60,
                                         decoration: BoxDecoration(
-                                          color:
-                                              theme.colors['accent'] ??
+                                          color: theme.colors['accent'] ??
                                               Colors.white,
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
-                                              color:
-                                                  (theme.colors['accent'] ??
-                                                          Colors.white)
-                                                      .withValues(alpha: 0.5),
+                                              color: (theme.colors['accent'] ??
+                                                      Colors.white)
+                                                  .withValues(alpha: 0.5),
                                               blurRadius: 10,
                                               spreadRadius: 2,
                                             ),
@@ -252,23 +251,23 @@ class ThemesScreen extends StatelessWidget {
                                       const SizedBox(height: 12),
                                       Text(
                                         theme.name,
-                                        style: AppTypography.titleLarge
-                                            .copyWith(
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                            ),
+                                        style:
+                                            AppTypography.titleLarge.copyWith(
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         theme.description,
                                         textAlign: TextAlign.center,
-                                        style: AppTypography.bodyMedium
-                                            .copyWith(
-                                              fontSize: 11,
-                                              color: Colors.white.withValues(
-                                                alpha: 0.7,
-                                              ),
-                                            ),
+                                        style:
+                                            AppTypography.bodyMedium.copyWith(
+                                          fontSize: 11,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                        ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -292,9 +291,9 @@ class ThemesScreen extends StatelessWidget {
                                                 'SEASONAL',
                                             style: AppTypography.labelSmall
                                                 .copyWith(
-                                                  fontSize: 8,
-                                                  color: Colors.amber,
-                                                ),
+                                              fontSize: 8,
+                                              color: Colors.amber,
+                                            ),
                                           ),
                                         ),
                                       ],

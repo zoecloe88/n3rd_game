@@ -421,7 +421,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection screen.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,
@@ -804,6 +806,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                         alpha: 0.8,
                                       ), // Ultralight title color
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (isPremium && !isLocked)

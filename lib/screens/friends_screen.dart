@@ -438,7 +438,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ],
       ),
       body: UnifiedBackgroundWidget(
-        // Remove animation overlay - use icon-sized animations only
+        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
+        fit: BoxFit.cover, // Fill screen, logos in upper portion
+        alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
           child: Column(
             children: [
@@ -510,8 +512,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onRefresh: _refreshFriends,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
+              child: Center(
                 child: EmptyStateWidget(
                   icon: Icons.people_outline,
                   title: AppLocalizations.of(context)!.noFriends,
@@ -715,9 +716,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onRefresh: _refreshFriends,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: const EmptyStateWidget(
+              child: Center(
+                child: EmptyStateWidget(
                   icon: Icons.mark_email_read_outlined,
                   title: 'No pending requests',
                   description: 'Friend requests will appear here',

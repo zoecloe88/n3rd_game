@@ -44,8 +44,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     setState(() => _isInviting = true);
 
     try {
-      final familyService = Provider.of<FamilyGroupService>(context, listen: false);
-      final analyticsService = Provider.of<AnalyticsService>(context, listen: false);
+      final familyService =
+          Provider.of<FamilyGroupService>(context, listen: false);
+      final analyticsService =
+          Provider.of<AnalyticsService>(context, listen: false);
 
       await familyService.inviteMember(email);
 
@@ -82,7 +84,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Member'),
-        content: Text('Are you sure you want to remove $memberEmail from the group?'),
+        content: Text(
+            'Are you sure you want to remove $memberEmail from the group?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -100,8 +103,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     if (confirmed != true) return;
 
     if (!mounted) return;
-    final familyService = Provider.of<FamilyGroupService>(context, listen: false);
-    final analyticsService = Provider.of<AnalyticsService>(context, listen: false);
+    final familyService =
+        Provider.of<FamilyGroupService>(context, listen: false);
+    final analyticsService =
+        Provider.of<AnalyticsService>(context, listen: false);
 
     setState(() {
       _isRemoving = true;
@@ -158,8 +163,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     if (confirmed != true) return;
 
     if (!mounted) return;
-    final familyService = Provider.of<FamilyGroupService>(context, listen: false);
-    final analyticsService = Provider.of<AnalyticsService>(context, listen: false);
+    final familyService =
+        Provider.of<FamilyGroupService>(context, listen: false);
+    final analyticsService =
+        Provider.of<AnalyticsService>(context, listen: false);
 
     try {
       await familyService.leaveGroup();
@@ -182,8 +189,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final familyService = Provider.of<FamilyGroupService>(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    final familyService =
+        Provider.of<FamilyGroupService>(context, listen: false);
+    final subscriptionService =
+        Provider.of<SubscriptionService>(context, listen: false);
     final currentUser = FirebaseAuth.instance.currentUser;
     final group = familyService.currentGroup;
     final isOwner = familyService.isOwner;
@@ -319,7 +328,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                           _buildNoGroupView(context, colors),
                         ] else ...[
                           // Group info card
-                          _buildGroupInfoCard(context, colors, group, subscriptionService),
+                          _buildGroupInfoCard(
+                              context, colors, group, subscriptionService),
 
                           const SizedBox(height: 24),
 
@@ -339,13 +349,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                           const SizedBox(height: 16),
 
                           // Members list
-                          ...group.members.map((member) => _buildMemberCard(
-                                context,
-                                colors,
-                                member,
-                                isOwner && member.userId != currentUser?.uid,
-                                member.userId == currentUser?.uid,
-                              ),),
+                          ...group.members.map(
+                            (member) => _buildMemberCard(
+                              context,
+                              colors,
+                              member,
+                              isOwner && member.userId != currentUser?.uid,
+                              member.userId == currentUser?.uid,
+                            ),
+                          ),
 
                           const SizedBox(height: 16),
 
@@ -364,11 +376,13 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            ...group.pendingInvites.map((invite) => _buildInviteCard(
-                                  context,
-                                  colors,
-                                  invite,
-                                ),),
+                            ...group.pendingInvites.map(
+                              (invite) => _buildInviteCard(
+                                context,
+                                colors,
+                                invite,
+                              ),
+                            ),
                             const SizedBox(height: 16),
                           ],
 
@@ -387,7 +401,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.red,
                                   side: const BorderSide(color: Colors.red),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
                                 ),
                                 child: const Text('Leave Group'),
                               ),
@@ -442,7 +457,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
             child: ElevatedButton(
               onPressed: () {
                 // Navigate to subscription screen to purchase Family plan
-                NavigationHelper.safeNavigate(context, '/subscription-management');
+                NavigationHelper.safeNavigate(
+                    context, '/subscription-management');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
@@ -491,7 +507,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: isActive
                       ? AppColors.success.withValues(alpha: 0.2)
@@ -804,4 +821,3 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     }
   }
 }
-

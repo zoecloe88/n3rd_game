@@ -164,7 +164,8 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    final subscriptionService =
+        Provider.of<SubscriptionService>(context, listen: false);
 
     // Check subscription access
     if (!subscriptionService.hasEditionsAccess) {
@@ -278,139 +279,150 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
                 showSubtitle: true,
               )
             : _error != null
-            ? ErrorRecoveryWidget(
-                title: 'Failed to Load History',
-                message: _error!,
-                onRetry: _loadHistory,
-                icon: Icons.error_outline,
-              )
-            : _history.isEmpty
-            ? EmptyStateWidget(
-                icon: Icons.history,
-                title:
-                    AppLocalizations.of(context)?.noTriviaHistory ??
-                    'No trivia history',
-                description:
-                    AppLocalizations.of(context)?.noTriviaHistoryDescription ??
-                    'Play some games to see your history!',
-              )
-            : RefreshIndicator(
-                onRefresh: _loadHistory,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: _history.length,
-                  itemBuilder: (context, index) {
-                    final item = _history[index];
-                    final topic = item['topic'] as String;
-                    final isYouth = item['isYouth'] as bool? ?? false;
-                    final itemCount = item['itemCount'] as int? ?? 0;
-                    final timestamp = item['timestamp'] as String;
+                ? ErrorRecoveryWidget(
+                    title: 'Failed to Load History',
+                    message: _error!,
+                    onRetry: _loadHistory,
+                    icon: Icons.error_outline,
+                  )
+                : _history.isEmpty
+                    ? EmptyStateWidget(
+                        icon: Icons.history,
+                        title: AppLocalizations.of(context)?.noTriviaHistory ??
+                            'No trivia history',
+                        description: AppLocalizations.of(context)
+                                ?.noTriviaHistoryDescription ??
+                            'Play some games to see your history!',
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadHistory,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          itemCount: _history.length,
+                          itemBuilder: (context, index) {
+                            final item = _history[index];
+                            final topic = item['topic'] as String;
+                            final isYouth = item['isYouth'] as bool? ?? false;
+                            final itemCount = item['itemCount'] as int? ?? 0;
+                            final timestamp = item['timestamp'] as String;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppRadius.medium),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
+                            return Container(
+                              margin:
+                                  const EdgeInsets.only(bottom: AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.medium),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding:
+                                    const EdgeInsets.all(AppSpacing.md),
+                                leading: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF6366F1),
+                                        Color(0xFF8B5CF6)
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.small,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.auto_awesome,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                title: Text(
+                                  topic,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        if (isYouth)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue
+                                                  .withValues(alpha: 0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                AppRadius.small,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Youth',
+                                              style: AppTypography.bodyMedium
+                                                  .copyWith(
+                                                color: Colors.blue,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                        if (isYouth) const SizedBox(width: 8),
+                                        Text(
+                                          '$itemCount items',
+                                          style:
+                                              AppTypography.bodyMedium.copyWith(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '•',
+                                          style:
+                                              AppTypography.bodyMedium.copyWith(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _formatDate(timestamp),
+                                          style:
+                                              AppTypography.bodyMedium.copyWith(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.play_arrow,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () => _replayGeneration(item),
+                                  tooltip: AppLocalizations.of(context)
+                                          ?.playButton ??
+                                      'Play',
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(AppSpacing.md),
-                        leading: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.small,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.auto_awesome,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        title: Text(
-                          topic,
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                if (isYouth)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.small,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Youth',
-                                      style: AppTypography.bodyMedium.copyWith(
-                                        color: Colors.blue,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                if (isYouth) const SizedBox(width: 8),
-                                Text(
-                                  '$itemCount items',
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '•',
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _formatDate(timestamp),
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.play_arrow,
-                            color: Colors.white,
-                          ),
-                          onPressed: () => _replayGeneration(item),
-                          tooltip:
-                              AppLocalizations.of(context)?.playButton ??
-                              'Play',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
       ),
     );
   }

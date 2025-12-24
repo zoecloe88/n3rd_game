@@ -204,7 +204,8 @@ class _SubscriptionManagementScreenState
                           isCurrent: subscriptionTier == 'Family & Friends',
                           isPremium: true,
                           highlight: true,
-                          onTap: _isPurchasing && _purchasingTier == 'Family & Friends'
+                          onTap: _isPurchasing &&
+                                  _purchasingTier == 'Family & Friends'
                               ? () {} // Disabled during purchase
                               : () {
                                   _showSubscriptionDialog('Family & Friends');
@@ -213,7 +214,8 @@ class _SubscriptionManagementScreenState
                         const SizedBox(height: 24),
 
                         // Manage subscription section
-                        if (isPremium || subscriptionTier == 'Family & Friends') ...[
+                        if (isPremium ||
+                            subscriptionTier == 'Family & Friends') ...[
                           _buildManageSection(),
                           const SizedBox(height: 24),
                         ],
@@ -254,7 +256,8 @@ class _SubscriptionManagementScreenState
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.success,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
                                     ),
                                     child: const Text('Manage Group'),
                                   ),
@@ -275,9 +278,9 @@ class _SubscriptionManagementScreenState
                             );
                             final revenueCatService =
                                 Provider.of<RevenueCatService>(
-                                  context,
-                                  listen: false,
-                                );
+                              context,
+                              listen: false,
+                            );
                             await revenueCatService.restorePurchases();
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -311,8 +314,10 @@ class _SubscriptionManagementScreenState
 
   Widget _buildSubscriptionCard() {
     final cardColors = AppColors.of(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-    final freeTierService = Provider.of<FreeTierService>(context);
+    final subscriptionService =
+        Provider.of<SubscriptionService>(context, listen: false);
+    final freeTierService =
+        Provider.of<FreeTierService>(context, listen: false);
     final isFree = subscriptionService.isFree;
     final isPremium = subscriptionService.isPremium;
     final subscriptionTier = subscriptionService.tierName;
@@ -352,9 +357,8 @@ class _SubscriptionManagementScreenState
                   subscriptionTier,
                   style: AppTypography.labelSmall.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isPremium
-                        ? AppColors.success
-                        : cardColors.tertiaryText,
+                    color:
+                        isPremium ? AppColors.success : cardColors.tertiaryText,
                   ),
                 ),
               ),
@@ -714,11 +718,12 @@ class _SubscriptionManagementScreenState
                 }
 
                 Package? targetPackage;
-                if (tier.toLowerCase().contains('family') || 
+                if (tier.toLowerCase().contains('family') ||
                     tier.toLowerCase().contains('friends')) {
                   targetPackage = packages.firstWhere(
-                    (p) => p.identifier.contains('family') || 
-                           p.identifier.contains('friends'),
+                    (p) =>
+                        p.identifier.contains('family') ||
+                        p.identifier.contains('friends'),
                     orElse: () => packages.first,
                   );
                 } else if (tier.toLowerCase().contains('basic')) {
@@ -782,9 +787,8 @@ class _SubscriptionManagementScreenState
                     // Log funnel step 6: Purchase completed
                     await analyticsService.logConversionFunnelStep(
                       step: 6,
-                      stepName: success
-                          ? 'purchase_completed'
-                          : 'purchase_failed',
+                      stepName:
+                          success ? 'purchase_completed' : 'purchase_failed',
                       source: 'subscription_screen',
                       targetTier: tier.toLowerCase(),
                       additionalData: {
@@ -827,7 +831,8 @@ class _SubscriptionManagementScreenState
                         } catch (e) {
                           // Log but don't fail - group creation can happen later
                           if (kDebugMode) {
-                            debugPrint('Failed to create family group after purchase: $e');
+                            debugPrint(
+                                'Failed to create family group after purchase: $e');
                           }
                         }
                       }
@@ -835,11 +840,13 @@ class _SubscriptionManagementScreenState
                       // Check context.mounted directly (not State.mounted)
                       if (!context.mounted) return;
 
-                      final successMessage = tier.toLowerCase().contains('family') ||
+                      final successMessage = tier
+                                  .toLowerCase()
+                                  .contains('family') ||
                               tier.toLowerCase().contains('friends')
                           ? 'Family & Friends plan purchased! You can now invite up to 3 more members.'
                           : 'Subscription purchased successfully! Premium features are now available.';
-                      
+
                       ErrorHandler.showSuccess(context, successMessage);
                     } else {
                       // Check context.mounted directly (not State.mounted)

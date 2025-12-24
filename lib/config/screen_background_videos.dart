@@ -13,11 +13,14 @@ class ScreenBackgroundVideos {
     '/settings': '$_basePath/setting screen.mp4',
     '/stats': '$_basePath/stat screen.mp4',
     '/modes': '$_basePath/mode selection screen.mp4',
+    '/game': '$_basePath/mode selection screen.mp4', // Game screen uses mode selection background
     '/word-of-day': '$_basePath/word of the day.mp4',
     '/editions': '$_basePath/edition.mp4',
     '/editions-selection': '$_basePath/edition.mp4',
     '/youth-editions': '$_basePath/youth screen.mp4',
     '/mode-transition': '$_basePath/mode selection transition screen.mp4',
+    '/friends': '$_basePath/title screen.mp4', // Friends screen uses title background
+    '/more': '$_basePath/title screen.mp4', // More menu uses title background
   };
 
   /// Get background video path for a route

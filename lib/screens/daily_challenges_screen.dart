@@ -57,7 +57,8 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    final subscriptionService =
+        Provider.of<SubscriptionService>(context, listen: false);
 
     // Check if user has online access (Base or Premium)
     final colors = AppColors.of(context);
@@ -172,11 +173,9 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     if (todayChallenges.isEmpty) {
                       return EmptyStateWidget(
                         icon: Icons.event_available,
-                        title:
-                            AppLocalizations.of(context)?.noChallenges ??
+                        title: AppLocalizations.of(context)?.noChallenges ??
                             'No challenges available',
-                        description:
-                            AppLocalizations.of(
+                        description: AppLocalizations.of(
                               context,
                             )?.noChallengesDescription ??
                             'Check back tomorrow for new challenges!',
@@ -224,15 +223,13 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
 
   Widget _buildChallengeCard(DailyChallenge challenge) {
     final progress = challenge.progress.toDouble();
-    final target =
-        (challenge.target['count'] ??
-                challenge.target['streak'] ??
-                challenge.target['score'] ??
-                1)
-            .toDouble();
-    final progressPercent = target > 0
-        ? (progress / target).clamp(0.0, 1.0)
-        : 0.0;
+    final target = (challenge.target['count'] ??
+            challenge.target['streak'] ??
+            challenge.target['score'] ??
+            1)
+        .toDouble();
+    final progressPercent =
+        target > 0 ? (progress / target).clamp(0.0, 1.0) : 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -365,16 +362,14 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            (canPlay &&
+                        onPressed: (canPlay &&
                                 !_loadingChallenges.contains(challenge.id))
                             ? () =>
-                                  _playCompetitiveChallenge(context, challenge)
+                                _playCompetitiveChallenge(context, challenge)
                             : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: canPlay
-                              ? const Color(0xFFFFD700)
-                              : Colors.grey,
+                          backgroundColor:
+                              canPlay ? const Color(0xFFFFD700) : Colors.grey,
                           foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
