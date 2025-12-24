@@ -12,7 +12,6 @@ import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
-import 'package:n3rd_game/widgets/animation_icon.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -27,13 +26,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final OnboardingService _onboardingService = OnboardingService();
   int _currentPage = 0;
   
-  // Preload animation paths for all pages
-  final List<String> _animationPaths = [
-    'assets/animations/shared/8.mp4', // Welcome page
-    'assets/animations/shared/10.mp4', // Features page
-    'assets/animations/shared/11.mp4', // Play solo/online page
-    'assets/animations/shared/8.mp4', // Track progress page
-  ];
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -282,19 +274,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             )
           else
-            // Replace icon with resized animation - positioned out of the way, compact size
+            // Icon for onboarding page
             Padding(
               padding: const EdgeInsets.only(bottom: 24),
-              child: SizedBox(
-                width: 80,
-                height: 80,
-                child: AnimationIcon(
-                  animationPath: pageIndex < _animationPaths.length
-                      ? _animationPaths[pageIndex]
-                      : _animationPaths[0],
-                  size: 80,
-                  color: pageColors.primaryButton,
-                ),
+              child: Icon(
+                page.icon!,
+                size: 80,
+                color: pageColors.primaryButton,
               ),
             ),
           const SizedBox(height: AppSpacing.xl),

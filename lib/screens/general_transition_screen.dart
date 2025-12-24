@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -89,15 +88,9 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
   }
 
   String _getRandomTransitionVideo() {
-    final random = Random();
-    final videos = [
-      'assets/videos/transition 1.mp4',
-      'assets/videos/transition 2.mp4',
-      'assets/videos/transition 3.mp4',
-      'assets/videos/transition 4.mp4',
-      'assets/videos/transition 5.mp4',
-    ];
-    return videos[random.nextInt(videos.length)];
+    // Use the mode selection transition screen video for general transitions
+    // This provides consistent transition animation throughout the app
+    return 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection transition screen.mp4';
   }
 
   @override

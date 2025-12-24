@@ -5,7 +5,6 @@ import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -25,15 +24,10 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
   @override
   Widget build(BuildContext context) {
     // RouteGuard handles subscription checking at route level
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
         child: SafeArea(
           child:
               Consumer3<

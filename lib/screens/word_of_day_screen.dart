@@ -6,7 +6,6 @@ import 'package:n3rd_game/services/word_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
@@ -123,15 +122,9 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
         child: SafeArea(
           child: _checkingAuth
               ? const StandardizedLoadingWidget(
@@ -169,6 +162,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
 
     return Stack(
       children: [
+        // Continue button - top right
         Positioned(
           top: 0,
           right: 0,
@@ -187,11 +181,13 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
             ),
           ),
         ),
-        Center(
+        // Content positioned in lower portion to avoid overlapping animated logos
+        Align(
+          alignment: Alignment.bottomCenter,
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
-              verticalPadding,
+              ResponsiveHelper.responsiveHeight(context, 0.25).clamp(100.0, 200.0), // Top padding to push content down
               horizontalPadding,
               verticalPadding + 100,
             ),

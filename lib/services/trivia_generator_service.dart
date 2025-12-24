@@ -142,33 +142,8 @@ class TriviaGeneratorService extends ChangeNotifier {
   }
 
   TriviaGeneratorService() {
-    // CRITICAL: Ensure deferred library is loaded before checking initialization
-    // The library should be loaded in main.dart, but we verify here as a safety check
-    try {
-      // Attempt to access the library - if not loaded, this will throw
-      final isInitialized = templates.EditionTriviaTemplates.isInitialized;
-      if (!isInitialized) {
-        final error =
-            templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
-        throw ValidationException(
-          'CRITICAL ERROR: TriviaGeneratorService cannot be created - templates not initialized!\n'
-          'Please ensure EditionTriviaTemplates.initialize() is called before creating TriviaGeneratorService.\n'
-          'Initialization error: $error',
-        );
-      }
-    } catch (e) {
-      // If accessing the library throws, it means the library wasn't loaded
-      if (e is ValidationException) {
-        rethrow; // Re-throw validation exceptions
-      }
-      // Otherwise, it's a library loading issue
-      throw ValidationException(
-        'CRITICAL ERROR: Deferred library templates was not loaded.\n'
-        'Please ensure templates.loadLibrary() is called in main.dart before creating TriviaGeneratorService.\n'
-        'Error: $e',
-      );
-    }
-
+    // NOTE: Library loading check removed - library is loaded synchronously in main.dart
+    // If templates aren't initialized, _initializeTemplates() will handle it gracefully
     _initializeTemplates();
 
     // Validate templates were loaded successfully

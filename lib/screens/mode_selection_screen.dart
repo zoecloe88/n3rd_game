@@ -454,10 +454,14 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               ),
 
               // Mode cards with responsive pagination (3 per page on phones, 6 on tablets)
+              // Content positioned in lower portion to avoid overlapping animated logos in upper portion
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   children: [
+                    // Spacer to push content to lower portion (logos are in upper portion)
+                    SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.20).clamp(120.0, 200.0)),
+                    
                     // Page view with responsive cards per page
                     Expanded(
                       child: PageView.builder(
