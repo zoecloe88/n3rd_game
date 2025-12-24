@@ -338,13 +338,16 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   ),
                 );
                 if (confirmed == true && _otherUserId != null) {
+                  if (!mounted) return;
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     final conversationId = _messageService.currentConversationId;
                     if (conversationId != null) {
                       await _messageService.deleteConversation(conversationId);
                       if (!mounted) return;
-                      NavigationHelper.safePop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      navigator.pop();
+                      messenger.showSnackBar(
                         const SnackBar(
                           content: Text('Conversation deleted'),
                           backgroundColor: AppColors.success,
@@ -353,7 +356,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                     }
                   } catch (e) {
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Error: ${e.toString()}'),
                         backgroundColor: AppColors.error,
@@ -638,11 +641,13 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 ),
               ),
               onTap: () async {
+                if (!mounted) return;
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
                 try {
                   await _messageService.deleteMessage(message.id);
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text('Message deleted'),
                       backgroundColor: AppColors.success,
@@ -650,7 +655,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('Error: ${e.toString()}'),
                       backgroundColor: AppColors.error,
