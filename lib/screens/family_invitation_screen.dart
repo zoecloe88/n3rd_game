@@ -152,140 +152,151 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final authService = Provider.of<AuthService>(context, listen: false);
     final groupId = widget.groupId;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Stack(
-        children: [
-          // Video background
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/settings_video.mp4',
-            loop: true,
-            autoplay: true,
-          ),
+    // Use Consumer to listen for auth state changes
+    return Consumer<AuthService>(
+      builder: (context, authService, _) {
+        return Scaffold(
+          backgroundColor: colors.background,
+          body: Stack(
+            children: [
+              // Video background
+              const VideoPlayerWidget(
+                videoPath: 'assets/videos/settings_video.mp4',
+                loop: true,
+                autoplay: true,
+              ),
 
-          // Content overlay
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: AppShadows.medium,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_isLoading) ...[
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Checking invitation...',
-                          style: AppTypography.bodyMedium,
-                        ),
-                      ] else if (!authService.isAuthenticated) ...[
-                        const Icon(Icons.login, size: 64, color: Colors.orange),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Login Required',
-                          style: AppTypography.headlineLarge
-                              .copyWith(fontSize: 20),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Please log in to accept the Family & Friends invitation.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyMedium,
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              NavigationHelper.safeNavigate(context, '/login');
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+              // Content overlay
+              SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: AppShadows.medium,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isLoading) ...[
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Checking invitation...',
+                              style: AppTypography.bodyMedium,
                             ),
-                            child: const Text('Log In'),
-                          ),
-                        ),
-                      ] else if (groupId == null) ...[
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Invalid Invitation',
-                          style: AppTypography.headlineLarge
-                              .copyWith(fontSize: 20),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'This invitation link is invalid or has expired.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyMedium,
-                        ),
-                      ] else ...[
-                        const Icon(Icons.group,
-                            size: 64, color: AppColors.success),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Family & Friends Invitation',
-                          style: AppTypography.headlineLarge
-                              .copyWith(fontSize: 20),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'You\'ve been invited to join a Family & Friends group! Accept to get Premium access.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyMedium,
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isAccepting ? null : _acceptInvitation,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                          ] else if (!authService.isAuthenticated) ...[
+                            const Icon(Icons.login,
+                                size: 64, color: Colors.orange),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Login Required',
+                              style: AppTypography.headlineLarge
+                                  .copyWith(fontSize: 20),
                             ),
-                            child: _isAccepting
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
-                                    ),
-                                  )
-                                : const Text('Accept Invitation'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () => NavigationHelper.safePop(context),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ],
+                            const SizedBox(height: 8),
+                            Text(
+                              'Please log in to accept the Family & Friends invitation.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodyMedium,
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  NavigationHelper.safeNavigate(
+                                      context, '/login');
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.success,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Text('Log In'),
+                              ),
+                            ),
+                          ] else if (groupId == null) ...[
+                            const Icon(Icons.error_outline,
+                                size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Invalid Invitation',
+                              style: AppTypography.headlineLarge
+                                  .copyWith(fontSize: 20),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'This invitation link is invalid or has expired.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodyMedium,
+                            ),
+                          ] else ...[
+                            const Icon(Icons.group,
+                                size: 64, color: AppColors.success),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Family & Friends Invitation',
+                              style: AppTypography.headlineLarge
+                                  .copyWith(fontSize: 20),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'You\'ve been invited to join a Family & Friends group! Accept to get Premium access.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodyMedium,
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed:
+                                    _isAccepting ? null : _acceptInvitation,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.success,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: _isAccepting
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : const Text('Accept Invitation'),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: () =>
+                                  NavigationHelper.safePop(context),
+                              child: const Text('Cancel'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

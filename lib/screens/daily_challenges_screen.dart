@@ -57,167 +57,173 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService =
-        Provider.of<SubscriptionService>(context, listen: false);
-
-    // Check if user has online access (Base or Premium)
     final colors = AppColors.of(context);
-    if (!subscriptionService.hasOnlineAccess) {
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: UnifiedBackgroundWidget(
-          child: SafeArea(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.large,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: colors.tertiaryText,
+
+    // Use Consumer to listen for subscription state changes
+    return Consumer<SubscriptionService>(
+      builder: (context, subscriptionService, _) {
+        // Check if user has online access (Base or Premium)
+        if (!subscriptionService.hasOnlineAccess) {
+          return Scaffold(
+            backgroundColor: colors.background,
+            body: UnifiedBackgroundWidget(
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppShadows.large,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Premium Feature',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Daily Challenges are available for Premium subscribers.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 14,
-                        color: colors.secondaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        NavigationHelper.safeNavigate(
-                          context,
-                          '/subscription-management',
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.primaryButton,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 64,
+                          color: colors.tertiaryText,
                         ),
-                      ),
-                      child: Text(
-                        'Upgrade to Premium',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Premium Feature',
+                          style: AppTypography.headlineLarge.copyWith(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: colors.primaryText,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Daily Challenges are available for Premium subscribers.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyMedium.copyWith(
+                            fontSize: 14,
+                            color: colors.secondaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () {
+                            NavigationHelper.safeNavigate(
+                              context,
+                              '/subscription-management',
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primaryButton,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                          ),
+                          child: Text(
+                            'Upgrade to Premium',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => NavigationHelper.safePop(context),
-                      tooltip:
-                          AppLocalizations.of(context)?.backButton ?? 'Back',
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Daily Challenges',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Challenges list
-              Expanded(
-                child: Consumer<ChallengeService>(
-                  builder: (context, challengeService, _) {
-                    final todayChallenges = challengeService.todayChallenges;
-
-                    if (todayChallenges.isEmpty) {
-                      return EmptyStateWidget(
-                        icon: Icons.event_available,
-                        title: AppLocalizations.of(context)?.noChallenges ??
-                            'No challenges available',
-                        description: AppLocalizations.of(
-                              context,
-                            )?.noChallengesDescription ??
-                            'Check back tomorrow for new challenges!',
-                      );
-                    }
-
-                    // Find competitive challenge
-                    final competitiveChallenge = todayChallenges
-                        .where((c) => c.type == ChallengeType.dailyCompetitive)
-                        .firstOrNull;
-
-                    return ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+        return Scaffold(
+          backgroundColor: colors.background,
+          body: UnifiedBackgroundWidget(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
                       children: [
-                        // Top 5 Leaderboard (only for competitive challenge)
-                        if (competitiveChallenge != null)
-                          _buildTop5Leaderboard(
-                            competitiveChallenge.id,
-                            _leaderboardRefreshKey,
-                          ),
-                        const SizedBox(height: 16),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => NavigationHelper.safePop(context),
+                          tooltip: AppLocalizations.of(context)?.backButton ??
+                              'Back',
+                        ),
+                        const SizedBox(width: 8),
                         Text(
-                          'Complete challenges to earn rewards!',
-                          style: AppTypography.bodyMedium.copyWith(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.8),
+                          'Daily Challenges',
+                          style: AppTypography.headlineLarge.copyWith(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ...todayChallenges.map(
-                          (challenge) => _buildChallengeCard(challenge),
-                        ),
-                        const SizedBox(height: 32),
                       ],
-                    );
-                  },
-                ),
+                    ),
+                  ),
+
+                  // Challenges list
+                  Expanded(
+                    child: Consumer<ChallengeService>(
+                      builder: (context, challengeService, _) {
+                        final todayChallenges =
+                            challengeService.todayChallenges;
+
+                        if (todayChallenges.isEmpty) {
+                          return EmptyStateWidget(
+                            icon: Icons.event_available,
+                            title: AppLocalizations.of(context)?.noChallenges ??
+                                'No challenges available',
+                            description: AppLocalizations.of(
+                                  context,
+                                )?.noChallengesDescription ??
+                                'Check back tomorrow for new challenges!',
+                          );
+                        }
+
+                        // Find competitive challenge
+                        final competitiveChallenge = todayChallenges
+                            .where(
+                                (c) => c.type == ChallengeType.dailyCompetitive)
+                            .firstOrNull;
+
+                        return ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          children: [
+                            // Top 5 Leaderboard (only for competitive challenge)
+                            if (competitiveChallenge != null)
+                              _buildTop5Leaderboard(
+                                competitiveChallenge.id,
+                                _leaderboardRefreshKey,
+                              ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Complete challenges to earn rewards!',
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ...todayChallenges.map(
+                              (challenge) => _buildChallengeCard(challenge),
+                            ),
+                            const SizedBox(height: 32),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
