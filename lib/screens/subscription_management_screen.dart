@@ -314,101 +314,104 @@ class _SubscriptionManagementScreenState
 
   Widget _buildSubscriptionCard() {
     final cardColors = AppColors.of(context);
-    final subscriptionService =
-        Provider.of<SubscriptionService>(context, listen: false);
-    final freeTierService =
-        Provider.of<FreeTierService>(context, listen: false);
-    final isFree = subscriptionService.isFree;
-    final isPremium = subscriptionService.isPremium;
-    final subscriptionTier = subscriptionService.tierName;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppShadows.medium,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Use Consumer to listen for subscription and free tier changes
+    return Consumer2<SubscriptionService, FreeTierService>(
+      builder: (context, subscriptionService, freeTierService, _) {
+        final isFree = subscriptionService.isFree;
+        final isPremium = subscriptionService.isPremium;
+        final subscriptionTier = subscriptionService.tierName;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: AppShadows.medium,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Current Plan',
-                style: AppTypography.headlineLarge.copyWith(
-                  fontSize: 18,
-                  color: AppColors.of(context).primaryText,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Current Plan',
+                    style: AppTypography.headlineLarge.copyWith(
+                      fontSize: 18,
+                      color: AppColors.of(context).primaryText,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isPremium
+                          ? AppColors.success.withValues(alpha: 0.2)
+                          : cardColors.tertiaryText.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      subscriptionTier,
+                      style: AppTypography.labelSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isPremium
+                            ? AppColors.success
+                            : cardColors.tertiaryText,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isPremium
-                      ? AppColors.success.withValues(alpha: 0.2)
-                      : cardColors.tertiaryText.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  subscriptionTier,
-                  style: AppTypography.labelSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color:
-                        isPremium ? AppColors.success : cardColors.tertiaryText,
+              const SizedBox(height: 12),
+              if (isFree) ...[
+                // Show free tier game limit info
+                Text(
+                  'Games today: ${freeTierService.gamesStartedToday}/${freeTierService.maxGamesPerDay}',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: cardColors.secondaryText,
                   ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                if (freeTierService.hasGamesRemaining) ...[
+                  Text(
+                    'Games remaining: ${freeTierService.gamesRemaining}',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontSize: 13,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Resets: ${freeTierService.getNextResetString()}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: cardColors.secondaryText,
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'Daily limit reached. Resets: ${freeTierService.getNextResetString()}',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontSize: 13,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Text(
+                  'Active subscription',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: cardColors.secondaryText,
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          if (isFree) ...[
-            // Show free tier game limit info
-            Text(
-              'Games today: ${freeTierService.gamesStartedToday}/${freeTierService.maxGamesPerDay}',
-              style: AppTypography.bodyMedium.copyWith(
-                color: cardColors.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (freeTierService.hasGamesRemaining) ...[
-              Text(
-                'Games remaining: ${freeTierService.gamesRemaining}',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 13,
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Resets: ${freeTierService.getNextResetString()}',
-                style: AppTypography.labelSmall.copyWith(
-                  color: cardColors.secondaryText,
-                ),
-              ),
-            ] else ...[
-              Text(
-                'Daily limit reached. Resets: ${freeTierService.getNextResetString()}',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 13,
-                  color: AppColors.error,
-                ),
-              ),
-            ],
-          ] else ...[
-            Text(
-              'Active subscription',
-              style: AppTypography.bodyMedium.copyWith(
-                color: cardColors.secondaryText,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 

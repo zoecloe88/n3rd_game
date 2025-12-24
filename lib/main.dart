@@ -15,7 +15,8 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/config/app_config.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates;
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates;
 import 'package:n3rd_game/widgets/initial_loading_screen_wrapper.dart';
 import 'package:n3rd_game/screens/instructions_screen.dart';
 import 'package:n3rd_game/screens/word_of_day_screen.dart';
@@ -236,12 +237,13 @@ void main() async {
     // CRITICAL: Load library first, then initialize
     await templates.loadLibrary();
     // Reduced delay - just enough to ensure library is loaded
-    await Future.delayed(const Duration(milliseconds: 50)); // Reduced from 100ms
+    await Future.delayed(
+        const Duration(milliseconds: 50)); // Reduced from 100ms
     await templates.EditionTriviaTemplates.initialize();
     if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
-      triviaInitError =
-          templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
+      triviaInitError = templates.EditionTriviaTemplates.lastValidationError ??
+          'Unknown error';
       if (kDebugMode) {
         debugPrint(
           '❌ CRITICAL ERROR: Template initialization failed: $triviaInitError',
@@ -368,19 +370,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) {
-            final authService = AuthService();
-            // DEBUG ONLY: Sign out on every app start to test login flow
-            authService.init().then((_) {
-              if (kDebugMode) {
-                // Sign out in debug mode to force login every time
-                authService.signOut();
-              }
-            });
-            return authService;
-          },
-        ),
+        ChangeNotifierProvider(create: (_) => AuthService()..init()),
         // GameService is now provided by ChangeNotifierProxyProvider below
         ChangeNotifierProvider(create: (_) => StatsService()),
         ChangeNotifierProvider(create: (_) => AnalyticsService()..init()),
@@ -411,7 +401,8 @@ void main() async {
         ProxyProvider<AnalyticsService, MultiplayerService>(
           update: (_, analytics, previous) {
             previous?.setAnalyticsService(analytics);
-            return previous ?? MultiplayerService()..init();
+            return previous ?? MultiplayerService()
+              ..init();
           },
         ),
         // EditionAccessService is provided below via ProxyProvider2
@@ -422,7 +413,8 @@ void main() async {
         // Connect RevenueCat and AuthService to SubscriptionService
         // CRITICAL: Ensure init() completes before syncWithRevenueCat to prevent race conditions
         // Use ChangeNotifierProxyProvider2 since SubscriptionService extends ChangeNotifier
-        ChangeNotifierProxyProvider2<RevenueCatService, AuthService, SubscriptionService>(
+        ChangeNotifierProxyProvider2<RevenueCatService, AuthService,
+            SubscriptionService>(
           create: (_) => SubscriptionService(),
           update: (_, revenueCat, auth, previous) {
             final service = previous ?? SubscriptionService();
@@ -436,12 +428,8 @@ void main() async {
         // Create shared personalization service instance
         ChangeNotifierProvider(create: (_) => TriviaPersonalizationService()),
         // Wire AIEditionService to use personalization, generator, and analytics services
-        ProxyProvider3<
-          TriviaPersonalizationService,
-          TriviaGeneratorService,
-          AnalyticsService,
-          AIEditionService
-        >(
+        ProxyProvider3<TriviaPersonalizationService, TriviaGeneratorService,
+            AnalyticsService, AIEditionService>(
           update: (_, personalization, generator, analytics, previous) {
             previous ??= AIEditionService();
             previous.setPersonalizationService(personalization);
@@ -453,11 +441,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TriviaGamificationService()),
         // Wire TriviaGeneratorService to use the same personalization instance and analytics
         // CRITICAL: Validate templates are initialized before creating service
-        ProxyProvider2<
-          TriviaPersonalizationService,
-          AnalyticsService,
-          TriviaGeneratorService
-        >(
+        ProxyProvider2<TriviaPersonalizationService, AnalyticsService,
+            TriviaGeneratorService>(
           update: (_, personalization, analytics, previous) {
             // Only create new instance if it doesn't exist
             if (previous == null) {
@@ -466,7 +451,7 @@ void main() async {
               if (!templates.EditionTriviaTemplates.isInitialized) {
                 final error =
                     templates.EditionTriviaTemplates.lastValidationError ??
-                    'Unknown error';
+                        'Unknown error';
                 final errorMessage =
                     'TriviaGeneratorService initialization failed: '
                     'Trivia templates were not initialized successfully. '
@@ -541,7 +526,8 @@ void main() async {
                     previous = TriviaGeneratorService();
                   } catch (e2) {
                     if (kDebugMode) {
-                      debugPrint('Second attempt to create service also failed: $e2');
+                      debugPrint(
+                          'Second attempt to create service also failed: $e2');
                     }
                   }
                 }
@@ -570,11 +556,8 @@ void main() async {
           },
         ),
         // Wire GameService to personalization, gamification, and analytics services
-        ProxyProvider2<
-          TriviaPersonalizationService,
-          TriviaGamificationService,
-          GameService
-        >(
+        ProxyProvider2<TriviaPersonalizationService, TriviaGamificationService,
+            GameService>(
           update: (_, personalization, gamification, previous) {
             previous ??= GameService();
             previous.setPersonalizationService(personalization);
@@ -613,11 +596,8 @@ void main() async {
         // Add EditionAccessService provider
         ChangeNotifierProvider(create: (_) => EditionAccessService()..init()),
         // Wire RevenueCatService and SubscriptionService to EditionAccessService
-        ProxyProvider2<
-          RevenueCatService,
-          SubscriptionService,
-          EditionAccessService
-        >(
+        ProxyProvider2<RevenueCatService, SubscriptionService,
+            EditionAccessService>(
           update: (_, revenueCat, subscription, previous) {
             previous ??= EditionAccessService()..init();
             previous.setRevenueCatService(revenueCat);
@@ -663,7 +643,8 @@ void main() async {
                       context,
                       listen: false,
                     );
-                    final startupDuration = DateTime.now().difference(appStartTime);
+                    final startupDuration =
+                        DateTime.now().difference(appStartTime);
                     analyticsService.logAppStartup(
                       startupDuration,
                       success: !triviaInitializationFailed,
@@ -725,58 +706,58 @@ void main() async {
                           const MainNavigationWrapper(initialIndex: 1),
                       '/game': (context) => const GameScreen(),
                       '/multiplayer-lobby': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Multiplayer Lobby',
-                          child: MultiplayerLobbyScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Multiplayer Lobby',
+                            child: MultiplayerLobbyScreen(),
+                          ),
                       '/multiplayer-game': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Multiplayer Game',
-                          child: MultiplayerGameScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Multiplayer Game',
+                            child: MultiplayerGameScreen(),
+                          ),
                       '/direct-message': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Direct Messages',
-                          child: DirectMessageScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Direct Messages',
+                            child: DirectMessageScreen(),
+                          ),
                       '/onboarding': (context) => const OnboardingScreen(),
                       '/stats': (context) =>
                           const MainNavigationWrapper(initialIndex: 2),
                       '/leaderboard': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Leaderboard',
-                          child: MainNavigationWrapper(initialIndex: 2),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Leaderboard',
+                            child: MainNavigationWrapper(initialIndex: 2),
+                          ),
                       '/friends': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Friends',
-                          child: MainNavigationWrapper(initialIndex: 3),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Friends',
+                            child: MainNavigationWrapper(initialIndex: 3),
+                          ),
                       '/more': (context) =>
                           const MainNavigationWrapper(initialIndex: 4),
                       '/word-of-day': (context) => const WordOfDayScreen(),
                       '/editions-selection': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Editions Selection',
-                          child: EditionsSelectionScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Editions Selection',
+                            child: EditionsSelectionScreen(),
+                          ),
                       '/editions': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Editions',
-                          child: EditionsScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Editions',
+                            child: EditionsScreen(),
+                          ),
                       '/youth-editions': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'Youth Editions',
-                          child: YouthEditionsScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'Youth Editions',
+                            child: YouthEditionsScreen(),
+                          ),
                       '/subscription-management': (context) =>
                           const SubscriptionManagementScreen(),
                       '/family-management': (context) => const RouteGuard(
-                          requiresFamilyFriends: true,
-                          featureName: 'Family Management',
-                          child: FamilyManagementScreen(),
-                        ),
+                            requiresFamilyFriends: true,
+                            featureName: 'Family Management',
+                            child: FamilyManagementScreen(),
+                          ),
                       '/family-invitation': (context) {
                         final args = ModalRoute.of(context)?.settings.arguments;
                         final groupId = args is String ? args : null;
@@ -791,46 +772,46 @@ void main() async {
                       '/terms-of-service': (context) =>
                           const TermsOfServiceScreen(),
                       '/ai-edition-history': (context) => const RouteGuard(
-                          requiresEditionsAccess: true,
-                          featureName: 'AI Edition History',
-                          child: AIEditionHistoryScreen(),
-                        ),
+                            requiresEditionsAccess: true,
+                            featureName: 'AI Edition History',
+                            child: AIEditionHistoryScreen(),
+                          ),
                       '/analytics': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Analytics Dashboard',
-                          child: AnalyticsDashboardScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Analytics Dashboard',
+                            child: AnalyticsDashboardScreen(),
+                          ),
                       '/daily-challenges': (context) => const RouteGuard(
-                          requiresOnlineAccess: true,
-                          featureName: 'Daily Challenges',
-                          child: DailyChallengesScreen(),
-                        ),
+                            requiresOnlineAccess: true,
+                            featureName: 'Daily Challenges',
+                            child: DailyChallengesScreen(),
+                          ),
                       '/voice-calibration': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Voice Calibration',
-                          child: VoiceCalibrationScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Voice Calibration',
+                            child: VoiceCalibrationScreen(),
+                          ),
                       '/themes': (context) => const ThemesScreen(),
                       '/learning': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Learning Mode',
-                          child: LearningModeScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Learning Mode',
+                            child: LearningModeScreen(),
+                          ),
                       '/performance-insights': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Performance Insights',
-                          child: PerformanceInsightsScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Performance Insights',
+                            child: PerformanceInsightsScreen(),
+                          ),
                       '/practice': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Practice Mode',
-                          child: PracticeModeScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Practice Mode',
+                            child: PracticeModeScreen(),
+                          ),
                       '/trivia-creator': (context) => const RouteGuard(
-                          requiresPremium: true,
-                          featureName: 'Trivia Creator',
-                          child: TriviaCreatorScreen(),
-                        ),
+                            requiresPremium: true,
+                            featureName: 'Trivia Creator',
+                            child: TriviaCreatorScreen(),
+                          ),
                       '/help-center': (context) => const HelpCenterScreen(),
                       '/support-dashboard': (context) =>
                           const SupportDashboardScreen(),
@@ -893,8 +874,7 @@ void main() async {
                         final args =
                             settings.arguments as Map<String, dynamic>?;
                         // Validate routeAfter exists and is a String, fallback to '/title'
-                        final routeAfter =
-                            (args != null &&
+                        final routeAfter = (args != null &&
                                 args.containsKey('routeAfter') &&
                                 args['routeAfter'] is String)
                             ? args['routeAfter'] as String
@@ -914,7 +894,8 @@ void main() async {
                         String? groupId;
                         // Check if groupId is in query parameters or path
                         if (settings.arguments is Map) {
-                          final args = settings.arguments as Map<String, dynamic>;
+                          final args =
+                              settings.arguments as Map<String, dynamic>;
                           groupId = args['groupId'] as String?;
                         } else if (settings.arguments is String) {
                           groupId = settings.arguments as String;

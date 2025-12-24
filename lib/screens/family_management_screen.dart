@@ -189,236 +189,240 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final familyService =
-        Provider.of<FamilyGroupService>(context, listen: false);
-    final subscriptionService =
-        Provider.of<SubscriptionService>(context, listen: false);
     final currentUser = FirebaseAuth.instance.currentUser;
-    final group = familyService.currentGroup;
-    final isOwner = familyService.isOwner;
 
-    // CRITICAL: Check if user has Family & Friends tier access
-    if (!subscriptionService.isFamilyFriends && group == null) {
-      // User doesn't have Family & Friends tier and is not in a group
+    // Use Consumer to listen for subscription and family group changes
+    return Consumer2<SubscriptionService, FamilyGroupService>(
+      builder: (context, subscriptionService, familyService, _) {
+        final group = familyService.currentGroup;
+        final isOwner = familyService.isOwner;
 
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: UnifiedBackgroundWidget(
-          child: SafeArea(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.large,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: colors.tertiaryText,
+        // CRITICAL: Check if user has Family & Friends tier access
+        if (!subscriptionService.isFamilyFriends && group == null) {
+          // User doesn't have Family & Friends tier and is not in a group
+
+          return Scaffold(
+            backgroundColor: colors.background,
+            body: UnifiedBackgroundWidget(
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppShadows.large,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Family & Friends Feature',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Family Management is available for Family & Friends subscribers. '
-                      'Join a group or upgrade to access this feature!',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 14,
-                        color: colors.secondaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        NavigationHelper.safeNavigate(
-                          context,
-                          '/subscription-management',
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.primaryButton,
-                        foregroundColor: colors.buttonText,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 64,
+                          color: colors.tertiaryText,
                         ),
-                      ),
-                      child: Text(
-                        'View Subscriptions',
-                        style: AppTypography.labelLarge,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Family & Friends Feature',
+                          style: AppTypography.headlineLarge.copyWith(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: colors.primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Family Management is available for Family & Friends subscribers. '
+                          'Join a group or upgrade to access this feature!',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyMedium.copyWith(
+                            fontSize: 14,
+                            color: colors.secondaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () {
+                            NavigationHelper.safeNavigate(
+                              context,
+                              '/subscription-management',
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primaryButton,
+                            foregroundColor: colors.buttonText,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: Text(
+                            'View Subscriptions',
+                            style: AppTypography.labelLarge,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () => NavigationHelper.safePop(context),
+                          child: Text(
+                            'Go Back',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: colors.background,
+          body: Stack(
+            children: [
+              // Video background
+              const VideoPlayerWidget(
+                videoPath: 'assets/videos/settings_video.mp4',
+                loop: true,
+                autoplay: true,
+              ),
+
+              // Content overlay
+              SafeArea(
+                child: Column(
+                  children: [
+                    // App bar
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
+                            onPressed: () => NavigationHelper.safePop(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Family & Friends',
+                            style: AppTypography.headlineLarge.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => NavigationHelper.safePop(context),
-                      child: Text(
-                        'Go Back',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: colors.secondaryText,
+
+                    // Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (group == null) ...[
+                              // No group - show create/join options
+                              _buildNoGroupView(context, colors),
+                            ] else ...[
+                              // Group info card
+                              _buildGroupInfoCard(
+                                  context, colors, group, subscriptionService),
+
+                              const SizedBox(height: 24),
+
+                              // Members section
+                              Text(
+                                'Members (${group.members.length}/${group.maxMembers})',
+                                style: AppTypography.headlineLarge.copyWith(
+                                  fontSize: ResponsiveHelper.responsiveFontSize(
+                                    context,
+                                    baseSize: 20,
+                                    minSize: 16,
+                                    maxSize: 24,
+                                  ),
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Members list
+                              ...group.members.map(
+                                (member) => _buildMemberCard(
+                                  context,
+                                  colors,
+                                  member,
+                                  isOwner && member.userId != currentUser?.uid,
+                                  member.userId == currentUser?.uid,
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Pending invites
+                              if (group.pendingInvites.isNotEmpty) ...[
+                                Text(
+                                  'Pending Invitations',
+                                  style: AppTypography.headlineLarge.copyWith(
+                                    fontSize:
+                                        ResponsiveHelper.responsiveFontSize(
+                                      context,
+                                      baseSize: 20,
+                                      minSize: 16,
+                                      maxSize: 24,
+                                    ),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ...group.pendingInvites.map(
+                                  (invite) => _buildInviteCard(
+                                    context,
+                                    colors,
+                                    invite,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Invite member (owner only)
+                              if (isOwner && !group.isFull) ...[
+                                _buildInviteSection(context, colors),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Leave group (member only)
+                              if (!isOwner) ...[
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: _leaveGroup,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(color: Colors.red),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                    ),
+                                    child: const Text('Leave Group'),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                              ],
+                            ],
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Stack(
-        children: [
-          // Video background
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/settings_video.mp4',
-            loop: true,
-            autoplay: true,
-          ),
-
-          // Content overlay
-          SafeArea(
-            child: Column(
-              children: [
-                // App bar
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => NavigationHelper.safePop(context),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Family & Friends',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (group == null) ...[
-                          // No group - show create/join options
-                          _buildNoGroupView(context, colors),
-                        ] else ...[
-                          // Group info card
-                          _buildGroupInfoCard(
-                              context, colors, group, subscriptionService),
-
-                          const SizedBox(height: 24),
-
-                          // Members section
-                          Text(
-                            'Members (${group.members.length}/${group.maxMembers})',
-                            style: AppTypography.headlineLarge.copyWith(
-                              fontSize: ResponsiveHelper.responsiveFontSize(
-                                context,
-                                baseSize: 20,
-                                minSize: 16,
-                                maxSize: 24,
-                              ),
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Members list
-                          ...group.members.map(
-                            (member) => _buildMemberCard(
-                              context,
-                              colors,
-                              member,
-                              isOwner && member.userId != currentUser?.uid,
-                              member.userId == currentUser?.uid,
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Pending invites
-                          if (group.pendingInvites.isNotEmpty) ...[
-                            Text(
-                              'Pending Invitations',
-                              style: AppTypography.headlineLarge.copyWith(
-                                fontSize: ResponsiveHelper.responsiveFontSize(
-                                  context,
-                                  baseSize: 20,
-                                  minSize: 16,
-                                  maxSize: 24,
-                                ),
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ...group.pendingInvites.map(
-                              (invite) => _buildInviteCard(
-                                context,
-                                colors,
-                                invite,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-
-                          // Invite member (owner only)
-                          if (isOwner && !group.isFull) ...[
-                            _buildInviteSection(context, colors),
-                            const SizedBox(height: 16),
-                          ],
-
-                          // Leave group (member only)
-                          if (!isOwner) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: _leaveGroup,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                  side: const BorderSide(color: Colors.red),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                child: const Text('Leave Group'),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
