@@ -34,8 +34,8 @@ class _AnimatedLogoLoadingScreenWrapperState
       final onboardingService = OnboardingService();
 
       // Check onboarding first
-      final hasCompletedOnboarding = await onboardingService
-          .hasCompletedOnboarding();
+      final hasCompletedOnboarding =
+          await onboardingService.hasCompletedOnboarding();
 
       if (!hasCompletedOnboarding) {
         if (mounted && context.mounted) {

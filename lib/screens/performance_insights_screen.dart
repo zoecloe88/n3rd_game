@@ -57,19 +57,19 @@ class PerformanceInsightsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Consumer<AnalyticsService>(
                       builder: (context, analyticsService, _) {
-                        final categoryBreakdown = analyticsService
-                            .getCategoryBreakdown();
-                        final improvements = analyticsService
-                            .getImprovementTracking();
-                        final personalBests = analyticsService
-                            .getPersonalBests();
+                        final categoryBreakdown =
+                            analyticsService.getCategoryBreakdown();
+                        final improvements =
+                            analyticsService.getImprovementTracking();
+                        final personalBests =
+                            analyticsService.getPersonalBests();
 
                         // Identify weaknesses (categories with lowest accuracy)
                         final weaknesses = categoryBreakdown.length >= 3
                             ? categoryBreakdown
-                                  .sublist(categoryBreakdown.length - 3)
-                                  .reversed
-                                  .toList()
+                                .sublist(categoryBreakdown.length - 3)
+                                .reversed
+                                .toList()
                             : [];
 
                         // Identify strengths (categories with highest accuracy)
@@ -122,9 +122,9 @@ class PerformanceInsightsScreen extends StatelessWidget {
                                               cat.category,
                                               style: AppTypography.bodyMedium
                                                   .copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.white,
-                                                  ),
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                           Text(
@@ -162,9 +162,9 @@ class PerformanceInsightsScreen extends StatelessWidget {
                                               cat.category,
                                               style: AppTypography.bodyMedium
                                                   .copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.white,
-                                                  ),
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                           Text(
@@ -243,10 +243,10 @@ class PerformanceInsightsScreen extends StatelessWidget {
                                             'Your scores are improving! You\'re on track to beat your personal best soon.',
                                             style: AppTypography.bodyMedium
                                                 .copyWith(
-                                                  fontSize: 13,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.9),
-                                                ),
+                                              fontSize: 13,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -265,10 +265,10 @@ class PerformanceInsightsScreen extends StatelessWidget {
                                             'Your performance is stable. Try focusing on weaker categories to see improvement.',
                                             style: AppTypography.bodyMedium
                                                 .copyWith(
-                                                  fontSize: 13,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.9),
-                                                ),
+                                              fontSize: 13,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                            ),
                                           ),
                                         ),
                                       ],

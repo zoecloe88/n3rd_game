@@ -78,9 +78,3 @@ class NetworkStatusIndicator extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-

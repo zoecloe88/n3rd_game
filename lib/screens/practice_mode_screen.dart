@@ -182,23 +182,23 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                                   try {
                                     final generator =
                                         Provider.of<TriviaGeneratorService>(
-                                          buildContext,
-                                          listen: false,
-                                        );
+                                      buildContext,
+                                      listen: false,
+                                    );
                                     final analyticsService =
                                         Provider.of<AnalyticsService>(
-                                          buildContext,
-                                          listen: false,
-                                        );
+                                      buildContext,
+                                      listen: false,
+                                    );
 
                                     // Use retry logic for better reliability
                                     final triviaPool =
                                         await _generateTriviaWithRetry(
-                                          buildContext,
-                                          generator,
-                                          analyticsService,
-                                          'practice',
-                                        );
+                                      buildContext,
+                                      generator,
+                                      analyticsService,
+                                      'practice',
+                                    );
 
                                     if (!mounted || !buildContext.mounted) {
                                       return;
@@ -232,13 +232,13 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                                     String errorMessage =
                                         'Failed to load trivia content. ';
                                     if (e.toString().contains(
-                                      'No templates available',
-                                    )) {
+                                          'No templates available',
+                                        )) {
                                       errorMessage +=
                                           'Template initialization issue. Please restart the app.';
                                     } else if (e.toString().contains(
-                                      'Unable to generate unique trivia',
-                                    )) {
+                                          'Unable to generate unique trivia',
+                                        )) {
                                       errorMessage +=
                                           'All available content has been used. Try clearing history.';
                                     } else {

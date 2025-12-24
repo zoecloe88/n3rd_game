@@ -140,11 +140,11 @@ class ScoreTrendChart extends StatelessWidget {
                         show: true,
                         getDotPainter: (spot, percent, barData, index) =>
                             FlDotCirclePainter(
-                              radius: 4,
-                              color: colors.info,
-                              strokeWidth: 2,
-                              strokeColor: colors.cardBackground,
-                            ),
+                          radius: 4,
+                          color: colors.info,
+                          strokeWidth: 2,
+                          strokeColor: colors.cardBackground,
+                        ),
                       ),
                       belowBarData: BarAreaData(
                         show: true,
@@ -340,11 +340,11 @@ class AccuracyTrendChart extends StatelessWidget {
                         show: true,
                         getDotPainter: (spot, percent, barData, index) =>
                             FlDotCirclePainter(
-                              radius: 4,
-                              color: colors.success,
-                              strokeWidth: 2,
-                              strokeColor: colors.cardBackground,
-                            ),
+                          radius: 4,
+                          color: colors.success,
+                          strokeWidth: 2,
+                          strokeColor: colors.cardBackground,
+                        ),
                       ),
                       belowBarData: BarAreaData(
                         show: true,
@@ -516,9 +516,8 @@ class ModePerformanceChart extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 50,
-                        interval: maxValue > 0
-                            ? (maxValue / 5).ceilToDouble()
-                            : 1,
+                        interval:
+                            maxValue > 0 ? (maxValue / 5).ceilToDouble() : 1,
                         getTitlesWidget: (value, meta) => Text(
                           value.toInt().toString(),
                           style: AppTypography.bodyMedium.copyWith(

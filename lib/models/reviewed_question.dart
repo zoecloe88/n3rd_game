@@ -24,17 +24,17 @@ class ReviewedQuestion {
   });
 
   Map<String, dynamic> toJson() => {
-    'questionId': questionId,
-    'category': category,
-    'words': words,
-    'correctAnswers': correctAnswers,
-    'userAnswers': userAnswers,
-    'wasCorrect': wasCorrect,
-    'answeredAt': answeredAt.toIso8601String(),
-    'roundNumber': roundNumber,
-    'gameMode': gameMode,
-    'isBookmarked': isBookmarked,
-  };
+        'questionId': questionId,
+        'category': category,
+        'words': words,
+        'correctAnswers': correctAnswers,
+        'userAnswers': userAnswers,
+        'wasCorrect': wasCorrect,
+        'answeredAt': answeredAt.toIso8601String(),
+        'roundNumber': roundNumber,
+        'gameMode': gameMode,
+        'isBookmarked': isBookmarked,
+      };
 
   factory ReviewedQuestion.fromJson(Map<String, dynamic> json) =>
       ReviewedQuestion(

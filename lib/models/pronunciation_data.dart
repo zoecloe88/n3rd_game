@@ -14,12 +14,12 @@ class PronunciationData {
   });
 
   Map<String, dynamic> toJson() => {
-    'word': word.toLowerCase(),
-    'phonetic': phonetic,
-    'alternativePronunciations': alternativePronunciations,
-    'homophones': homophones,
-    'language': language ?? 'en',
-  };
+        'word': word.toLowerCase(),
+        'phonetic': phonetic,
+        'alternativePronunciations': alternativePronunciations,
+        'homophones': homophones,
+        'language': language ?? 'en',
+      };
 
   factory PronunciationData.fromJson(Map<String, dynamic> json) {
     final word = json['word'] as String? ?? '';

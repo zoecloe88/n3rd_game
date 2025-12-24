@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/models/trivia_item.dart';
 
 /// Service to load trivia content for specific editions

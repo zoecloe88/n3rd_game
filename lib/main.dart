@@ -238,7 +238,7 @@ void main() async {
     await templates.loadLibrary();
     // Reduced delay - just enough to ensure library is loaded
     await Future.delayed(
-        const Duration(milliseconds: 50)); // Reduced from 100ms
+        const Duration(milliseconds: 50),); // Reduced from 100ms
     await templates.EditionTriviaTemplates.initialize();
     if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
@@ -527,7 +527,7 @@ void main() async {
                   } catch (e2) {
                     if (kDebugMode) {
                       debugPrint(
-                          'Second attempt to create service also failed: $e2');
+                          'Second attempt to create service also failed: $e2',);
                     }
                   }
                 }

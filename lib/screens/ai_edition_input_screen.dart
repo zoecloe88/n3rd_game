@@ -122,8 +122,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
       if (triviaItems.isEmpty) {
         if (!mounted) return;
         setState(() {
-          _errorMessage =
-              aiService.lastError ??
+          _errorMessage = aiService.lastError ??
               'Failed to generate trivia. Please try a different topic.';
         });
         return;
@@ -452,9 +451,8 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
                     return ElevatedButton(
                       onPressed: _isGenerating ? null : _generateTrivia,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isPremium
-                            ? const Color(0xFF6366F1)
-                            : Colors.grey,
+                        backgroundColor:
+                            isPremium ? const Color(0xFF6366F1) : Colors.grey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(

@@ -85,7 +85,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Remove Member'),
         content: Text(
-            'Are you sure you want to remove $memberEmail from the group?'),
+            'Are you sure you want to remove $memberEmail from the group?',),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -303,7 +303,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.arrow_back,
-                                color: Colors.white),
+                                color: Colors.white,),
                             onPressed: () => NavigationHelper.safePop(context),
                           ),
                           const SizedBox(width: 8),
@@ -330,7 +330,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                             ] else ...[
                               // Group info card
                               _buildGroupInfoCard(
-                                  context, colors, group, subscriptionService),
+                                  context, colors, group, subscriptionService,),
 
                               const SizedBox(height: 24),
 
@@ -404,7 +404,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                                       foregroundColor: Colors.red,
                                       side: const BorderSide(color: Colors.red),
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 14),
+                                          vertical: 14,),
                                     ),
                                     child: const Text('Leave Group'),
                                   ),
@@ -462,7 +462,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
               onPressed: () {
                 // Navigate to subscription screen to purchase Family plan
                 NavigationHelper.safeNavigate(
-                    context, '/subscription-management');
+                    context, '/subscription-management',);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,

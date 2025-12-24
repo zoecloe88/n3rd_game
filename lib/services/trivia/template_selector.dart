@@ -69,7 +69,8 @@ class TemplateSelector {
     final selected = <TriviaTemplate>[];
     final usedIndices = <int>{};
 
-    while (selected.length < count && usedIndices.length < availableTemplates.length) {
+    while (selected.length < count &&
+        usedIndices.length < availableTemplates.length) {
       final index = _random.nextInt(availableTemplates.length);
       if (!usedIndices.contains(index)) {
         selected.add(availableTemplates[index]);
@@ -80,4 +81,3 @@ class TemplateSelector {
     return selected;
   }
 }
-

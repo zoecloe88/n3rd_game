@@ -24,7 +24,8 @@ class AnimatedLogoLoadingScreen extends StatelessWidget {
             child: const AspectRatio(
               aspectRatio: 2 / 3, // 2000:3000 = 2:3
               child: VideoPlayerWidget(
-                videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/dec24n3rdlogoloadingscreen.mp4',
+                videoPath:
+                    'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/dec24n3rdlogoloadingscreen.mp4',
                 loop: true,
                 autoplay: true,
                 fit: BoxFit.contain, // Maintain aspect ratio, focus on logos

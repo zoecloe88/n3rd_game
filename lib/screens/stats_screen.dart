@@ -24,7 +24,8 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: UnifiedBackgroundWidget(
-        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/stat screen.mp4',
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/stat screen.mp4',
         fit: BoxFit.cover, // Fill screen, logos in upper portion
         alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
@@ -56,8 +57,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Semantics(
-                                    label:
-                                        AppLocalizations.of(
+                                    label: AppLocalizations.of(
                                           context,
                                         )?.analytics ??
                                         'Advanced Analytics',
@@ -70,16 +70,14 @@ class _StatsScreenState extends State<StatsScreen> {
                                       onPressed: () => Navigator.of(
                                         context,
                                       ).pushNamed('/analytics'),
-                                      tooltip:
-                                          AppLocalizations.of(
+                                      tooltip: AppLocalizations.of(
                                             context,
                                           )?.analytics ??
                                           'Advanced Analytics',
                                     ),
                                   ),
                                   Semantics(
-                                    label:
-                                        AppLocalizations.of(
+                                    label: AppLocalizations.of(
                                           context,
                                         )?.performanceInsights ??
                                         'Performance Insights',
@@ -92,8 +90,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                       onPressed: () => Navigator.of(
                                         context,
                                       ).pushNamed('/performance-insights'),
-                                      tooltip:
-                                          AppLocalizations.of(
+                                      tooltip: AppLocalizations.of(
                                             context,
                                           )?.performanceInsights ??
                                           'Performance Insights',
@@ -108,10 +105,12 @@ class _StatsScreenState extends State<StatsScreen> {
                       ],
                     ),
                   ),
-                  
+
                   // Spacer to push content to lower portion (logos are in upper portion)
-                  SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.12).clamp(60.0, 120.0)),
-                  
+                  SizedBox(
+                      height: ResponsiveHelper.responsiveHeight(context, 0.12)
+                          .clamp(60.0, 120.0),),
+
                   // Stats Cards
                   Expanded(
                     child: ListView(

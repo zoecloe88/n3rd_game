@@ -44,8 +44,8 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   Future<void> _checkOnboardingStatus() async {
     try {
       final onboardingService = OnboardingService();
-      final hasCompletedOnboarding = await onboardingService
-          .hasCompletedOnboarding();
+      final hasCompletedOnboarding =
+          await onboardingService.hasCompletedOnboarding();
 
       if (!hasCompletedOnboarding && mounted && context.mounted) {
         // Redirect to onboarding
@@ -233,9 +233,8 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.6),
+              color:
+                  isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
               size: 24,
             ),
             const SizedBox(height: 4),

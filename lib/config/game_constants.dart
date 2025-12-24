@@ -50,16 +50,20 @@ class GameConstants {
 
   // Bounds and clamp constants (prevent integer overflow and invalid values)
   static const int maxScore = 2147483647; // Max int32 value for score
-  static const int maxSessionAnswers = 2147483647; // Max int32 value for session stats
+  static const int maxSessionAnswers =
+      2147483647; // Max int32 value for session stats
   static const int maxLives = 999; // Maximum lives cap
   static const int maxTimeSeconds = 9999; // Maximum time values (seconds)
-  static const int maxTimerSeconds = 999; // Maximum timer seconds (memorize/play time)
+  static const int maxTimerSeconds =
+      999; // Maximum timer seconds (memorize/play time)
   static const int maxShuffleCount = 999999; // Maximum shuffle count
   static const int maxRoundCount = 999999; // Maximum round number
   static const int maxPowerUpUses = 999; // Maximum power-up uses
   static const int maxPerfectStreak = 999999; // Maximum perfect streak count
-  static const int marathonModeInfiniteLives = 999999; // Effectively infinite lives for marathon mode
-  static const int maxLoadedScore = 999999999; // Maximum score value when loading from storage
+  static const int marathonModeInfiniteLives =
+      999999; // Effectively infinite lives for marathon mode
+  static const int maxLoadedScore =
+      999999999; // Maximum score value when loading from storage
 
   // Prevent instantiation
   GameConstants._();

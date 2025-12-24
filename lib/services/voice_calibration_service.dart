@@ -60,10 +60,8 @@ class VoiceCalibrationService extends ChangeNotifier {
       final userId = _userId;
       if (userId != null) {
         try {
-          final doc = await _firestore!
-              .collection('voice_profiles')
-              .doc(userId)
-              .get();
+          final doc =
+              await _firestore!.collection('voice_profiles').doc(userId).get();
           if (doc.exists && doc.data() != null) {
             final data = doc.data();
             if (data != null) {

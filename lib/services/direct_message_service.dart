@@ -352,7 +352,7 @@ class DirectMessageService extends ChangeNotifier {
 
     final conversationId = _getConversationId(userId, otherUserId);
     await firestore.collection('conversations').doc(conversationId).update(
-        {'typing_$userId': isTyping ? FieldValue.serverTimestamp() : null},
+      {'typing_$userId': isTyping ? FieldValue.serverTimestamp() : null},
     );
   }
 

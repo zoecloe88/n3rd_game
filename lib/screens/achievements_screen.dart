@@ -86,44 +86,44 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 showSubtitle: true,
               )
             : allAchievements.isEmpty
-            ? RefreshIndicator(
-                onRefresh: _refreshAchievements,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.6,
-                    child: EmptyStateWidget(
-                      icon: Icons.emoji_events_outlined,
-                      title:
-                          AppLocalizations.of(context)?.noAchievements ??
-                          'No achievements yet',
-                      description:
-                          AppLocalizations.of(context)?.noAchievementsDescription ??
-                          'Keep playing to unlock achievements!',
+                ? RefreshIndicator(
+                    onRefresh: _refreshAchievements,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: EmptyStateWidget(
+                          icon: Icons.emoji_events_outlined,
+                          title: AppLocalizations.of(context)?.noAchievements ??
+                              'No achievements yet',
+                          description: AppLocalizations.of(context)
+                                  ?.noAchievementsDescription ??
+                              'Keep playing to unlock achievements!',
+                        ),
+                      ),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _refreshAchievements,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: allAchievements.length,
+                      itemBuilder: (context, index) {
+                        final achievement = allAchievements[index];
+                        final userAchievement =
+                            _userAchievements[achievement.id];
+                        final isUnlocked = userAchievement?.unlocked ?? false;
+                        final progress = userAchievement?.progress ?? 0;
+
+                        return _buildAchievementCard(
+                          context,
+                          achievement,
+                          isUnlocked,
+                          progress,
+                        );
+                      },
                     ),
                   ),
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _refreshAchievements,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: allAchievements.length,
-                  itemBuilder: (context, index) {
-                    final achievement = allAchievements[index];
-                    final userAchievement = _userAchievements[achievement.id];
-                    final isUnlocked = userAchievement?.unlocked ?? false;
-                    final progress = userAchievement?.progress ?? 0;
-
-                    return _buildAchievementCard(
-                      context,
-                      achievement,
-                      isUnlocked,
-                      progress,
-                    );
-                  },
-                ),
-              ),
       ),
     );
   }

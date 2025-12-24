@@ -27,38 +27,38 @@ class WordOfTheDay {
   });
 
   Map<String, dynamic> toJson() => {
-    'word': word,
-    'definition': definition,
-    'example': example,
-    'phonetic': phonetic,
-    'partOfSpeech': partOfSpeech,
-    'synonyms': synonyms,
-    'date': date.toIso8601String(),
-  };
+        'word': word,
+        'definition': definition,
+        'example': example,
+        'phonetic': phonetic,
+        'partOfSpeech': partOfSpeech,
+        'synonyms': synonyms,
+        'date': date.toIso8601String(),
+      };
 
   factory WordOfTheDay.fromJson(Map<String, dynamic> json) => WordOfTheDay(
-    word: json['word'] as String,
-    definition: json['definition'] as String,
-    example: json['example'] as String,
-    phonetic: json['phonetic'] as String?,
-    partOfSpeech: json['partOfSpeech'] as String?,
-    synonyms: json['synonyms'] != null
-        ? List<String>.from(json['synonyms'] as List)
-        : null,
-    date: () {
-      try {
-        return DateTime.parse(json['date'] as String);
-      } catch (e) {
-        // CRITICAL: Handle malformed date strings to prevent crashes
-        // Use current date as fallback
-        LoggerService.warning(
-          'Failed to parse WordOfTheDay date: ${json['date']}, using current date as fallback',
-          error: e,
-        );
-        return DateTime.now();
-      }
-    }(),
-  );
+        word: json['word'] as String,
+        definition: json['definition'] as String,
+        example: json['example'] as String,
+        phonetic: json['phonetic'] as String?,
+        partOfSpeech: json['partOfSpeech'] as String?,
+        synonyms: json['synonyms'] != null
+            ? List<String>.from(json['synonyms'] as List)
+            : null,
+        date: () {
+          try {
+            return DateTime.parse(json['date'] as String);
+          } catch (e) {
+            // CRITICAL: Handle malformed date strings to prevent crashes
+            // Use current date as fallback
+            LoggerService.warning(
+              'Failed to parse WordOfTheDay date: ${json['date']}, using current date as fallback',
+              error: e,
+            );
+            return DateTime.now();
+          }
+        }(),
+      );
 }
 
 class WordService extends ChangeNotifier {
@@ -258,8 +258,7 @@ class WordService extends ChangeNotifier {
     // If offline, return fallback word immediately (faster, better UX)
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final isOffline =
-          connectivityResults.contains(ConnectivityResult.none) ||
+      final isOffline = connectivityResults.contains(ConnectivityResult.none) ||
           connectivityResults.isEmpty;
 
       if (isOffline) {
@@ -307,17 +306,15 @@ class WordService extends ChangeNotifier {
             ? word
             : _wordList[(wordIndex + attempt) % _wordList.length];
 
-        final response = await http
-            .get(
-              Uri.parse('${AppConfig.dictionaryApiUrl}/$currentWord'),
-              headers: {'Accept': 'application/json'},
-            )
-            .timeout(
-              const Duration(seconds: _apiTimeoutSeconds),
-              onTimeout: () {
-                throw NetworkException('Request timeout');
-              },
-            );
+        final response = await http.get(
+          Uri.parse('${AppConfig.dictionaryApiUrl}/$currentWord'),
+          headers: {'Accept': 'application/json'},
+        ).timeout(
+          const Duration(seconds: _apiTimeoutSeconds),
+          onTimeout: () {
+            throw NetworkException('Request timeout');
+          },
+        );
 
         if (response.statusCode == 200) {
           try {

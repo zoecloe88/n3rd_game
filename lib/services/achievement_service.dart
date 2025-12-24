@@ -100,10 +100,8 @@ class AchievementService {
     if (firestore == null || userId == null) return {};
 
     try {
-      final doc = await firestore
-          .collection('user_achievements')
-          .doc(userId)
-          .get();
+      final doc =
+          await firestore.collection('user_achievements').doc(userId).get();
       if (!doc.exists) return {};
 
       final data = doc.data() as Map<String, dynamic>;
@@ -193,9 +191,14 @@ class AchievementService {
         unlocked: true,
       );
 
-      await firestore.collection('user_achievements').doc(userId).set({
-        achievement.id: userAchievement.toJson(),
-      }, SetOptions(merge: true,),);
+      await firestore.collection('user_achievements').doc(userId).set(
+        {
+          achievement.id: userAchievement.toJson(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
 
       // Note: Notification will be sent via Cloud Functions or client-side notification
       debugPrint('Achievement unlocked: ${achievement.title}');
@@ -211,13 +214,18 @@ class AchievementService {
     FirebaseFirestore firestore,
   ) async {
     try {
-      await firestore.collection('user_achievements').doc(userId).set({
-        achievementId: {
-          'achievementId': achievementId,
-          'progress': progress,
-          'unlocked': false,
+      await firestore.collection('user_achievements').doc(userId).set(
+        {
+          achievementId: {
+            'achievementId': achievementId,
+            'progress': progress,
+            'unlocked': false,
+          },
         },
-      }, SetOptions(merge: true,),);
+        SetOptions(
+          merge: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Error updating achievement progress: $e');
     }

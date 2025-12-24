@@ -131,7 +131,7 @@ class DailyChallengeLeaderboardService {
           'Invalid challenge parameters',
         );
       }
-      
+
       int attemptCount = 0;
       try {
         final attemptCountQuery = await firestore
@@ -143,7 +143,8 @@ class DailyChallengeLeaderboardService {
         attemptCount = attemptCountQuery.docs.length;
       } catch (e) {
         // Collection might not exist yet - treat as 0 attempts
-        debugPrint('Error getting attempt count (collection may not exist): $e');
+        debugPrint(
+            'Error getting attempt count (collection may not exist): $e',);
         attemptCount = 0;
       }
       if (attemptCount >= 5) {
@@ -204,14 +205,14 @@ class DailyChallengeLeaderboardService {
       if (scoreImproved) {
         await firestore
             .collection(
-              'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-            )
+          'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
+        )
             .add({
-              'userId': userId,
-              'timestamp': FieldValue.serverTimestamp(),
-              'score': score,
-              'improved': true,
-            });
+          'userId': userId,
+          'timestamp': FieldValue.serverTimestamp(),
+          'score': score,
+          'improved': true,
+        });
         return SubmissionResponse(
           SubmissionResult.success,
           'Score submitted successfully!',
@@ -267,13 +268,13 @@ class DailyChallengeLeaderboardService {
       // Collection: daily_challenge_leaderboard/{dateKey}/{challengeId}/attempts
       // Fields: userId (Ascending)
       // Create the index in Firebase Console if you encounter index errors
-      
+
       // Validate collection path before querying
       if (dateKey.isEmpty || challengeId.isEmpty) {
         debugPrint('Invalid dateKey or challengeId for attempt count query');
         return 0;
       }
-      
+
       try {
         final attemptCountQuery = await firestore
             .collection(
@@ -284,7 +285,8 @@ class DailyChallengeLeaderboardService {
         return attemptCountQuery.docs.length;
       } catch (e) {
         // Collection might not exist yet - treat as 0 attempts
-        debugPrint('Error getting attempt count (collection may not exist): $e');
+        debugPrint(
+            'Error getting attempt count (collection may not exist): $e',);
         return 0;
       }
     } on FirebaseException catch (e) {
@@ -311,13 +313,13 @@ class DailyChallengeLeaderboardService {
       final targetDate = (date ?? DateTime.now()).toUtc();
       final dateKey =
           '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
-      
+
       // Validate collection path before querying
       if (dateKey.isEmpty || challengeId.isEmpty) {
         debugPrint('Invalid dateKey or challengeId for leaderboard query');
         return [];
       }
-      
+
       final collectionPath =
           'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
 
@@ -388,13 +390,13 @@ class DailyChallengeLeaderboardService {
       final targetDate = (date ?? DateTime.now()).toUtc();
       final dateKey =
           '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
-      
+
       // Validate collection path before querying
       if (dateKey.isEmpty || challengeId.isEmpty) {
         debugPrint('Invalid dateKey or challengeId for rank query');
         return null;
       }
-      
+
       final collectionPath =
           'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
 

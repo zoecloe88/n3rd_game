@@ -18,22 +18,22 @@ class ChatMessage {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'userId': userId,
-    'userName': userName,
-    'message': message,
-    'timestamp': timestamp.toIso8601String(),
-    'roomId': roomId,
-  };
+        'id': id,
+        'userId': userId,
+        'userName': userName,
+        'message': message,
+        'timestamp': timestamp.toIso8601String(),
+        'roomId': roomId,
+      };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    id: json['id'] as String,
-    userId: json['userId'] as String,
-    userName: json['userName'] as String,
-    message: json['message'] as String,
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    roomId: json['roomId'] as String?,
-  );
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        userName: json['userName'] as String,
+        message: json['message'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        roomId: json['roomId'] as String?,
+      );
 
   factory ChatMessage.fromFirestore(Map<String, dynamic> data, String id) {
     return ChatMessage(

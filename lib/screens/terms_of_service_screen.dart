@@ -69,14 +69,12 @@ class TermsOfServiceScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
-
                         _buildSection(
                           context,
                           '1. Agreement to Terms',
                           'These Terms of Service ("Terms", "Terms of Service") constitute a legally binding agreement between you ("User", "you", or "your") and N3RD Trivia ("Company", "we", "us", or "our") concerning your access to and use of the N3RD Trivia mobile application (the "Service").\n\n'
                               'By accessing or using our Service, you agree to be bound by these Terms. If you disagree with any part of these terms, you may not access the Service. These Terms apply to all visitors, users, and others who access or use the Service.',
                         ),
-
                         _buildSection(
                           context,
                           '2. Description of Service',
@@ -90,7 +88,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• Subscription-based access to premium features\n\n'
                               'We reserve the right to modify, suspend, or discontinue any part of the Service at any time, with or without notice.',
                         ),
-
                         _buildSection(
                           context,
                           '3. User Accounts and Registration',
@@ -103,7 +100,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• Be at least 13 years of age (or the age of majority in your jurisdiction)\n\n'
                               'You are responsible for safeguarding your account credentials and for all activities that occur under your account. We are not liable for any loss or damage arising from your failure to comply with this section.',
                         ),
-
                         _buildSection(
                           context,
                           '4. Subscription Terms and Billing',
@@ -140,7 +136,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• Refunds are subject to App Store and Google Play Store policies\n'
                               '• We do not provide refunds for partial subscription periods',
                         ),
-
                         _buildSection(
                           context,
                           '5. Free Tier Limitations',
@@ -154,7 +149,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• Limited to regular trivia database only\n\n'
                               'We reserve the right to modify these limitations at any time. Users exceeding the daily game limit must wait until the next day or upgrade to Basic or Premium tier.',
                         ),
-
                         _buildSection(
                           context,
                           '6. Acceptable Use and Prohibited Activities',
@@ -174,7 +168,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• To engage in any activity that degrades the user experience\n\n'
                               'Violation of these terms may result in immediate termination of your account without refund.',
                         ),
-
                         _buildSection(
                           context,
                           '7. Intellectual Property Rights',
@@ -185,7 +178,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '**User-Generated Content:**\n'
                               'If the Service allows you to create, post, or share content, you are responsible for that content and warrant that you have all necessary rights to grant us the license described above.',
                         ),
-
                         _buildSection(
                           context,
                           '8. Limitation of Liability',
@@ -198,7 +190,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               'THIS LIMITATION OF LIABILITY SHALL APPLY WHETHER THE DAMAGES ARISE FROM USE OR MISUSE OF THE SERVICE, FROM INABILITY TO USE THE SERVICE, OR FROM THE INTERRUPTION, SUSPENSION, OR TERMINATION OF THE SERVICE.\n\n'
                               'SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THE ABOVE LIMITATION MAY NOT APPLY TO YOU.',
                         ),
-
                         _buildSection(
                           context,
                           '9. Disclaimer of Warranties',
@@ -212,7 +203,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• THAT DEFECTS WILL BE CORRECTED\n\n'
                               'WE DO NOT WARRANT THAT THE SERVICE, SERVERS, OR EMAIL SENT FROM US ARE FREE OF VIRUSES OR OTHER HARMFUL COMPONENTS. YOU EXPRESSLY AGREE THAT YOUR USE OF THE SERVICE IS AT YOUR SOLE RISK.',
                         ),
-
                         _buildSection(
                           context,
                           '10. Indemnification',
@@ -223,7 +213,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '• Any claim that your content caused damage to a third party\n\n'
                               'This defense and indemnification obligation will survive these Terms and your use of the Service.',
                         ),
-
                         _buildSection(
                           context,
                           '11. Termination',
@@ -237,14 +226,12 @@ class TermsOfServiceScreen extends StatelessWidget {
                               'Upon termination, your right to use the Service will immediately cease. If you wish to terminate your account, you may simply discontinue using the Service or delete your account through the app settings.\n\n'
                               'All provisions of the Terms which by their nature should survive termination shall survive termination, including, without limitation, ownership provisions, warranty disclaimers, indemnity, and limitations of liability.',
                         ),
-
                         _buildSection(
                           context,
                           '12. Changes to Terms',
                           'We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.\n\n'
                               'By continuing to access or use our Service after any revisions become effective, you agree to be bound by the revised terms. If you do not agree to the new terms, you are no longer authorized to use the Service.',
                         ),
-
                         _buildSection(
                           context,
                           '13. Governing Law and Dispute Resolution',
@@ -258,19 +245,16 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '4. Judgment on the arbitration award may be entered in any court having jurisdiction\n\n'
                               'YOU AGREE THAT BY ENTERING INTO THESE TERMS, YOU AND N3RD TRIVIA ARE EACH WAIVING THE RIGHT TO A TRIAL BY JURY OR TO PARTICIPATE IN A CLASS ACTION.',
                         ),
-
                         _buildSection(
                           context,
                           '14. Severability',
                           'If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary so that these Terms shall otherwise remain in full force and effect and enforceable.',
                         ),
-
                         _buildSection(
                           context,
                           '15. Entire Agreement',
                           'These Terms constitute the entire agreement between you and N3RD Trivia regarding the use of the Service, superseding any prior agreements between you and N3RD Trivia relating to your use of the Service.',
                         ),
-
                         _buildSection(
                           context,
                           '16. Contact Information',
@@ -279,7 +263,6 @@ class TermsOfServiceScreen extends StatelessWidget {
                               '**Subject Line:** Terms of Service Inquiry\n\n'
                               'We will make every effort to respond to your inquiry within 30 business days.',
                         ),
-
                         const SizedBox(height: 24),
                         Text(
                           'By using N3RD Trivia, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. If you do not agree with any part of these Terms, you must not use the Service.',

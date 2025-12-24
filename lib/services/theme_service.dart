@@ -123,10 +123,13 @@ class ThemeService extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      await _firestore!.collection('user_preferences').doc(userId).set({
-        'themeId': _currentTheme.id,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true),);
+      await _firestore!.collection('user_preferences').doc(userId).set(
+        {
+          'themeId': _currentTheme.id,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     } catch (e) {
       debugPrint('Failed to save theme to Firestore: $e');
     }

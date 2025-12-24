@@ -1,7 +1,7 @@
 class AccessibilitySettings {
   final bool highContrastMode;
   final String
-  colorblindPalette; // 'none', 'protanopia', 'deuteranopia', 'tritanopia'
+      colorblindPalette; // 'none', 'protanopia', 'deuteranopia', 'tritanopia'
   final double fontSizeMultiplier; // 1.0 = normal, 1.2 = 20% larger, etc.
   final bool largerTouchTargets;
   final bool screenReaderEnabled;
@@ -21,15 +21,15 @@ class AccessibilitySettings {
   });
 
   Map<String, dynamic> toJson() => {
-    'highContrastMode': highContrastMode,
-    'colorblindPalette': colorblindPalette,
-    'fontSizeMultiplier': fontSizeMultiplier,
-    'largerTouchTargets': largerTouchTargets,
-    'screenReaderEnabled': screenReaderEnabled,
-    'reducedMotion': reducedMotion,
-    'extendedTimeLimits': extendedTimeLimits,
-    'visualAudioIndicators': visualAudioIndicators,
-  };
+        'highContrastMode': highContrastMode,
+        'colorblindPalette': colorblindPalette,
+        'fontSizeMultiplier': fontSizeMultiplier,
+        'largerTouchTargets': largerTouchTargets,
+        'screenReaderEnabled': screenReaderEnabled,
+        'reducedMotion': reducedMotion,
+        'extendedTimeLimits': extendedTimeLimits,
+        'visualAudioIndicators': visualAudioIndicators,
+      };
 
   factory AccessibilitySettings.fromJson(Map<String, dynamic> json) =>
       AccessibilitySettings(

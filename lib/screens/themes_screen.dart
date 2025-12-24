@@ -121,7 +121,7 @@ class ThemesScreen extends StatelessWidget {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.arrow_back,
-                                color: Colors.white),
+                                color: Colors.white,),
                             onPressed: () => NavigationHelper.safePop(context),
                           ),
                           const SizedBox(width: 8),
@@ -250,7 +250,7 @@ class ThemesScreen extends StatelessWidget {
                                                       (theme.colors['accent'] ??
                                                               Colors.white)
                                                           .withValues(
-                                                              alpha: 0.5),
+                                                              alpha: 0.5,),
                                                   blurRadius: 10,
                                                   spreadRadius: 2,
                                                 ),

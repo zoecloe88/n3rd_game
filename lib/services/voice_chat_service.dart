@@ -285,10 +285,13 @@ class VoiceChatService extends ChangeNotifier {
         .doc(channelId)
         .collection('users')
         .doc(_currentUserId)
-        .set({
-          'offer': {'sdp': offer.sdp, 'type': offer.type},
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true),);
+        .set(
+      {
+        'offer': {'sdp': offer.sdp, 'type': offer.type},
+        'timestamp': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> _sendAnswer(
@@ -302,10 +305,13 @@ class VoiceChatService extends ChangeNotifier {
         .doc(channelId)
         .collection('users')
         .doc(_currentUserId)
-        .set({
-          'answer': {'sdp': answer.sdp, 'type': answer.type},
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true),);
+        .set(
+      {
+        'answer': {'sdp': answer.sdp, 'type': answer.type},
+        'timestamp': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> _sendIceCandidate(
@@ -319,14 +325,17 @@ class VoiceChatService extends ChangeNotifier {
         .doc(channelId)
         .collection('users')
         .doc(_currentUserId)
-        .set({
-          'iceCandidate': {
-            'candidate': candidate.candidate,
-            'sdpMid': candidate.sdpMid,
-            'sdpMLineIndex': candidate.sdpMLineIndex,
-          },
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true),);
+        .set(
+      {
+        'iceCandidate': {
+          'candidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMLineIndex': candidate.sdpMLineIndex,
+        },
+        'timestamp': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   @override

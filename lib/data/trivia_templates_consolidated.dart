@@ -168,9 +168,8 @@ class EditionTriviaTemplates {
   /// Validate templates for duplicates and overlaps
   /// Also checks for template diversity across themes
   static void _validateTemplates() {
-    final allTemplates = _templatesByTheme.values
-        .expand((list) => list)
-        .toList();
+    final allTemplates =
+        _templatesByTheme.values.expand((list) => list).toList();
 
     // Check template diversity across themes
     final themeCounts = <String, int>{};

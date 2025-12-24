@@ -22,31 +22,31 @@ class DailyChallenge {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'type': type.toString(),
-    'target': target,
-    'date': date.toIso8601String(),
-    'rewardPoints': rewardPoints,
-    'isCompleted': isCompleted,
-    'progress': progress,
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'type': type.toString(),
+        'target': target,
+        'date': date.toIso8601String(),
+        'rewardPoints': rewardPoints,
+        'isCompleted': isCompleted,
+        'progress': progress,
+      };
 
   factory DailyChallenge.fromJson(Map<String, dynamic> json) => DailyChallenge(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    description: json['description'] as String,
-    type: ChallengeType.values.firstWhere(
-      (e) => e.toString() == json['type'],
-      orElse: () => ChallengeType.perfectScore,
-    ),
-    target: json['target'] as Map<String, dynamic>,
-    date: DateTime.parse(json['date'] as String),
-    rewardPoints: json['rewardPoints'] as int? ?? 100,
-    isCompleted: json['isCompleted'] as bool? ?? false,
-    progress: json['progress'] as int? ?? 0,
-  );
+        id: json['id'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String,
+        type: ChallengeType.values.firstWhere(
+          (e) => e.toString() == json['type'],
+          orElse: () => ChallengeType.perfectScore,
+        ),
+        target: json['target'] as Map<String, dynamic>,
+        date: DateTime.parse(json['date'] as String),
+        rewardPoints: json['rewardPoints'] as int? ?? 100,
+        isCompleted: json['isCompleted'] as bool? ?? false,
+        progress: json['progress'] as int? ?? 0,
+      );
 
   DailyChallenge copyWith({
     String? id,

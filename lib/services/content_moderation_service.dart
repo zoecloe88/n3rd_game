@@ -103,7 +103,7 @@ class ContentModerationService {
         }
       }
     }
-    
+
     // Check blocked words with same logic
     if (normalized.length >= 3) {
       for (final blocked in _blockedWords) {
@@ -159,18 +159,16 @@ class ContentModerationService {
   /// Now handles leet-speak and obfuscation
   String sanitize(String content) {
     final words = content.split(RegExp(r'(\s+)'));
-    final sanitized = words
-        .map((word) {
-          final cleanWord = word.replaceAll(RegExp(r'[^\w]'), '').toLowerCase();
+    final sanitized = words.map((word) {
+      final cleanWord = word.replaceAll(RegExp(r'[^\w]'), '').toLowerCase();
 
-          // Check both exact match and normalized match
-          if (_matchesProfanityWord(cleanWord) ||
-              _matchesProfanityWord(word.toLowerCase())) {
-            return '*' * word.length;
-          }
-          return word;
-        })
-        .join('');
+      // Check both exact match and normalized match
+      if (_matchesProfanityWord(cleanWord) ||
+          _matchesProfanityWord(word.toLowerCase())) {
+        return '*' * word.length;
+      }
+      return word;
+    }).join('');
 
     return sanitized;
   }
@@ -219,7 +217,9 @@ class ContentModerationService {
 
   /// Check for excessive character repetition (spam detection)
   bool _hasExcessiveRepetition(String content) {
-    if (content.length < 6) return false; // Changed from 10 to 6 to catch "aaaaaa"
+    if (content.length < 6) {
+      return false; // Changed from 10 to 6 to catch "aaaaaa"
+    }
 
     // Check for same character repeated more than 5 times
     final repetitionPattern = RegExp(r'(.)\1{5,}');

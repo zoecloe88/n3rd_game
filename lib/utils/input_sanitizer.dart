@@ -155,9 +155,9 @@ class InputSanitizer {
   static String? validateEditionName(String? name) {
     if (name == null || name.trim().isEmpty) return null;
     final sanitized = name.trim().substring(
-      0,
-      name.length > 100 ? 100 : name.length,
-    );
+          0,
+          name.length > 100 ? 100 : name.length,
+        );
     if (sanitized.length < 3) return null;
     return sanitized;
   }

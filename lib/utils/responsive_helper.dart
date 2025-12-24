@@ -54,15 +54,15 @@ class ResponsiveHelper {
     final screenWidth = MediaQuery.of(context).size.width;
     // Base reference width (iPhone standard ~375)
     const baseWidth = 375.0;
-    
+
     // Calculate responsive size based on screen width
     double responsiveSize = (screenWidth / baseWidth) * baseSize;
-    
+
     // Apply multiplier for tablets
     if (isTablet(context)) {
       responsiveSize *= 1.15; // Slightly larger on tablets
     }
-    
+
     // Clamp to min/max if provided
     if (minSize != null && responsiveSize < minSize) {
       responsiveSize = minSize;
@@ -70,7 +70,7 @@ class ResponsiveHelper {
     if (maxSize != null && responsiveSize > maxSize) {
       responsiveSize = maxSize;
     }
-    
+
     return responsiveSize;
   }
 }

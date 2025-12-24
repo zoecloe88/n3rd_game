@@ -32,14 +32,12 @@ class AppVersionService {
       // You can implement your own version checking logic here
 
       // Example: Check against Firebase Remote Config or your API
-      final response = await http
-          .get(Uri.parse(_versionCheckUrl))
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw NetworkException('Version check timeout');
-            },
-          );
+      final response = await http.get(Uri.parse(_versionCheckUrl)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw NetworkException('Version check timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

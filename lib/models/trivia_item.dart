@@ -66,15 +66,15 @@ class TriviaItem {
   /// Returns a Map suitable for JSON encoding.
   /// Used for persistence and data transfer.
   Map<String, dynamic> toJson() => {
-    'category': category,
-    'words': words,
-    'correctAnswers': correctAnswers,
-    if (difficulty != null) 'difficulty': difficulty!.name,
-    if (theme != null) 'theme': theme,
-    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-    if (lastUsedAt != null) 'lastUsedAt': lastUsedAt!.toIso8601String(),
-    'usageCount': usageCount,
-  };
+        'category': category,
+        'words': words,
+        'correctAnswers': correctAnswers,
+        if (difficulty != null) 'difficulty': difficulty!.name,
+        if (theme != null) 'theme': theme,
+        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+        if (lastUsedAt != null) 'lastUsedAt': lastUsedAt!.toIso8601String(),
+        'usageCount': usageCount,
+      };
 
   /// Deserializes a TriviaItem from JSON
   ///

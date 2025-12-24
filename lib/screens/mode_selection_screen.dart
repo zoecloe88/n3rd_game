@@ -28,94 +28,112 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   final List<Map<String, dynamic>> _gameModes = [
     {
       'title': 'Classic',
-      'description': 'Study words for 10 seconds, then select the correct answers in 20 seconds. Perfect for beginners.',
+      'description':
+          'Study words for 10 seconds, then select the correct answers in 20 seconds. Perfect for beginners.',
       'mode': GameMode.classic,
     },
     {
       'title': 'Classic II',
-      'description': 'Faster-paced version: Study for 5 seconds, select answers in 10 seconds. For experienced players.',
+      'description':
+          'Faster-paced version: Study for 5 seconds, select answers in 10 seconds. For experienced players.',
       'mode': GameMode.classicII,
     },
     {
       'title': 'Speed',
-      'description': 'Words and question shown together. Answer quickly within 7 seconds. Test your reflexes!',
+      'description':
+          'Words and question shown together. Answer quickly within 7 seconds. Test your reflexes!',
       'mode': GameMode.speed,
     },
     {
       'title': 'Regular',
-      'description': 'Words and question shown together. Take your time with 15 seconds to answer. Great for learning.',
+      'description':
+          'Words and question shown together. Take your time with 15 seconds to answer. Great for learning.',
       'mode': GameMode.regular,
     },
     {
       'title': 'Shuffle',
-      'description': 'Tiles continuously shuffle during play. Stay focused and find the correct answers!',
+      'description':
+          'Tiles continuously shuffle during play. Stay focused and find the correct answers!',
       'mode': GameMode.shuffle,
     },
     {
       'title': 'Challenge',
-      'description': 'Difficulty increases each round. Can you survive the escalating challenge?',
+      'description':
+          'Difficulty increases each round. Can you survive the escalating challenge?',
       'mode': GameMode.challenge,
     },
     {
       'title': 'Random',
-      'description': 'Experience a different game mode each round. Never know what\'s coming next!',
+      'description':
+          'Experience a different game mode each round. Never know what\'s coming next!',
       'mode': GameMode.random,
     },
     {
       'title': 'Time Attack',
-      'description': 'Score as many points as possible within 60 seconds. Race against the clock!',
+      'description':
+          'Score as many points as possible within 60 seconds. Race against the clock!',
       'mode': GameMode.timeAttack,
     },
     {
       'title': 'Streak',
-      'description': 'Score multiplier increases with each perfect round. Build your streak for maximum points!',
+      'description':
+          'Score multiplier increases with each perfect round. Build your streak for maximum points!',
       'mode': GameMode.streak,
     },
     {
       'title': 'Blitz',
-      'description': 'Ultra-fast mode: Study for 3 seconds, answer in 5 seconds. Only for the quickest minds!',
+      'description':
+          'Ultra-fast mode: Study for 3 seconds, answer in 5 seconds. Only for the quickest minds!',
       'mode': GameMode.blitz,
     },
     {
       'title': 'Marathon',
-      'description': 'Infinite rounds with progressive difficulty. How long can you last?',
+      'description':
+          'Infinite rounds with progressive difficulty. How long can you last?',
       'mode': GameMode.marathon,
     },
     {
       'title': 'Perfect',
-      'description': 'Must get all 3 answers correct. One wrong answer ends the game. Precision is key!',
+      'description':
+          'Must get all 3 answers correct. One wrong answer ends the game. Precision is key!',
       'mode': GameMode.perfect,
     },
     {
       'title': 'Survival',
-      'description': 'Start with 1 life. Gain a life every 3 perfect rounds. Survive as long as possible!',
+      'description':
+          'Start with 1 life. Gain a life every 3 perfect rounds. Survive as long as possible!',
       'mode': GameMode.survival,
     },
     {
       'title': 'Precision',
-      'description': 'Wrong selection loses a life immediately. Perfect accuracy required to succeed!',
+      'description':
+          'Wrong selection loses a life immediately. Perfect accuracy required to succeed!',
       'mode': GameMode.precision,
     },
     {
       'title': 'Flip Mode',
-      'description': 'Study for 10 seconds (4s visible, 6s flipping), then play for 20 seconds with face-down tiles.',
+      'description':
+          'Study for 10 seconds (4s visible, 6s flipping), then play for 20 seconds with face-down tiles.',
       'mode': GameMode.flip,
     },
     {
       'title': 'AI Mode',
-      'description': 'AI adapts difficulty based on your performance. Personalized challenge that learns from you.',
+      'description':
+          'AI adapts difficulty based on your performance. Personalized challenge that learns from you.',
       'mode': GameMode.ai,
       'isPremium': true,
     },
     {
       'title': 'Practice',
-      'description': 'No scoring, unlimited hints. Learn at your own pace without pressure.',
+      'description':
+          'No scoring, unlimited hints. Learn at your own pace without pressure.',
       'mode': GameMode.practice,
       'isPremium': true,
     },
     {
       'title': 'Learning',
-      'description': 'Review questions you missed and improve your knowledge. Track your progress over time.',
+      'description':
+          'Review questions you missed and improve your knowledge. Track your progress over time.',
       'mode': GameMode.learning,
       'isPremium': true,
     },
@@ -417,11 +435,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: UnifiedBackgroundWidget(
-        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection screen.mp4',
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection screen.mp4',
         fit: BoxFit.cover, // Fill screen, logos in upper portion
         alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
@@ -462,8 +480,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   mainAxisSize: MainAxisSize.max,
                   children: [
                     // Spacer to push content to lower portion (logos are in upper portion)
-                    SizedBox(height: ResponsiveHelper.responsiveHeight(context, 0.20).clamp(120.0, 200.0)),
-                    
+                    SizedBox(
+                        height: ResponsiveHelper.responsiveHeight(context, 0.20)
+                            .clamp(120.0, 200.0),),
+
                     // Page view with responsive cards per page
                     Expanded(
                       child: PageView.builder(
@@ -488,7 +508,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
                           // On tablets, use GridView for 2 columns; on phones, use Column
                           final isTablet = ResponsiveHelper.isTablet(context);
-                          
+
                           return SingleChildScrollView(
                             child: Padding(
                               padding: EdgeInsets.symmetric(
@@ -498,7 +518,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               child: isTablet
                                   ? GridView.builder(
                                       shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
                                       gridDelegate:
                                           const SliverGridDelegateWithFixedCrossAxisCount(
                                         crossAxisCount: 2,
@@ -522,7 +543,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                               ? () => _showShuffleDifficulty(
                                                     context,
                                                   )
-                                              : modeData['mode'] == GameMode.flip
+                                              : modeData['mode'] ==
+                                                      GameMode.flip
                                                   ? () => _showFlipRevealMode(
                                                         context,
                                                       )
@@ -532,7 +554,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                     )
                                   : Column(
                                       mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         ...pageModes.map(
                                           (modeData) => Padding(
@@ -543,15 +566,17 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                               context,
                                               title:
                                                   modeData['title'] as String,
-                                              description: modeData[
-                                                  'description'] as String,
+                                              description:
+                                                  modeData['description']
+                                                      as String,
                                               mode:
                                                   modeData['mode'] as GameMode?,
-                                              isPremium: modeData['isPremium'] ==
-                                                  true,
+                                              isPremium:
+                                                  modeData['isPremium'] == true,
                                               onTap: modeData['mode'] ==
                                                       GameMode.shuffle
-                                                  ? () => _showShuffleDifficulty(
+                                                  ? () =>
+                                                      _showShuffleDifficulty(
                                                         context,
                                                       )
                                                   : modeData['mode'] ==
@@ -726,10 +751,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     final isAccessible = mode == null
         ? true
         : (mode == GameMode.ai ||
-                  mode == GameMode.practice ||
-                  mode == GameMode.learning
-              ? subscriptionService.isPremium
-              : subscriptionService.canAccessMode(mode));
+                mode == GameMode.practice ||
+                mode == GameMode.learning
+            ? subscriptionService.isPremium
+            : subscriptionService.canAccessMode(mode));
     final isLocked = mode != null && !isAccessible;
 
     final Widget cardContent = Semantics(
@@ -741,27 +766,28 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         onTap: isLocked
             ? () => _showUpgradeDialog(context)
             : (onTap ??
-                  () {
-                    if (mode != null) {
-                      // Practice and Learning modes go directly to their screens
-                      if (mode == GameMode.practice) {
-                        NavigationHelper.safeNavigate(context, '/practice');
-                      } else if (mode == GameMode.learning) {
-                        NavigationHelper.safeNavigate(context, '/learning');
-                      } else {
-                        // Other modes go through mode-transition
-                        NavigationHelper.safeNavigate(
-                          context,
-                          '/mode-transition',
-                          arguments: mode,
-                        );
-                      }
+                () {
+                  if (mode != null) {
+                    // Practice and Learning modes go directly to their screens
+                    if (mode == GameMode.practice) {
+                      NavigationHelper.safeNavigate(context, '/practice');
+                    } else if (mode == GameMode.learning) {
+                      NavigationHelper.safeNavigate(context, '/learning');
+                    } else {
+                      // Other modes go through mode-transition
+                      NavigationHelper.safeNavigate(
+                        context,
+                        '/mode-transition',
+                        arguments: mode,
+                      );
                     }
-                  }),
+                  }
+                }),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           constraints: BoxConstraints(
-            minHeight: minCardHeight, // Minimum height - responsive based on device
+            minHeight:
+                minCardHeight, // Minimum height - responsive based on device
           ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.95),
@@ -870,7 +896,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                         maxLines: ResponsiveHelper.isTablet(context)
                             ? 3 // More lines on tablets
                             : 2, // Limit to 2 lines on phones
-                        overflow: TextOverflow.ellipsis, // Show ellipsis if too long
+                        overflow:
+                            TextOverflow.ellipsis, // Show ellipsis if too long
                       ),
                     ],
                   ),

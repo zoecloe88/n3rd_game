@@ -14,7 +14,7 @@ class UpgradeDialog extends StatelessWidget {
   final String message;
   final String targetTier; // 'basic', 'premium', or 'family_friends'
   final String
-  source; // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
+      source; // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
   final List<String> features;
   final bool showComparison; // Show tier comparison
 
@@ -66,7 +66,8 @@ class UpgradeDialog extends StatelessWidget {
                       Expanded(
                         child: Text(
                           feature,
-                          style: AppTypography.bodyMedium.copyWith(fontSize: 14),
+                          style:
+                              AppTypography.bodyMedium.copyWith(fontSize: 14),
                         ),
                       ),
                     ],
@@ -156,7 +157,7 @@ class _TierComparisonWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (targetTier.toLowerCase() == 'basic' || 
+        if (targetTier.toLowerCase() == 'basic' ||
             targetTier.toLowerCase() == 'premium' ||
             targetTier.toLowerCase() == 'family_friends')
           _TierRow(
@@ -164,7 +165,7 @@ class _TierComparisonWidget extends StatelessWidget {
             features: freeFeatures,
             isHighlighted: false,
           ),
-        if (targetTier.toLowerCase() == 'basic' || 
+        if (targetTier.toLowerCase() == 'basic' ||
             targetTier.toLowerCase() == 'premium' ||
             targetTier.toLowerCase() == 'family_friends')
           _TierRow(
@@ -236,13 +237,13 @@ class _TierRow extends StatelessWidget {
           ...features.map(
             (feature) => Padding(
               padding: const EdgeInsets.only(left: 8, top: 2),
-                        child: Text(
-                          '• $feature',
-                          style: AppTypography.bodyMedium.copyWith(
-                            fontSize: 11,
-                            color: colors.secondaryText,
-                          ),
-                        ),
+              child: Text(
+                '• $feature',
+                style: AppTypography.bodyMedium.copyWith(
+                  fontSize: 11,
+                  color: colors.secondaryText,
+                ),
+              ),
             ),
           ),
         ],
@@ -250,4 +251,3 @@ class _TierRow extends StatelessWidget {
     );
   }
 }
-

@@ -76,9 +76,8 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
                           number: '1',
                           title:
                               AppLocalizations.of(context)?.memorizeTheWords ??
-                              'Memorize the Words',
-                          description:
-                              AppLocalizations.of(
+                                  'Memorize the Words',
+                          description: AppLocalizations.of(
                                 context,
                               )?.memorizeTheWordsDescription ??
                               'Study the words shown to you during the memorization phase. Pay attention to the correct answers!',
@@ -89,13 +88,11 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
                         _buildInstructionStep(
                           context: context,
                           number: '2',
-                          title:
-                              AppLocalizations.of(
+                          title: AppLocalizations.of(
                                 context,
                               )?.select3CorrectAnswers ??
                               'Select 3 Correct Answers',
-                          description:
-                              AppLocalizations.of(
+                          description: AppLocalizations.of(
                                 context,
                               )?.select3CorrectAnswersDescription ??
                               'From the shuffled list, choose exactly 3 words that match the correct answers you memorized.',
@@ -106,11 +103,9 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
                         _buildInstructionStep(
                           context: context,
                           number: '3',
-                          title:
-                              AppLocalizations.of(context)?.scorePoints ??
+                          title: AppLocalizations.of(context)?.scorePoints ??
                               'Score Points',
-                          description:
-                              AppLocalizations.of(
+                          description: AppLocalizations.of(
                                 context,
                               )?.scorePointsDescription ??
                               'Earn points based on how many correct answers you select:\n• 1 correct = 10 points\n• 2 correct = 20 points\n• 3 correct = 30 points',
@@ -123,9 +118,8 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
                           number: '4',
                           title:
                               AppLocalizations.of(context)?.tryDifferentModes ??
-                              'Try Different Modes',
-                          description:
-                              AppLocalizations.of(
+                                  'Try Different Modes',
+                          description: AppLocalizations.of(
                                 context,
                               )?.tryDifferentModesDescription ??
                               'Explore various game modes:\n• Classic: Standard timing\n• Speed: Fast-paced challenges\n• Shuffle: Tiles move during play\n• Time Attack: Score as much as possible in 60 seconds',

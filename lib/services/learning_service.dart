@@ -44,15 +44,12 @@ class LearningService extends ChangeNotifier {
       final userId = _userId;
       if (userId != null) {
         try {
-          final doc = await _firestore!
-              .collection('user_learning')
-              .doc(userId)
-              .get();
+          final doc =
+              await _firestore!.collection('user_learning').doc(userId).get();
           if (doc.exists && doc.data() != null) {
             final data = doc.data();
             if (data == null) return;
-            _reviewedQuestions =
-                (data['questions'] as List?)
+            _reviewedQuestions = (data['questions'] as List?)
                     ?.map(
                       (q) =>
                           ReviewedQuestion.fromJson(q as Map<String, dynamic>),
@@ -81,8 +78,7 @@ class LearningService extends ChangeNotifier {
       final jsonString = prefs.getString(_storageKey);
       if (jsonString != null) {
         final data = jsonDecode(jsonString) as Map<String, dynamic>;
-        _reviewedQuestions =
-            (data['questions'] as List?)
+        _reviewedQuestions = (data['questions'] as List?)
                 ?.map(
                   (q) => ReviewedQuestion.fromJson(q as Map<String, dynamic>),
                 )
@@ -113,10 +109,15 @@ class LearningService extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      await _firestore!.collection('user_learning').doc(userId).set({
-        'questions': _reviewedQuestions.map((q) => q.toJson()).toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true,),);
+      await _firestore!.collection('user_learning').doc(userId).set(
+        {
+          'questions': _reviewedQuestions.map((q) => q.toJson()).toList(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Failed to save learning data to Firestore: $e');
     }

@@ -11,7 +11,8 @@ import 'package:n3rd_game/models/difficulty_level.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/services/trivia_personalization_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
 
@@ -55,7 +56,7 @@ class AIEditionService extends ChangeNotifier {
   bool _isOfflineMode = false;
   TriviaPersonalizationService? _personalizationService;
   TriviaGeneratorService?
-  _generatorService; // Cache generator service for fallback
+      _generatorService; // Cache generator service for fallback
   AnalyticsService? _analyticsService;
 
   void setAnalyticsService(AnalyticsService? service) {
@@ -367,10 +368,8 @@ class AIEditionService extends ChangeNotifier {
     }
 
     // Word matching
-    final topicWords = topicLower
-        .split(' ')
-        .where((w) => w.length > 2)
-        .toList();
+    final topicWords =
+        topicLower.split(' ').where((w) => w.length > 2).toList();
     for (final word in topicWords) {
       if (categoryLower.contains(word)) score += 0.3;
       if (themeLower.contains(word)) score += 0.2;
@@ -398,7 +397,8 @@ class AIEditionService extends ChangeNotifier {
   /// Find templates relevant to the topic with similarity scoring
   List<TriviaTemplate> _findRelevantTemplates(String topic, bool isYouth) {
     final allTemplates = templates.EditionTriviaTemplates.getAvailableThemes()
-        .expand((theme) => templates.EditionTriviaTemplates.getTemplatesForEdition(theme))
+        .expand((theme) =>
+            templates.EditionTriviaTemplates.getTemplatesForEdition(theme),)
         .toList();
 
     // Calculate similarity scores
@@ -408,11 +408,10 @@ class AIEditionService extends ChangeNotifier {
     }).toList();
 
     // Filter and sort by similarity
-    var relevant =
-        scoredTemplates
-            .where((entry) => entry.$2 > 0.1) // Minimum similarity threshold
-            .toList()
-          ..sort((a, b) => b.$2.compareTo(a.$2)); // Sort by score descending
+    var relevant = scoredTemplates
+        .where((entry) => entry.$2 > 0.1) // Minimum similarity threshold
+        .toList()
+      ..sort((a, b) => b.$2.compareTo(a.$2)); // Sort by score descending
 
     // For youth, filter out inappropriate content
     if (isYouth) {
@@ -783,9 +782,8 @@ class AIEditionService extends ChangeNotifier {
                   }
 
                   // 4. All correct answers must be in words list
-                  final wordsSet = item.words
-                      .map((w) => w.toLowerCase().trim())
-                      .toSet();
+                  final wordsSet =
+                      item.words.map((w) => w.toLowerCase().trim()).toSet();
                   final allCorrectInWords = item.correctAnswers.every(
                     (answer) => wordsSet.contains(answer.toLowerCase().trim()),
                   );
@@ -954,10 +952,8 @@ class AIEditionService extends ChangeNotifier {
       await prefs.setString(cacheKey, jsonEncode(cacheData));
 
       // Keep only last 10 cached topics, using timestamps to find oldest
-      final allKeys = prefs
-          .getKeys()
-          .where((k) => k.startsWith(_cacheKey))
-          .toList();
+      final allKeys =
+          prefs.getKeys().where((k) => k.startsWith(_cacheKey)).toList();
       if (allKeys.length > 10 && allKeys.isNotEmpty) {
         // Read all cache entries to find oldest by timestamp
         final cacheEntries = <MapEntry<String, DateTime>>[];
@@ -1014,8 +1010,8 @@ class AIEditionService extends ChangeNotifier {
                   final cachedTheme = item['theme'] as String?;
                   final normalizedCachedTheme =
                       (cachedTheme != null && cachedTheme.isNotEmpty)
-                      ? _normalizeTheme(cachedTheme)
-                      : 'general';
+                          ? _normalizeTheme(cachedTheme)
+                          : 'general';
 
                   return TriviaItem(
                     category: item['category'] as String? ?? 'Unknown',
@@ -1072,9 +1068,8 @@ class AIEditionService extends ChangeNotifier {
                 }
 
                 // 4. All correct answers must be in words list
-                final wordsSet = item.words
-                    .map((w) => w.toLowerCase().trim())
-                    .toSet();
+                final wordsSet =
+                    item.words.map((w) => w.toLowerCase().trim()).toSet();
                 final allCorrectInWords = item.correctAnswers.every(
                   (answer) => wordsSet.contains(answer.toLowerCase().trim()),
                 );
@@ -1255,24 +1250,28 @@ class AIEditionService extends ChangeNotifier {
 
       // Log performance metrics
       final duration = DateTime.now().difference(startTime);
-      unawaited(_analyticsService?.logAIEditionGeneration(
-        duration,
-        success: true,
-        isYouth: isYouthEdition,
-        retryCount: retryCount,
-      ),);
+      unawaited(
+        _analyticsService?.logAIEditionGeneration(
+          duration,
+          success: true,
+          isYouth: isYouthEdition,
+          retryCount: retryCount,
+        ),
+      );
 
       return triviaItems;
     } on AIEditionException catch (e) {
       errorType = e.type.name;
       final duration = DateTime.now().difference(startTime);
-      unawaited(_analyticsService?.logAIEditionGeneration(
-        duration,
-        success: false,
-        isYouth: isYouthEdition,
-        retryCount: retryCount,
-        errorType: errorType,
-      ),);
+      unawaited(
+        _analyticsService?.logAIEditionGeneration(
+          duration,
+          success: false,
+          isYouth: isYouthEdition,
+          retryCount: retryCount,
+          errorType: errorType,
+        ),
+      );
       rethrow;
     } catch (e) {
       if (kDebugMode) {
@@ -1300,13 +1299,15 @@ class AIEditionService extends ChangeNotifier {
 
       // Log performance metrics for failure
       final duration = DateTime.now().difference(startTime);
-      unawaited(_analyticsService?.logAIEditionGeneration(
-        duration,
-        success: false,
-        isYouth: isYouthEdition,
-        retryCount: retryCount,
-        errorType: errorType,
-      ),);
+      unawaited(
+        _analyticsService?.logAIEditionGeneration(
+          duration,
+          success: false,
+          isYouth: isYouthEdition,
+          retryCount: retryCount,
+          errorType: errorType,
+        ),
+      );
 
       throw AIEditionException(_lastErrorType!, _lastError!);
     }
@@ -1390,9 +1391,8 @@ class AIEditionService extends ChangeNotifier {
             // If already on general theme or no specific theme, try a random theme
             final availableThemes = generator.getAvailableThemes();
             if (availableThemes.isNotEmpty) {
-              theme =
-                  availableThemes[DateTime.now().millisecondsSinceEpoch %
-                      availableThemes.length];
+              theme = availableThemes[DateTime.now().millisecondsSinceEpoch %
+                  availableThemes.length];
               if (kDebugMode) {
                 debugPrint('Retrying with random theme: $theme...');
               }
@@ -1508,16 +1508,15 @@ class AIEditionService extends ChangeNotifier {
       // Fallback to local storage
       final prefs = await _getPrefs();
       final stored = prefs.getStringList(_localStorageKey) ?? [];
-      final history =
-          stored
-              .map((json) => jsonDecode(json) as Map<String, dynamic>)
-              .where((item) => item['userId'] == user.uid)
-              .toList()
-            ..sort(
-              (a, b) => (b['timestamp'] as String).compareTo(
-                a['timestamp'] as String,
-              ),
-            );
+      final history = stored
+          .map((json) => jsonDecode(json) as Map<String, dynamic>)
+          .where((item) => item['userId'] == user.uid)
+          .toList()
+        ..sort(
+          (a, b) => (b['timestamp'] as String).compareTo(
+            a['timestamp'] as String,
+          ),
+        );
 
       return history.take(limit).toList();
     } catch (e) {
@@ -1540,10 +1539,8 @@ class AIEditionService extends ChangeNotifier {
   Future<void> clearCache() async {
     try {
       final prefs = await _getPrefs();
-      final allKeys = prefs
-          .getKeys()
-          .where((k) => k.startsWith(_cacheKey))
-          .toList();
+      final allKeys =
+          prefs.getKeys().where((k) => k.startsWith(_cacheKey)).toList();
       for (final key in allKeys) {
         await prefs.remove(key);
       }

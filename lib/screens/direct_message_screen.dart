@@ -50,13 +50,13 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   Future<void> _initialize() async {
     if (!mounted) return;
-    
+
     // CRITICAL: Check subscription access first using SubscriptionService
     final subscriptionService = Provider.of<SubscriptionService>(
       context,
       listen: false,
     );
-    
+
     if (!subscriptionService.hasOnlineAccess) {
       if (!mounted) return;
       setState(() {
@@ -107,8 +107,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
       orElse: () => Conversation(id: '', userId1: '', userId2: _otherUserId!),
     );
 
-    _otherDisplayName =
-        conversation.getOtherDisplayName(currentUserId) ??
+    _otherDisplayName = conversation.getOtherDisplayName(currentUserId) ??
         _otherUserId?.split('@').first ??
         'User';
 
@@ -342,7 +341,8 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   final navigator = Navigator.of(context);
                   final messenger = ScaffoldMessenger.of(context);
                   try {
-                    final conversationId = _messageService.currentConversationId;
+                    final conversationId =
+                        _messageService.currentConversationId;
                     if (conversationId != null) {
                       await _messageService.deleteConversation(conversationId);
                       if (!mounted) return;
@@ -371,7 +371,8 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                    const Icon(Icons.delete_outline,
+                        size: 20, color: AppColors.error,),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Delete Conversation',
@@ -485,8 +486,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Semantics(
-                    label:
-                        AppLocalizations.of(context)?.sendMessage ??
+                    label: AppLocalizations.of(context)?.sendMessage ??
                         'Send Message',
                     button: true,
                     enabled: _messageController.text.trim().isNotEmpty,
@@ -495,8 +495,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                       onPressed: _messageController.text.trim().isNotEmpty
                           ? _sendMessage
                           : null,
-                      tooltip:
-                          AppLocalizations.of(context)?.sendMessage ??
+                      tooltip: AppLocalizations.of(context)?.sendMessage ??
                           'Send Message',
                     ),
                   ),
@@ -513,11 +512,9 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     final bubbleColors = AppColors.of(context);
     final authService = Provider.of<AuthService>(context, listen: false);
     final isMyMessage = message.fromUserId == authService.currentUser?.uid;
-    
+
     return GestureDetector(
-      onLongPress: isMyMessage
-          ? () => _showMessageOptions(message)
-          : null,
+      onLongPress: isMyMessage ? () => _showMessageOptions(message) : null,
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
@@ -561,9 +558,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   if (isMe) ...[
                     const SizedBox(width: 4),
                     Icon(
-                      message.isRead ?? false
-                          ? Icons.done_all
-                          : Icons.done,
+                      message.isRead ?? false ? Icons.done_all : Icons.done,
                       size: 12,
                       color: message.isRead ?? false
                           ? Colors.white.withValues(alpha: 0.9)

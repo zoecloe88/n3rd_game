@@ -42,8 +42,8 @@ class AIPerformanceData {
       totalWrong: data['totalWrong'] ?? 0,
       lastUpdated:
           (data['lastUpdated'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      currentDifficultyLevel: (data['currentDifficultyLevel'] ?? 0.5)
-          .toDouble(),
+      currentDifficultyLevel:
+          (data['currentDifficultyLevel'] ?? 0.5).toDouble(),
     );
   }
 

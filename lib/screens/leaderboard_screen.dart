@@ -63,9 +63,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       final entries = await _leaderboardService.getGlobalLeaderboard(
         limit: 100,
         category: _selectedCategory == 'All' ? null : _selectedCategory,
-        timePeriod: _selectedTimePeriod == 'All Time'
-            ? null
-            : _selectedTimePeriod,
+        timePeriod:
+            _selectedTimePeriod == 'All Time' ? null : _selectedTimePeriod,
         region: _selectedRegion == 'Global' ? null : _selectedRegion,
         friendsOnly: _friendsOnly,
       );
@@ -217,68 +216,70 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         child: CircularProgressIndicator(color: Colors.white),
                       )
                     : _error.isNotEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _error,
-                              style: AppTypography.inter(color: Colors.white),
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _error,
+                                  style:
+                                      AppTypography.inter(color: Colors.white),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    HapticService().lightImpact();
+                                    _loadLeaderboard();
+                                  },
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                HapticService().lightImpact();
-                                _loadLeaderboard();
-                              },
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _entries.isEmpty
-                    ? RefreshIndicator(
-                        onRefresh: _refreshLeaderboard,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.6,
-                            child: EmptyStateWidget(
-                              icon: Icons.emoji_events_outlined,
-                              title:
-                                  AppLocalizations.of(context)?.noLeaderboard ??
-                                  'No leaderboard data',
-                              description:
-                                  AppLocalizations.of(
-                                    context,
-                                  )?.noLeaderboardDescription ??
-                                  'Be the first to play and set a record!',
-                            ),
-                          ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _refreshLeaderboard,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = _entries[index] as dynamic;
-                            final isCurrentUser =
-                                entry.userId ==
-                                Provider.of<AuthService>(
-                                  context,
-                                  listen: false,
-                                ).currentUser?.uid;
+                          )
+                        : _entries.isEmpty
+                            ? RefreshIndicator(
+                                onRefresh: _refreshLeaderboard,
+                                child: SingleChildScrollView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  child: SizedBox(
+                                    height: MediaQuery.of(context).size.height *
+                                        0.6,
+                                    child: EmptyStateWidget(
+                                      icon: Icons.emoji_events_outlined,
+                                      title: AppLocalizations.of(context)
+                                              ?.noLeaderboard ??
+                                          'No leaderboard data',
+                                      description: AppLocalizations.of(
+                                            context,
+                                          )?.noLeaderboardDescription ??
+                                          'Be the first to play and set a record!',
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _refreshLeaderboard,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,),
+                                  itemCount: _entries.length,
+                                  itemBuilder: (context, index) {
+                                    final entry = _entries[index] as dynamic;
+                                    final isCurrentUser = entry.userId ==
+                                        Provider.of<AuthService>(
+                                          context,
+                                          listen: false,
+                                        ).currentUser?.uid;
 
-                            return _buildLeaderboardItem(
-                              context,
-                              entry,
-                              isCurrentUser,
-                            );
-                          },
-                        ),
-                      ),
+                                    return _buildLeaderboardItem(
+                                      context,
+                                      entry,
+                                      isCurrentUser,
+                                    );
+                                  },
+                                ),
+                              ),
               ),
             ],
           ),

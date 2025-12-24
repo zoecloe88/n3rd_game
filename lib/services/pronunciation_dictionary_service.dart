@@ -229,8 +229,7 @@ class PronunciationDictionaryService extends ChangeNotifier {
       final wordKey = word.toLowerCase();
 
       // Check dictionary size limit (only count new entries)
-      final isNewEntry =
-          !_dictionary.containsKey(wordKey) &&
+      final isNewEntry = !_dictionary.containsKey(wordKey) &&
           !validatedEntries.containsKey(wordKey);
       if (isNewEntry &&
           (_dictionary.length + validatedEntries.length) >=

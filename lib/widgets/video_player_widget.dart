@@ -38,7 +38,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   bool _hasCalledCompletion = false;
   DateTime? _videoStartTime; // Track when video started playing
   Duration? _expectedDuration; // Track expected video duration for analytics
-  bool _disposed = false; // CRITICAL: Flag to prevent race condition between dispose and _initializeVideo
+  bool _disposed =
+      false; // CRITICAL: Flag to prevent race condition between dispose and _initializeVideo
 
   @override
   void initState() {
@@ -232,13 +233,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     final position = controller.value.position;
     final isPlaying = controller.value.isPlaying;
 
-    final hasReachedEnd =
-        duration.inMilliseconds > 0 &&
+    final hasReachedEnd = duration.inMilliseconds > 0 &&
         position.inMilliseconds >= duration.inMilliseconds - 100;
 
     // Detect completion: either reached end OR stopped playing near end (for robustness)
-    final isCompleted =
-        hasReachedEnd ||
+    final isCompleted = hasReachedEnd ||
         (!isPlaying &&
             duration.inMilliseconds > 0 &&
             position.inMilliseconds > 0 &&
@@ -359,7 +358,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void dispose() {
     // CRITICAL: Set disposed flag first to prevent race condition with _initializeVideo()
     _disposed = true;
-    
+
     // Remove listener and dispose controller
     final controller = _controller;
     _controller = null;

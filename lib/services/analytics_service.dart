@@ -8,7 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/services/logger_service.dart';
 
 class AnalyticsService extends ChangeNotifier {
@@ -46,9 +47,11 @@ class AnalyticsService extends ChangeNotifier {
 
       // Track trivia template initialization status (templates initialized before AnalyticsService)
       try {
-        final templatesInitialized = templates.EditionTriviaTemplates.isInitialized;
+        final templatesInitialized =
+            templates.EditionTriviaTemplates.isInitialized;
         final lastError = templates.EditionTriviaTemplates.lastValidationError;
-        final initDuration = templates.EditionTriviaTemplates.lastInitializationDuration;
+        final initDuration =
+            templates.EditionTriviaTemplates.lastInitializationDuration;
         final initTemplateCount =
             templates.EditionTriviaTemplates.lastInitializationTemplateCount;
         final initRetryCount =
@@ -58,9 +61,11 @@ class AnalyticsService extends ChangeNotifier {
         int templateCount = 0;
         if (templatesInitialized) {
           try {
-            final themes = templates.EditionTriviaTemplates.getAvailableThemes();
+            final themes =
+                templates.EditionTriviaTemplates.getAvailableThemes();
             for (final theme in themes) {
-              final themeTemplates = templates.EditionTriviaTemplates.getTemplatesForTheme(
+              final themeTemplates =
+                  templates.EditionTriviaTemplates.getTemplatesForTheme(
                 theme,
               );
               templateCount += themeTemplates.length;
@@ -87,9 +92,8 @@ class AnalyticsService extends ChangeNotifier {
             await logTemplateInitialization(
               initDuration,
               success: templatesInitialized,
-              templateCount: initTemplateCount > 0
-                  ? initTemplateCount
-                  : templateCount,
+              templateCount:
+                  initTemplateCount > 0 ? initTemplateCount : templateCount,
               retryCount: initRetryCount,
             );
           } catch (e) {
@@ -116,18 +120,17 @@ class AnalyticsService extends ChangeNotifier {
               .doc(userId)
               .get()
               .timeout(
-                const Duration(seconds: 10),
-                onTimeout: () {
-                  throw TimeoutException(
-                    'Analytics Firestore load timeout after 10s',
-                  );
-                },
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException(
+                'Analytics Firestore load timeout after 10s',
               );
+            },
+          );
           if (doc.exists) {
             final data = doc.data();
             if (data == null) return;
-            _metrics =
-                (data['metrics'] as List?)
+            _metrics = (data['metrics'] as List?)
                     ?.map(
                       (m) =>
                           PerformanceMetric.fromJson(m as Map<String, dynamic>),
@@ -160,8 +163,7 @@ class AnalyticsService extends ChangeNotifier {
       final jsonString = prefs.getString(_storageKey);
       if (jsonString != null) {
         final data = jsonDecode(jsonString) as Map<String, dynamic>;
-        _metrics =
-            (data['metrics'] as List?)
+        _metrics = (data['metrics'] as List?)
                 ?.map(
                   (m) => PerformanceMetric.fromJson(m as Map<String, dynamic>),
                 )
@@ -190,10 +192,15 @@ class AnalyticsService extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      await _firestore!.collection('user_analytics').doc(userId).set({
-        'metrics': _metrics.map((m) => m.toJson()).toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true,),);
+      await _firestore!.collection('user_analytics').doc(userId).set(
+        {
+          'metrics': _metrics.map((m) => m.toJson()).toList(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Failed to save analytics to Firestore: $e');
     }
@@ -266,9 +273,8 @@ class AnalyticsService extends ChangeNotifier {
       );
       final avgAccuracy =
           metrics.fold<double>(0, (total, m) => total + m.accuracy) /
-          metrics.length;
-      final avgScore =
-          metrics.fold<double>(0, (total, m) => total + m.score) /
+              metrics.length;
+      final avgScore = metrics.fold<double>(0, (total, m) => total + m.score) /
           metrics.length;
 
       return CategoryPerformance(
@@ -278,7 +284,8 @@ class AnalyticsService extends ChangeNotifier {
         accuracy: avgAccuracy,
         averageScore: avgScore,
       );
-    }).toList()..sort((a, b) => b.accuracy.compareTo(a.accuracy));
+    }).toList()
+      ..sort((a, b) => b.accuracy.compareTo(a.accuracy));
   }
 
   /// Get time-of-day performance
@@ -300,12 +307,11 @@ class AnalyticsService extends ChangeNotifier {
         );
       }
 
-      final avgScore =
-          metrics.fold<double>(0, (total, m) => total + m.score) /
+      final avgScore = metrics.fold<double>(0, (total, m) => total + m.score) /
           metrics.length;
       final avgAccuracy =
           metrics.fold<double>(0, (total, m) => total + m.accuracy) /
-          metrics.length;
+              metrics.length;
       final totalGames = metrics.fold<int>(
         0,
         (total, m) => total + m.gamesPlayed,
@@ -331,12 +337,10 @@ class AnalyticsService extends ChangeNotifier {
       };
     }
 
-    final highestScore = _metrics
-        .map((m) => m.score)
-        .reduce((a, b) => a > b ? a : b);
-    final bestAccuracy = _metrics
-        .map((m) => m.accuracy)
-        .reduce((a, b) => a > b ? a : b);
+    final highestScore =
+        _metrics.map((m) => m.score).reduce((a, b) => a > b ? a : b);
+    final bestAccuracy =
+        _metrics.map((m) => m.accuracy).reduce((a, b) => a > b ? a : b);
 
     // Calculate best day score (sum of all games in a day)
     final dayScores = <DateTime, double>{};
@@ -358,9 +362,8 @@ class AnalyticsService extends ChangeNotifier {
     for (final metric in _metrics) {
       if (metric.accuracy >= 100.0) {
         currentStreak++;
-        longestStreak = currentStreak > longestStreak
-            ? currentStreak
-            : longestStreak;
+        longestStreak =
+            currentStreak > longestStreak ? currentStreak : longestStreak;
       } else {
         currentStreak = 0;
       }
@@ -396,11 +399,11 @@ class AnalyticsService extends ChangeNotifier {
     final olderAvgAccuracy = older.isEmpty
         ? 0.0
         : older.fold<double>(0, (total, m) => total + m.accuracy) /
-              older.length;
+            older.length;
     final recentAvgAccuracy = recent.isEmpty
         ? 0.0
         : recent.fold<double>(0, (total, m) => total + m.accuracy) /
-              recent.length;
+            recent.length;
 
     return {
       'scoreImprovement': recentAvgScore - olderAvgScore,
@@ -619,7 +622,7 @@ class AnalyticsService extends ChangeNotifier {
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   Future<void> logUpgradeDialogShown({
     required String
-    source, // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
+        source, // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
     required String targetTier, // 'basic' or 'premium'
   }) async {
     try {
@@ -788,14 +791,17 @@ class AnalyticsService extends ChangeNotifier {
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   /// This is typically called frequently during navigation, so fire-and-forget is preferred
   /// Log family group events
-  Future<void> logFamilyGroupEvent(String eventName, Map<String, dynamic>? parameters) async {
+  Future<void> logFamilyGroupEvent(
+      String eventName, Map<String, dynamic>? parameters,) async {
     try {
       await _analytics?.logEvent(
         name: eventName,
-        parameters: parameters != null ? Map<String, Object>.from(parameters) : null,
+        parameters:
+            parameters != null ? Map<String, Object>.from(parameters) : null,
       );
     } catch (e) {
-      LoggerService.warning('Failed to log family group event: $eventName', error: e);
+      LoggerService.warning('Failed to log family group event: $eventName',
+          error: e,);
     }
   }
 

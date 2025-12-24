@@ -48,9 +48,3 @@ class StandardizedLoadingWidget extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-

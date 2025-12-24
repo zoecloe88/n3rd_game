@@ -116,8 +116,8 @@ class _LoginScreenState extends State<LoginScreen> {
           // This is a signup - check if onboarding is needed
           try {
             final onboardingService = OnboardingService();
-            final hasCompletedOnboarding = await onboardingService
-                .hasCompletedOnboarding();
+            final hasCompletedOnboarding =
+                await onboardingService.hasCompletedOnboarding();
 
             if (!hasCompletedOnboarding && mounted && context.mounted) {
               // New user - redirect to onboarding
@@ -196,7 +196,8 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: colors.background,
       resizeToAvoidBottomInset: false, // Prevent screen narrowing
       body: UnifiedBackgroundWidget(
-        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/login screen.mp4',
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/login screen.mp4',
         fit: BoxFit.cover, // Fill screen, logos in upper portion
         alignment: Alignment.topCenter, // Align to top where logos are
         // Content positioned in lower portion to avoid overlapping animated logos in upper portion
@@ -509,8 +510,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed:
                                 (_loading || (!_isLogin && !_acceptTerms))
-                                ? null
-                                : _handleAuth,
+                                    ? null
+                                    : _handleAuth,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: colors.primaryButton,
                               foregroundColor: colors.buttonText,

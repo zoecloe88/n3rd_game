@@ -36,13 +36,13 @@ class SubscriptionService extends ChangeNotifier {
   bool get isBase => _currentTier == SubscriptionTier.basic;
 
   /// Check if user has access to editions (Premium and Family & Friends)
-  bool get hasEditionsAccess => 
-      _currentTier == SubscriptionTier.premium || 
+  bool get hasEditionsAccess =>
+      _currentTier == SubscriptionTier.premium ||
       _currentTier == SubscriptionTier.familyFriends;
 
   /// Check if user has access to online features (Premium and Family & Friends)
-  bool get hasOnlineAccess => 
-      _currentTier == SubscriptionTier.premium || 
+  bool get hasOnlineAccess =>
+      _currentTier == SubscriptionTier.premium ||
       _currentTier == SubscriptionTier.familyFriends;
 
   /// Check if user has access to all game modes (Basic and Premium)
@@ -117,9 +117,9 @@ class SubscriptionService extends ChangeNotifier {
     required bool requiresBasic,
   }) async {
     // Check direct tier access first
-    if (requiresPremium && 
-        (_currentTier == SubscriptionTier.premium || 
-         _currentTier == SubscriptionTier.familyFriends)) {
+    if (requiresPremium &&
+        (_currentTier == SubscriptionTier.premium ||
+            _currentTier == SubscriptionTier.familyFriends)) {
       return true;
     }
     if (requiresBasic &&
@@ -332,21 +332,20 @@ class SubscriptionService extends ChangeNotifier {
         final firestore = FirebaseFirestore.instance;
         final tierString = tier.name;
 
-        await firestore
-            .collection('users')
-            .doc(userId)
-            .set({
-              'subscriptionTier': tierString,
-              'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true),)
-            .timeout(
-              const Duration(seconds: 10),
-              onTimeout: () {
-                throw TimeoutException(
-                  'Firestore subscription sync timeout after 10s',
-                );
-              },
+        await firestore.collection('users').doc(userId).set(
+          {
+            'subscriptionTier': tierString,
+            'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException(
+              'Firestore subscription sync timeout after 10s',
             );
+          },
+        );
 
         if (kDebugMode) {
           debugPrint('Synced subscription tier to Firestore: $tierString');
@@ -387,18 +386,15 @@ class SubscriptionService extends ChangeNotifier {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final firestore = FirebaseFirestore.instance;
-        final doc = await firestore
-            .collection('users')
-            .doc(userId)
-            .get()
-            .timeout(
-              const Duration(seconds: 10),
-              onTimeout: () {
-                throw TimeoutException(
-                  'Firestore subscription load timeout after 10s',
-                );
-              },
+        final doc =
+            await firestore.collection('users').doc(userId).get().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException(
+              'Firestore subscription load timeout after 10s',
             );
+          },
+        );
 
         if (doc.exists && doc.data() != null) {
           final data = doc.data()!;
@@ -406,9 +402,8 @@ class SubscriptionService extends ChangeNotifier {
 
           if (tierString != null) {
             // Map 'base' to 'basic' for backward compatibility
-            final normalizedTierString = tierString == 'base'
-                ? 'basic'
-                : tierString;
+            final normalizedTierString =
+                tierString == 'base' ? 'basic' : tierString;
 
             final tier = SubscriptionTier.values.firstWhere(
               (t) => t.name == normalizedTierString,
@@ -452,8 +447,8 @@ class SubscriptionService extends ChangeNotifier {
   bool canAccessMode(GameMode mode) {
     // AI mode requires Premium or Family & Friends
     if (mode == GameMode.ai) {
-      return _currentTier == SubscriptionTier.premium || 
-             _currentTier == SubscriptionTier.familyFriends;
+      return _currentTier == SubscriptionTier.premium ||
+          _currentTier == SubscriptionTier.familyFriends;
     }
 
     // Flip Mode requires Basic, Premium, or Family & Friends

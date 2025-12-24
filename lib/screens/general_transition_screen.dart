@@ -49,8 +49,8 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
 
     try {
       // Check onboarding before navigating to protected routes
-      final hasCompletedOnboarding = await _onboardingService
-          .hasCompletedOnboarding();
+      final hasCompletedOnboarding =
+          await _onboardingService.hasCompletedOnboarding();
 
       // List of routes that require onboarding
       const protectedRoutes = [
@@ -62,8 +62,7 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
         '/editions',
       ];
 
-      final needsOnboarding =
-          protectedRoutes.contains(widget.routeAfter) &&
+      final needsOnboarding = protectedRoutes.contains(widget.routeAfter) &&
           !hasCompletedOnboarding;
 
       if (needsOnboarding && mounted && context.mounted) {

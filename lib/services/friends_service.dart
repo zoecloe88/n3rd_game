@@ -50,7 +50,7 @@ class FriendsService extends ChangeNotifier {
     // Reload both friends and requests
     _loadFriends();
     _loadPendingRequests();
-    
+
     // Wait a bit to allow streams to update
     await Future.delayed(const Duration(milliseconds: 500));
   }
@@ -67,29 +67,29 @@ class FriendsService extends ChangeNotifier {
         .where('status', isEqualTo: 'accepted')
         .snapshots()
         .listen((snapshot) {
-          _friends.clear();
-          for (final doc in snapshot.docs) {
-            try {
-              final data = doc.data();
-              _friends.add(
-                Friend(
-                  userId: data['friendId'] as String,
-                  displayName: data['friendDisplayName'] as String?,
-                  email: data['friendEmail'] as String?,
-                  addedAt: data['addedAt'] != null
-                      ? (data['addedAt'] as Timestamp).toDate()
-                      : null,
-                  isOnline: data['isOnline'] as bool? ?? false,
-                ),
-              );
-            } catch (e) {
-              if (kDebugMode) {
-                debugPrint('Error parsing friend: $e');
-              }
-            }
+      _friends.clear();
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          _friends.add(
+            Friend(
+              userId: data['friendId'] as String,
+              displayName: data['friendDisplayName'] as String?,
+              email: data['friendEmail'] as String?,
+              addedAt: data['addedAt'] != null
+                  ? (data['addedAt'] as Timestamp).toDate()
+                  : null,
+              isOnline: data['isOnline'] as bool? ?? false,
+            ),
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Error parsing friend: $e');
           }
-          notifyListeners();
-        });
+        }
+      }
+      notifyListeners();
+    });
   }
 
   void _loadPendingRequests() {
@@ -104,20 +104,20 @@ class FriendsService extends ChangeNotifier {
         .where('status', isEqualTo: 'pending')
         .snapshots()
         .listen((snapshot) {
-          _pendingRequests.clear();
-          for (final doc in snapshot.docs) {
-            try {
-              _pendingRequests.add(
-                FriendRequest.fromJson({'id': doc.id, ...doc.data()}),
-              );
-            } catch (e) {
-              if (kDebugMode) {
-                debugPrint('Error parsing friend request: $e');
-              }
-            }
+      _pendingRequests.clear();
+      for (final doc in snapshot.docs) {
+        try {
+          _pendingRequests.add(
+            FriendRequest.fromJson({'id': doc.id, ...doc.data()}),
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Error parsing friend request: $e');
           }
-          notifyListeners();
-        });
+        }
+      }
+      notifyListeners();
+    });
   }
 
   /// Search for users by email or display name
@@ -219,10 +219,8 @@ class FriendsService extends ChangeNotifier {
       throw AuthenticationException('User not authenticated');
     }
 
-    final requestDoc = await firestore
-        .collection('friend_requests')
-        .doc(requestId)
-        .get();
+    final requestDoc =
+        await firestore.collection('friend_requests').doc(requestId).get();
     if (!requestDoc.exists) {
       throw ValidationException('Friend request not found');
     }
@@ -332,7 +330,10 @@ class FriendsService extends ChangeNotifier {
     }
 
     // Add to blocked list
-    await firestore.collection('user_blocks').doc('$userId-$userIdToBlock').set({
+    await firestore
+        .collection('user_blocks')
+        .doc('$userId-$userIdToBlock')
+        .set({
       'userId': userId,
       'blockedUserId': userIdToBlock,
       'blockedAt': FieldValue.serverTimestamp(),
@@ -347,7 +348,10 @@ class FriendsService extends ChangeNotifier {
       throw AuthenticationException('User not authenticated');
     }
 
-    await firestore.collection('user_blocks').doc('$userId-$userIdToUnblock').delete();
+    await firestore
+        .collection('user_blocks')
+        .doc('$userId-$userIdToUnblock')
+        .delete();
   }
 
   /// Check if a user is blocked
@@ -383,10 +387,8 @@ class FriendsService extends ChangeNotifier {
       friendIds.add(userId); // Exclude self
 
       // Get random users (excluding friends and self)
-      final suggestionsSnapshot = await firestore
-          .collection('user_profiles')
-          .limit(20)
-          .get();
+      final suggestionsSnapshot =
+          await firestore.collection('user_profiles').limit(20).get();
 
       final suggestions = <Map<String, dynamic>>[];
       for (final doc in suggestionsSnapshot.docs) {
