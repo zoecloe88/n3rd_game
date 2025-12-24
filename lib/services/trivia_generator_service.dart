@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/difficulty_level.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart' deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/config/game_constants.dart';
 import 'package:n3rd_game/services/trivia_personalization_service.dart';
