@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/widgets/video_player_widget.dart';
 
@@ -19,20 +17,6 @@ class AnimationIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // #region agent log
-    final logData = {
-      'animationPath': animationPath,
-      'size': size,
-      'hasColor': color != null,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'sessionId': 'debug-session',
-      'runId': 'run1',
-      'hypothesisId': 'B',
-      'location': 'animation_icon.dart:19',
-      'message': 'Building AnimationIcon',
-    };
-    File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
-    // #endregion
     // Animations load immediately with screen - VideoPlayerWidget initializes in initState
     // Use BoxFit.contain for icon-sized animations to prevent black boxes
     return SizedBox(

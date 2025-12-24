@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
@@ -253,21 +251,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildPage(OnboardingPage page, int pageIndex) {
     final pageColors = AppColors.of(context);
-    // #region agent log
-    final logData = {
-      'pageIndex': pageIndex,
-      'hasVideoPath': page.videoPath != null,
-      'hasIcon': page.icon != null,
-      'animationPathsLength': _animationPaths.length,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'sessionId': 'debug-session',
-      'runId': 'run1',
-      'hypothesisId': 'A',
-      'location': 'onboarding_screen.dart:252',
-      'message': 'Building onboarding page',
-    };
-    File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
-    // #endregion
     // If page has video, show video player
     if (page.videoPath != null) {
       return Container(
@@ -300,36 +283,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             )
           else
             // Replace icon with resized animation - positioned out of the way, compact size
-            Builder(
-              builder: (context) {
-                // #region agent log
-                final animationPath = pageIndex < _animationPaths.length ? _animationPaths[pageIndex] : 'OUT_OF_BOUNDS';
-                final logData2 = {
-                  'pageIndex': pageIndex,
-                  'animationPath': animationPath,
-                  'isValidIndex': pageIndex < _animationPaths.length,
-                  'timestamp': DateTime.now().millisecondsSinceEpoch,
-                  'sessionId': 'debug-session',
-                  'runId': 'run1',
-      'hypothesisId': 'A',
-      'location': 'onboarding_screen.dart:292',
-      'message': 'Accessing animation path',
-    };
-                File('/Users/gerardandre/n3rd_game/.cursor/debug.log').writeAsString('${jsonEncode(logData2)}\n', mode: FileMode.append).then((_) {}, onError: (_) {});
-                // #endregion
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: AnimationIcon(
-                      animationPath: pageIndex < _animationPaths.length ? _animationPaths[pageIndex] : _animationPaths[0],
-                      size: 80,
-                      color: pageColors.primaryButton,
-                    ),
-                  ),
-                );
-              },
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child: AnimationIcon(
+                  animationPath: pageIndex < _animationPaths.length
+                      ? _animationPaths[pageIndex]
+                      : _animationPaths[0],
+                  size: 80,
+                  color: pageColors.primaryButton,
+                ),
+              ),
             ),
           const SizedBox(height: AppSpacing.xl),
           Text(

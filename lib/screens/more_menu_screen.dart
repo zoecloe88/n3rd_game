@@ -257,10 +257,10 @@ class MoreMenuScreen extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Checkbox for menu option
+            // Checkbox for menu option (decorative - indicates menu item)
             Checkbox(
-              value: false, // TODO: Add state management for checkboxes if needed
-              onChanged: null, // Read-only for now
+              value: false, // Static decorative checkbox
+              onChanged: null, // Read-only - visual indicator only
               activeColor: itemColors.primaryButton,
               checkColor: Colors.white,
             ),
