@@ -577,13 +577,13 @@ class SettingsScreen extends StatelessWidget {
                   return animationPath != null && !isDestructive
                       ? AnimationIcon(
                           animationPath: animationPath,
-                          size: 22,
+                          size: 54, // 3/4 inch size
                           color: colors.primaryText,
                         )
                       : Icon(
                           icon,
                           color: isDestructive ? AppColors.error : colors.primaryText,
-                          size: 22,
+                          size: 24, // Standard icon size
                         );
                 },
               ),

@@ -99,7 +99,11 @@ class _TitleScreenState extends State<TitleScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true, // Allow full expansion
       builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9, // Allow up to 90% of screen
+        ),
         decoration: BoxDecoration(
           color: colors.cardBackground,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -138,7 +142,13 @@ class _TitleScreenState extends State<TitleScreen> {
             ),
             const SizedBox(height: 16),
             const Divider(),
-            ListTile(
+            // Make drawer scrollable to prevent overflow - use Expanded instead of Flexible
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
               leading: _buildLeadingIcon(Icons.book_outlined),
               title: Text(
                 AppLocalizations.of(context)?.wordOfTheDay ?? 'Word of the Day',
@@ -349,6 +359,10 @@ class _TitleScreenState extends State<TitleScreen> {
                 }
               },
             ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -474,7 +488,7 @@ class _TitleScreenState extends State<TitleScreen> {
   }
 
   /// Helper to build leading widget - uses screen animation if available, otherwise icon
-  Widget _buildLeadingIcon(IconData icon, {double size = 24}) {
+  Widget _buildLeadingIcon(IconData icon, {double size = 54}) {
     final colors = AppColors.of(context);
     final route = ModalRoute.of(context)?.settings.name ?? '/title';
     final animationPath = IconAnimationMapping.getAnimationForScreen(route);
@@ -482,10 +496,10 @@ class _TitleScreenState extends State<TitleScreen> {
     return animationPath != null
         ? AnimationIcon(
             animationPath: animationPath,
-            size: size,
+            size: size, // 3/4 inch size
             color: colors.primaryText,
           )
-        : Icon(icon, size: size);
+        : Icon(icon, size: 24); // Keep icon size smaller
   }
 
   @override

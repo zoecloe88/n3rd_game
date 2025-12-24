@@ -17,9 +17,9 @@ class AnimationIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 3/4 inch = 18px at standard DPI (72 DPI)
-    // For mobile, use logical pixels: ~18-24px depending on device
-    final double iconSize = size.clamp(18.0, 24.0);
+    // 3/4 inch = 54-72px at mobile DPI
+    // Use provided size directly, scale like Lottie files or icons
+    final double iconSize = size > 0 ? size : 54.0; // Default to 54px if not provided
     
     // Animations load immediately with screen - VideoPlayerWidget initializes in initState
     // Use BoxFit.contain for icon-sized animations to prevent black boxes
