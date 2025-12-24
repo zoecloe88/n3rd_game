@@ -7,10 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Uses Flutter's built-in SystemSound for instant, native feedback
 class SoundService extends ChangeNotifier {
   static const String _soundEnabledKey = 'sound_enabled';
+  static const String _soundVolumeKey = 'sound_volume';
+  static const String _musicEnabledKey = 'music_enabled';
+  static const String _musicVolumeKey = 'music_volume';
 
   bool _soundEnabled = true;
+  double _soundVolume = 1.0; // 0.0 to 1.0
+  bool _musicEnabled = false;
+  double _musicVolume = 0.5; // 0.0 to 1.0
 
   bool get soundEnabled => _soundEnabled;
+  double get soundVolume => _soundVolume;
+  bool get musicEnabled => _musicEnabled;
+  double get musicVolume => _musicVolume;
 
   // Sound effect types
   static const String soundCorrect = 'correct';
@@ -26,6 +35,9 @@ class SoundService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _soundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
+      _soundVolume = prefs.getDouble(_soundVolumeKey) ?? 1.0;
+      _musicEnabled = prefs.getBool(_musicEnabledKey) ?? false;
+      _musicVolume = prefs.getDouble(_musicVolumeKey) ?? 0.5;
       notifyListeners();
     } catch (e) {
       debugPrint('Error initializing sound service: $e');
@@ -78,6 +90,54 @@ class SoundService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error saving sound preference: $e');
+    }
+  }
+
+  /// Set sound enabled state
+  Future<void> setSoundEnabled(bool enabled) async {
+    _soundEnabled = enabled;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_soundEnabledKey, _soundEnabled);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error saving sound enabled: $e');
+    }
+  }
+
+  /// Set sound volume (0.0 to 1.0)
+  Future<void> setSoundVolume(double volume) async {
+    _soundVolume = volume.clamp(0.0, 1.0);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_soundVolumeKey, _soundVolume);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error saving sound volume: $e');
+    }
+  }
+
+  /// Set music enabled state
+  Future<void> setMusicEnabled(bool enabled) async {
+    _musicEnabled = enabled;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_musicEnabledKey, _musicEnabled);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error saving music enabled: $e');
+    }
+  }
+
+  /// Set music volume (0.0 to 1.0)
+  Future<void> setMusicVolume(double volume) async {
+    _musicVolume = volume.clamp(0.0, 1.0);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_musicVolumeKey, _musicVolume);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error saving music volume: $e');
     }
   }
 

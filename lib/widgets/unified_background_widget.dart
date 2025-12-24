@@ -71,55 +71,35 @@ class UnifiedBackgroundWidget extends StatelessWidget {
   }
 
   /// Build the optional animation overlay
+  /// Animations are resized to 3/4 inch (18px) and placed at top/bottom center
   Widget _buildAnimationOverlay() {
     return Builder(
       builder: (context) {
-        final screenSize = MediaQuery.of(context).size;
-        final screenWidth = screenSize.width;
-        final screenHeight = screenSize.height;
-
-        // Make animation responsive: scale to fit screen while maintaining aspect ratio
-        // Default size is 1012x1024, so aspect ratio is ~0.988
-        final aspectRatio =
-            (animationWidth ?? 1012) / (animationHeight ?? 1024);
-
-        // Calculate responsive size: use 90% of screen width or height, whichever is smaller
-        // but maintain aspect ratio
-        double responsiveWidth;
-        double responsiveHeight;
-
-        if (screenWidth / screenHeight > aspectRatio) {
-          // Screen is wider than animation aspect ratio
-          responsiveHeight = screenHeight * 0.9;
-          responsiveWidth = responsiveHeight * aspectRatio;
-        } else {
-          // Screen is taller than animation aspect ratio
-          responsiveWidth = screenWidth * 0.9;
-          responsiveHeight = responsiveWidth / aspectRatio;
-        }
-
-        // Clamp to reasonable min/max sizes
-        responsiveWidth = responsiveWidth.clamp(300.0, screenWidth);
-        responsiveHeight = responsiveHeight.clamp(300.0, screenHeight);
-
-        return Positioned.fill(
+        // 3/4 inch = 18px at standard DPI (72 DPI)
+        // For mobile, use logical pixels: ~18-24px depending on device
+        final double animationSize = 18.0;
+        
+        // Determine if animation should be at top or bottom based on alignment
+        final bool isTop = animationAlignment == Alignment.topCenter || 
+                          animationAlignment == Alignment.topLeft ||
+                          animationAlignment == Alignment.topRight;
+        
+        return Positioned(
+          top: isTop ? (animationPadding?.top ?? 60.0) : null,
+          bottom: !isTop ? (animationPadding?.bottom ?? 60.0) : null,
+          left: 0,
+          right: 0,
           child: IgnorePointer(
             // Make animation non-interactive so it doesn't block UI elements
-            child: ClipRect(
-              // Prevent overflow if animation is larger than screen
-              child: Align(
-                alignment: animationAlignment,
-                child: Padding(
-                  padding: animationPadding ?? EdgeInsets.zero,
-                  child: SizedBox(
-                    width: responsiveWidth,
-                    height: responsiveHeight,
-                    child: VideoPlayerWidget(
-                      videoPath: animationPath!,
-                      loop: true,
-                      autoplay: true,
-                    ),
-                  ),
+            child: Center(
+              child: SizedBox(
+                width: animationSize,
+                height: animationSize,
+                child: VideoPlayerWidget(
+                  videoPath: animationPath!,
+                  loop: true,
+                  autoplay: true,
+                  fit: BoxFit.contain, // Ensure animation fits within size
                 ),
               ),
             ),

@@ -11,10 +11,12 @@ class InitialLoadingScreen extends StatelessWidget {
     return const Scaffold(
       backgroundColor: Colors.black,
       body: UnifiedBackgroundWidget(
-        animationPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/Green Neutral Simple Serendipity Phone Wallpaper(1).mp4',
-        animationAlignment: Alignment.center,
-        child: SizedBox.shrink(), // No content, just background + animation
+        // Remove large animation - use background only for initial loading
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D9FF)),
+          ),
+        ),
       ),
     );
   }

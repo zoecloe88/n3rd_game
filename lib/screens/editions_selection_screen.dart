@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -15,15 +14,11 @@ class EditionsSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // RouteGuard handles subscription checking at route level
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
+        // Remove large animation overlay - use icon-sized animations only
         child: SafeArea(
           child: Column(
             children: [
