@@ -443,36 +443,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
         ],
       ),
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Tabs - in cyan section
-              Container(
-                color: const Color(0xFF00D9FF), // Cyan background for tabs
-                child: Row(
-                  children: [
-                    Expanded(child: _buildTab(0, 'Friends')),
-                    Expanded(child: _buildTab(1, 'Requests')),
-                  ],
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Tabs - in cyan section
+            Container(
+              color: const Color(0xFF00D9FF), // Cyan background for tabs
+              child: Row(
+                children: [
+                  Expanded(child: _buildTab(0, 'Friends')),
+                  Expanded(child: _buildTab(1, 'Requests')),
+                ],
               ),
+            ),
 
-              // Content - black background
-              Expanded(
-                child: Container(
-                  color: Colors.black, // Black content area
-                  child: _selectedTab == 0
-                      ? _buildFriendsList()
-                      : _buildRequestsList(),
-                ),
+            // Content - black background
+            Expanded(
+              child: Container(
+                color: Colors.black, // Black content area
+                child: _selectedTab == 0
+                    ? _buildFriendsList()
+                    : _buildRequestsList(),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

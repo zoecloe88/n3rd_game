@@ -23,10 +23,12 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
     final colors = AppColors.of(context);
 
-    return Scaffold(
+    // Use Consumer to listen for auth state changes
+    return Consumer<AuthService>(
+      builder: (context, authService, _) {
+        return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
         videoPath:
@@ -512,6 +514,8 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
+        );
+      },
     );
   }
 
