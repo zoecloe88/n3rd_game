@@ -235,7 +235,10 @@ void main() async {
   bool triviaInitializationFailed = false;
   String? triviaInitError;
   try {
+    // CRITICAL: Load library first, then initialize
     await templates.loadLibrary();
+    // Small delay to ensure library is fully loaded
+    await Future.delayed(const Duration(milliseconds: 100));
     await templates.EditionTriviaTemplates.initialize();
     if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
@@ -368,7 +371,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()..init()),
-        ChangeNotifierProvider(create: (_) => GameService()),
+        // GameService is now provided by ChangeNotifierProxyProvider below
         ChangeNotifierProvider(create: (_) => StatsService()),
         ChangeNotifierProvider(create: (_) => AnalyticsService()..init()),
         ChangeNotifierProvider(create: (_) => ChallengeService()..init()),
@@ -401,7 +404,7 @@ void main() async {
             return previous ?? MultiplayerService()..init();
           },
         ),
-        ChangeNotifierProvider(create: (_) => EditionAccessService()..init()),
+        // EditionAccessService is provided below via ProxyProvider2
         ChangeNotifierProvider(create: (_) => FamilyGroupService()..init()),
         ChangeNotifierProvider(create: (_) => FriendsService()..init()),
         // Add RevenueCatService provider
@@ -548,17 +551,21 @@ void main() async {
           },
         ),
         // Wire AnalyticsService to GameService
-        ProxyProvider<AnalyticsService, GameService>(
+        ChangeNotifierProxyProvider<AnalyticsService, GameService>(
+          create: (_) => GameService(),
           update: (_, analytics, previous) {
-            previous?.setAnalyticsService(analytics);
-            return previous ?? GameService();
+            previous ??= GameService();
+            previous.setAnalyticsService(analytics);
+            return previous;
           },
         ),
         // Wire SubscriptionService to GameService
-        ProxyProvider<SubscriptionService, GameService>(
+        ChangeNotifierProxyProvider<SubscriptionService, GameService>(
+          create: (_) => GameService(),
           update: (_, subscription, previous) {
-            previous?.setSubscriptionService(subscription);
-            return previous ?? GameService();
+            previous ??= GameService();
+            previous.setSubscriptionService(subscription);
+            return previous;
           },
         ),
         // Wire AnalyticsService to NetworkService for performance tracking

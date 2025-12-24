@@ -254,22 +254,9 @@ class MoreMenuScreen extends StatelessWidget {
             color: itemColors.onDarkText.withValues(alpha: 0.8),
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Checkbox for menu option (decorative - indicates menu item)
-            Checkbox(
-              value: false, // Static decorative checkbox
-              onChanged: null, // Read-only - visual indicator only
-              activeColor: itemColors.primaryButton,
-              checkColor: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: itemColors.onDarkText.withValues(alpha: 0.6),
-            ),
-          ],
+        trailing: Icon(
+          Icons.chevron_right,
+          color: itemColors.onDarkText.withValues(alpha: 0.6),
         ),
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

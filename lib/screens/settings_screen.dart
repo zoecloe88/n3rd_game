@@ -6,8 +6,8 @@ import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/text_to_speech_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
+import 'package:n3rd_game/services/sound_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -26,15 +26,11 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name ?? '/settings';
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.topCenter,
-        animationPadding: const EdgeInsets.only(top: 60, right: 20),
+        // Remove large animation overlay - use icon-sized animations only
         child: SafeArea(
           child: Column(
             children: [
@@ -47,7 +43,15 @@ class SettingsScreen extends StatelessWidget {
                       label: AppLocalizations.of(context)?.backButton ?? 'Back',
                       button: true,
                       child: IconButton(
-                        onPressed: () => NavigationHelper.safePop(context),
+                        onPressed: () {
+                          // Ensure we don't go back to title menu - check if we can pop
+                          if (Navigator.of(context).canPop()) {
+                            NavigationHelper.safePop(context);
+                          } else {
+                            // If no back stack, navigate to home
+                            NavigationHelper.safeNavigate(context, '/home');
+                          }
+                        },
                         icon: Icon(Icons.arrow_back, color: colors.onDarkText),
                         tooltip:
                             AppLocalizations.of(context)?.backButton ?? 'Back',
@@ -707,52 +711,75 @@ class SettingsScreen extends StatelessWidget {
   void _showEmailSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Email Settings',
-          style: AppTypography.headlineLarge.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: Text(
-                'Game Notifications',
-                style: AppTypography.labelLarge,
-              ),
-              subtitle: Text(
-                'Get notified about daily challenges',
-                style: AppTypography.labelSmall,
-              ),
-              value: true,
-              onChanged: (value) {},
-            ),
-            SwitchListTile(
-              title: Text(
-                'Leaderboard Updates',
-                style: AppTypography.labelLarge,
-              ),
-              subtitle: Text(
-                'Get notified when you rank up',
-                style: AppTypography.labelSmall,
-              ),
-              value: true,
-              onChanged: (value) {},
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          // Load initial values
+          return FutureBuilder<SharedPreferences>(
+            future: SharedPreferences.getInstance(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
               }
+              final prefs = snapshot.data!;
+              final bool gameNotifications = prefs.getBool('email_game_notifications') ?? true;
+              final bool leaderboardUpdates = prefs.getBool('email_leaderboard_updates') ?? true;
+
+              return AlertDialog(
+                title: Text(
+                  'Email Settings',
+                  style: AppTypography.headlineLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        'Game Notifications',
+                        style: AppTypography.labelLarge,
+                      ),
+                      subtitle: Text(
+                        'Get notified about daily challenges',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: gameNotifications,
+                      onChanged: (value) async {
+                        await prefs.setBool('email_game_notifications', value);
+                        setState(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text(
+                        'Leaderboard Updates',
+                        style: AppTypography.labelLarge,
+                      ),
+                      subtitle: Text(
+                        'Get notified when you rank up',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: leaderboardUpdates,
+                      onChanged: (value) async {
+                        await prefs.setBool('email_leaderboard_updates', value);
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text('Done', style: AppTypography.labelLarge),
+                  ),
+                ],
+              );
             },
-            child: Text('Done', style: AppTypography.labelLarge),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -760,53 +787,87 @@ class SettingsScreen extends StatelessWidget {
   void _showNotificationsSettings(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Notifications',
-          style: AppTypography.headlineLarge.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: Text(
-                'Push Notifications',
-                style: AppTypography.labelLarge,
-              ),
-              value: true,
-              onChanged: (value) {},
-            ),
-            SwitchListTile(
-              title: Text('Daily Reminders', style: AppTypography.labelLarge),
-              subtitle: Text(
-                'Remind me to play daily',
-                style: AppTypography.labelSmall,
-              ),
-              value: true,
-              onChanged: (value) {},
-            ),
-            SwitchListTile(
-              title: Text(
-                'Achievement Alerts',
-                style: AppTypography.labelLarge,
-              ),
-              value: true,
-              onChanged: (value) {},
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return FutureBuilder<SharedPreferences>(
+            future: SharedPreferences.getInstance(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
               }
+              final prefs = snapshot.data!;
+              final bool pushNotifications = prefs.getBool('push_notifications') ?? true;
+              final bool dailyReminders = prefs.getBool('daily_reminders') ?? true;
+              final bool achievementAlerts = prefs.getBool('achievement_alerts') ?? true;
+
+              return AlertDialog(
+                title: Text(
+                  'Notifications',
+                  style: AppTypography.headlineLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        'Push Notifications',
+                        style: AppTypography.labelLarge,
+                      ),
+                      subtitle: Text(
+                        'Receive push notifications from the app',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: pushNotifications,
+                      onChanged: (value) async {
+                        await prefs.setBool('push_notifications', value);
+                        setState(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text('Daily Reminders', style: AppTypography.labelLarge),
+                      subtitle: Text(
+                        'Remind me to play daily',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: dailyReminders,
+                      onChanged: (value) async {
+                        await prefs.setBool('daily_reminders', value);
+                        setState(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text(
+                        'Achievement Alerts',
+                        style: AppTypography.labelLarge,
+                      ),
+                      subtitle: Text(
+                        'Get notified when you unlock achievements',
+                        style: AppTypography.labelSmall,
+                      ),
+                      value: achievementAlerts,
+                      onChanged: (value) async {
+                        await prefs.setBool('achievement_alerts', value);
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text('Done', style: AppTypography.labelLarge),
+                  ),
+                ],
+              );
             },
-            child: Text('Done', style: AppTypography.labelLarge),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -814,45 +875,106 @@ class SettingsScreen extends StatelessWidget {
   void _showAudioSettings(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Sound & Music',
-          style: AppTypography.headlineLarge.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: Text('Sound Effects', style: AppTypography.labelLarge),
-              value: true,
-              onChanged: (value) {},
-            ),
-            SwitchListTile(
-              title: Text('Background Music', style: AppTypography.labelLarge),
-              value: false,
-              onChanged: (value) {},
-            ),
-            ListTile(
-              title: Text('Sound Volume', style: AppTypography.labelLarge),
-              trailing: SizedBox(
-                width: 100,
-                child: Slider(value: 0.7, onChanged: (value) {}),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Consumer<SoundService>(
+          builder: (context, soundService, _) => AlertDialog(
+            title: Text(
+              'Sound & Music',
+              style: AppTypography.headlineLarge.copyWith(
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Done', style: AppTypography.labelLarge),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    title: Text('Sound Effects', style: AppTypography.labelLarge),
+                    subtitle: Text(
+                      'Enable game sound effects',
+                      style: AppTypography.labelSmall,
+                    ),
+                    value: soundService.soundEnabled,
+                    onChanged: (value) async {
+                      await soundService.setSoundEnabled(value);
+                      setState(() {});
+                    },
+                  ),
+                  if (soundService.soundEnabled) ...[
+                    ListTile(
+                      title: Text('Sound Volume', style: AppTypography.labelLarge),
+                      subtitle: Slider(
+                        value: soundService.soundVolume,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 10,
+                        label: '${(soundService.soundVolume * 100).toInt()}%',
+                        onChanged: (value) async {
+                          await soundService.setSoundVolume(value);
+                          setState(() {});
+                        },
+                      ),
+                      trailing: SizedBox(
+                        width: 50,
+                        child: Text(
+                          '${(soundService.soundVolume * 100).toInt()}%',
+                          style: AppTypography.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                  SwitchListTile(
+                    title: Text('Background Music', style: AppTypography.labelLarge),
+                    subtitle: Text(
+                      'Enable background music during gameplay',
+                      style: AppTypography.labelSmall,
+                    ),
+                    value: soundService.musicEnabled,
+                    onChanged: (value) async {
+                      await soundService.setMusicEnabled(value);
+                      setState(() {});
+                    },
+                  ),
+                  if (soundService.musicEnabled) ...[
+                    ListTile(
+                      title: Text('Music Volume', style: AppTypography.labelLarge),
+                      subtitle: Slider(
+                        value: soundService.musicVolume,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 10,
+                        label: '${(soundService.musicVolume * 100).toInt()}%',
+                        onChanged: (value) async {
+                          await soundService.setMusicVolume(value);
+                          setState(() {});
+                        },
+                      ),
+                      trailing: SizedBox(
+                        width: 50,
+                        child: Text(
+                          '${(soundService.musicVolume * 100).toInt()}%',
+                          style: AppTypography.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text('Done', style: AppTypography.labelLarge),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

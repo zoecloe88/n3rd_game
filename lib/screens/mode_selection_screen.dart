@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
@@ -121,7 +120,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     },
   ];
 
-  int get _totalPages => (_gameModes.length / 4).ceil();
+  int get _totalPages => (_gameModes.length / 3).ceil();
 
   @override
   void dispose() {
@@ -396,22 +395,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final route = ModalRoute.of(context)?.settings.name ?? '/modes';
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Background animation - behind tiles
-          UnifiedBackgroundWidget(
-            animationPath: animationPath,
-            animationAlignment: Alignment.topCenter,
-            animationPadding: const EdgeInsets.only(top: 60, left: 20),
-            child: Container(), // Empty child, animation is background
-          ),
-          // Content on top
-          SafeArea(
+      body: UnifiedBackgroundWidget(
+        // Remove large animation overlay - use icon-sized animations only
+        child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
@@ -440,12 +429,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 ),
               ),
 
-              // Mode cards - 4 at a time with pagination
+              // Mode cards - 3 at a time with pagination
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   children: [
-                    // Page view with 4 cards per page
+                    // Page view with 3 cards per page
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
@@ -456,8 +445,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                         },
                         itemCount: _totalPages,
                         itemBuilder: (context, pageIndex) {
-                          final startIndex = pageIndex * 4;
-                          final endIndex = (startIndex + 4).clamp(
+                          final startIndex = pageIndex * 3;
+                          final endIndex = (startIndex + 3).clamp(
                             0,
                             _gameModes.length,
                           );
@@ -466,33 +455,35 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             endIndex,
                           );
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ...pageModes.map(
-                                  (modeData) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: _buildModeCard(
-                                      context,
-                                      title: modeData['title'] as String,
-                                      description:
-                                          modeData['description'] as String,
-                                      mode: modeData['mode'] as GameMode?,
-                                      isPremium: modeData['isPremium'] == true,
-                                      onTap:
-                                          modeData['mode'] == GameMode.shuffle
-                                          ? () =>
-                                                _showShuffleDifficulty(context)
-                                          : modeData['mode'] == GameMode.flip
-                                          ? () => _showFlipRevealMode(context)
-                                          : null,
+                          return SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ...pageModes.map(
+                                    (modeData) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 16),
+                                      child: _buildModeCard(
+                                        context,
+                                        title: modeData['title'] as String,
+                                        description:
+                                            modeData['description'] as String,
+                                        mode: modeData['mode'] as GameMode?,
+                                        isPremium: modeData['isPremium'] == true,
+                                        onTap:
+                                            modeData['mode'] == GameMode.shuffle
+                                            ? () =>
+                                                  _showShuffleDifficulty(context)
+                                            : modeData['mode'] == GameMode.flip
+                                            ? () => _showFlipRevealMode(context)
+                                            : null,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -589,8 +580,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               ),
             ],
           ),
-          ),
-        ],
+        ),
       ),
     );
   }

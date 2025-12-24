@@ -8,7 +8,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/models/edition_model.dart';
 import 'package:n3rd_game/data/editions_catalog.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
@@ -44,15 +43,11 @@ class _EditionsScreenState extends State<EditionsScreen> {
   Widget build(BuildContext context) {
     // RouteGuard handles subscription checking at route level
     final colors = AppColors.of(context);
-    final route = ModalRoute.of(context)?.settings.name;
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.bottomCenter,
-        animationPadding: const EdgeInsets.only(bottom: 20),
+        // Remove large animation overlay - use icon-sized animations only
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),

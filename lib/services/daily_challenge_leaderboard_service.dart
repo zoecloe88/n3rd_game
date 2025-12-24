@@ -123,14 +123,29 @@ class DailyChallengeLeaderboardService {
           'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
 
       // Check attempt count (limit to 5 attempts per day)
-      final attemptCountQuery = await firestore
-          .collection(
-            'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-          )
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      final attemptCount = attemptCountQuery.docs.length;
+      // Validate collection path before querying
+      if (dateKey.isEmpty || challengeId.isEmpty) {
+        debugPrint('Invalid dateKey or challengeId for attempt count query');
+        return SubmissionResponse(
+          SubmissionResult.challengeInvalid,
+          'Invalid challenge parameters',
+        );
+      }
+      
+      int attemptCount = 0;
+      try {
+        final attemptCountQuery = await firestore
+            .collection(
+              'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
+            )
+            .where('userId', isEqualTo: userId)
+            .get();
+        attemptCount = attemptCountQuery.docs.length;
+      } catch (e) {
+        // Collection might not exist yet - treat as 0 attempts
+        debugPrint('Error getting attempt count (collection may not exist): $e');
+        attemptCount = 0;
+      }
       if (attemptCount >= 5) {
         debugPrint('Maximum attempts (5) reached for this challenge');
         return SubmissionResponse(
@@ -252,14 +267,26 @@ class DailyChallengeLeaderboardService {
       // Collection: daily_challenge_leaderboard/{dateKey}/{challengeId}/attempts
       // Fields: userId (Ascending)
       // Create the index in Firebase Console if you encounter index errors
-      final attemptCountQuery = await firestore
-          .collection(
-            'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-          )
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      return attemptCountQuery.docs.length;
+      
+      // Validate collection path before querying
+      if (dateKey.isEmpty || challengeId.isEmpty) {
+        debugPrint('Invalid dateKey or challengeId for attempt count query');
+        return 0;
+      }
+      
+      try {
+        final attemptCountQuery = await firestore
+            .collection(
+              'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
+            )
+            .where('userId', isEqualTo: userId)
+            .get();
+        return attemptCountQuery.docs.length;
+      } catch (e) {
+        // Collection might not exist yet - treat as 0 attempts
+        debugPrint('Error getting attempt count (collection may not exist): $e');
+        return 0;
+      }
     } on FirebaseException catch (e) {
       debugPrint('Firebase error getting attempt count: $e');
       return 0;
@@ -284,6 +311,13 @@ class DailyChallengeLeaderboardService {
       final targetDate = (date ?? DateTime.now()).toUtc();
       final dateKey =
           '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+      
+      // Validate collection path before querying
+      if (dateKey.isEmpty || challengeId.isEmpty) {
+        debugPrint('Invalid dateKey or challengeId for leaderboard query');
+        return [];
+      }
+      
       final collectionPath =
           'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
 
@@ -354,6 +388,13 @@ class DailyChallengeLeaderboardService {
       final targetDate = (date ?? DateTime.now()).toUtc();
       final dateKey =
           '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+      
+      // Validate collection path before querying
+      if (dateKey.isEmpty || challengeId.isEmpty) {
+        debugPrint('Invalid dateKey or challengeId for rank query');
+        return null;
+      }
+      
       final collectionPath =
           'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
 
