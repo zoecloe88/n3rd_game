@@ -535,9 +535,46 @@ void main() async {
             }
 
             // CRITICAL: Must return non-null service or Provider will fail
-            // If service creation failed, return a newly created instance anyway
-            // It will fail gracefully when trivia generation is attempted
-            final service = previous ?? TriviaGeneratorService();
+            // If service creation failed, attempt one more time with proper error handling
+            // Wrap in try-catch to prevent uncaught ValidationException from crashing Provider initialization
+            TriviaGeneratorService service;
+            if (previous != null) {
+              service = previous;
+            } else {
+              try {
+                service = TriviaGeneratorService();
+              } catch (e, stackTrace) {
+                // Final fallback attempt failed - log and rethrow as StateError
+                // This provides better error context than uncaught ValidationException
+                // Provider initialization will fail, but with a clear error message
+                final errorMessage =
+                    'CRITICAL: TriviaGeneratorService cannot be initialized after all retry attempts. '
+                    'This prevents the app from starting properly. '
+                    'Original error: $e';
+
+                if (kDebugMode) {
+                  debugPrint('❌ $errorMessage');
+                  debugPrint('Stack trace: $stackTrace');
+                }
+
+                // Log to Crashlytics if available
+                try {
+                  FirebaseCrashlytics.instance.recordError(
+                    Exception(errorMessage),
+                    stackTrace,
+                    reason: 'TriviaGeneratorService initialization failure',
+                    fatal: true,
+                  );
+                } catch (_) {
+                  // Ignore Crashlytics errors during initialization
+                }
+
+                // Rethrow as StateError to provide clear failure reason
+                // This will cause Provider initialization to fail, which is better than
+                // creating an invalid service that would fail mysteriously later
+                throw StateError(errorMessage);
+              }
+            }
 
             // Set optional services (safe to call even if service creation was delayed)
             try {

@@ -305,7 +305,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       radius: 50,
                       backgroundColor: AppColors.of(context).primaryButton,
                       child: Text(
-                        (friend.displayName ?? friend.email?.split('@').first ?? 'U')
+                        (friend.displayName ??
+                                friend.email?.split('@').first ??
+                                'U')
                             .substring(0, 1)
                             .toUpperCase(),
                         style: AppTypography.displayLarge.copyWith(
@@ -316,7 +318,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      friend.displayName ?? friend.email?.split('@').first ?? 'Unknown',
+                      friend.displayName ??
+                          friend.email?.split('@').first ??
+                          'Unknown',
                       style: AppTypography.headlineLarge.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.of(context).primaryText,
@@ -340,7 +344,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: friend.isOnline ? AppColors.success : AppColors.of(context).tertiaryText,
+                            color: friend.isOnline
+                                ? AppColors.success
+                                : AppColors.of(context).tertiaryText,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -438,7 +444,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ],
       ),
       body: UnifiedBackgroundWidget(
-        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
         fit: BoxFit.cover, // Fill screen, logos in upper portion
         alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
@@ -495,7 +502,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
           textAlign: TextAlign.center,
           style: AppTypography.labelLarge.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? Colors.black : Colors.black.withValues(alpha: 0.6),
+            color:
+                isSelected ? Colors.black : Colors.black.withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -512,13 +520,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onRefresh: _refreshFriends,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: Center(
-                child: EmptyStateWidget(
-                  icon: Icons.people_outline,
-                  title: AppLocalizations.of(context)!.noFriends,
-                  description: AppLocalizations.of(context)!.noFriendsDescription,
-                  actionLabel: AppLocalizations.of(context)!.addFriend,
-                  onAction: () => _showAddFriendDialog(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Center(
+                  child: EmptyStateWidget(
+                    icon: Icons.people_outline,
+                    title: AppLocalizations.of(context)!.noFriends,
+                    description:
+                        AppLocalizations.of(context)!.noFriendsDescription,
+                    actionLabel: AppLocalizations.of(context)!.addFriend,
+                    onAction: () => _showAddFriendDialog(),
+                  ),
                 ),
               ),
             ),
@@ -645,7 +657,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       value: 'message',
                       child: Row(
                         children: [
-                          Icon(Icons.message, size: 20, color: itemColors.primaryText),
+                          Icon(Icons.message,
+                              size: 20, color: itemColors.primaryText),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             AppLocalizations.of(context)?.chat ?? 'Message',
@@ -658,7 +671,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     value: 'profile',
                     child: Row(
                       children: [
-                        Icon(Icons.person_outline, size: 20, color: itemColors.primaryText),
+                        Icon(Icons.person_outline,
+                            size: 20, color: itemColors.primaryText),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           'View Profile',
@@ -671,7 +685,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     value: 'block',
                     child: Row(
                       children: [
-                        const Icon(Icons.block, size: 20, color: AppColors.error),
+                        const Icon(Icons.block,
+                            size: 20, color: AppColors.error),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           'Block',
@@ -686,10 +701,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     value: 'remove',
                     child: Row(
                       children: [
-                        const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                        const Icon(Icons.delete_outline,
+                            size: 20, color: AppColors.error),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
-                          AppLocalizations.of(context)?.deleteButton ?? 'Remove',
+                          AppLocalizations.of(context)?.deleteButton ??
+                              'Remove',
                           style: AppTypography.labelLarge.copyWith(
                             color: AppColors.error,
                           ),
@@ -716,11 +733,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onRefresh: _refreshFriends,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: Center(
-                child: EmptyStateWidget(
-                  icon: Icons.mark_email_read_outlined,
-                  title: 'No pending requests',
-                  description: 'Friend requests will appear here',
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Center(
+                  child: EmptyStateWidget(
+                    icon: Icons.mark_email_read_outlined,
+                    title: 'No pending requests',
+                    description: 'Friend requests will appear here',
+                  ),
                 ),
               ),
             ),
@@ -744,8 +764,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Widget _buildRequestItem(BuildContext context, dynamic request) {
     final itemColors = AppColors.of(context);
-    final displayName =
-        request.fromDisplayName ??
+    final displayName = request.fromDisplayName ??
         request.fromEmail?.split('@').first ??
         'Unknown';
 
@@ -858,8 +877,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         title: Text(user['displayName'] ?? user['email']),
                         subtitle: Text(user['email']),
                         trailing: Semantics(
-                          label:
-                              AppLocalizations.of(context)?.addFriend ??
+                          label: AppLocalizations.of(context)?.addFriend ??
                               'Add Friend',
                           button: true,
                           child: IconButton(
@@ -869,8 +887,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                               user['email'],
                               user['displayName'],
                             ),
-                            tooltip:
-                                AppLocalizations.of(context)?.addFriend ??
+                            tooltip: AppLocalizations.of(context)?.addFriend ??
                                 'Add Friend',
                           ),
                         ),
@@ -955,7 +972,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     leading: CircleAvatar(
                       backgroundColor: dialogColors.primaryButton,
                       child: Text(
-                        (user['displayName'] ?? user['email']?.split('@').first ?? 'U')
+                        (user['displayName'] ??
+                                user['email']?.split('@').first ??
+                                'U')
                             .substring(0, 1)
                             .toUpperCase(),
                         style: AppTypography.titleLarge.copyWith(
@@ -965,7 +984,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       ),
                     ),
                     title: Text(
-                      user['displayName'] ?? user['email']?.split('@').first ?? 'Unknown',
+                      user['displayName'] ??
+                          user['email']?.split('@').first ??
+                          'Unknown',
                       style: AppTypography.labelLarge,
                     ),
                     subtitle: Text(
