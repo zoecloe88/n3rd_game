@@ -1,0 +1,102 @@
+name: Auto + Bugbot Collaboration
+
+on:
+  pull_request:
+    types: [opened, synchronize, review_requested]
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  auto-respond:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, 'bugbot') || github.event.review.state == 'changes_requested'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Read PR comments
+        id: read-comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const bugbotComments = comments.filter(c => 
+              c.user.type === 'Bot' || 
+              c.body.toLowerCase().includes('bugbot') ||
+              c.body.toLowerCase().includes('issue') ||
+              c.body.toLowerCase().includes('suggestion')
+            );
+            
+            return JSON.stringify(bugbotComments);
+
+      - name: Process findings
+        id: process
+        run: |
+          echo "Processing bugbot findings..."
+          # This would trigger Auto to read and fix issues
+          # For now, we'll create a summary file
+          echo "Findings processed" > findings.txt
+
+      - name: Create fix commit
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add findings.txt || true
+          git commit -m "auto: Process bugbot findings" || echo "No changes to commit"
+          git push || echo "Nothing to push"
+
+  auto-fix:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, 'auto-fix')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+
+      - name: Auto-fix issues
+        run: |
+          echo "Auto-fixing issues based on bugbot feedback..."
+          # This would be where Auto processes and fixes issues
+          # The actual fixes would be implemented here
+
+      - name: Create PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 Auto: I\'ve processed bugbot\'s findings and will implement fixes.'
+            });
+

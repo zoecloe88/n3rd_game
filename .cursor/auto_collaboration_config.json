@@ -1,0 +1,31 @@
+{
+  "auto_bugbot_collaboration": {
+    "enabled": true,
+    "pr_number": 1,
+    "repo": "zoecloe88/n3rd_game",
+    "auto_process": true,
+    "auto_commit": true,
+    "auto_push": true,
+    "monitoring": {
+      "enabled": true,
+      "check_interval_seconds": 60,
+      "max_iterations": 10
+    },
+    "response_template": {
+      "greeting": "🤖 Auto here! I've reviewed bugbot's findings.",
+      "fixes_applied": "✅ Fixed the following issues:",
+      "questions": "❓ Need clarification on:",
+      "ready": "✅ Ready for bugbot re-review!"
+    }
+  },
+  "workflow": {
+    "step1": "Bugbot reviews PR",
+    "step2": "Auto detects comments",
+    "step3": "Auto analyzes findings",
+    "step4": "Auto implements fixes",
+    "step5": "Auto pushes to PR",
+    "step6": "Bugbot re-reviews",
+    "step7": "Repeat until perfect"
+  }
+}
+
