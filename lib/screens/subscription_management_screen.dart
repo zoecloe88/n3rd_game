@@ -832,7 +832,8 @@ class _SubscriptionManagementScreenState
                           // Log but don't fail - group creation can happen later
                           if (kDebugMode) {
                             debugPrint(
-                                'Failed to create family group after purchase: $e');
+                              'Failed to create family group after purchase: $e',
+                            );
                           }
                         }
                       }
