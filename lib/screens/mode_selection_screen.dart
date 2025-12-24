@@ -9,6 +9,7 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 
@@ -120,7 +121,16 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     },
   ];
 
-  int get _totalPages => (_gameModes.length / 3).ceil();
+  /// Get number of cards to show per page based on device type
+  /// Tablets show 6 cards (2 columns x 3 rows), phones show 3 cards (1 column)
+  int _cardsPerPage(BuildContext context) {
+    return ResponsiveHelper.isTablet(context) ? 6 : 3;
+  }
+
+  int _totalPages(BuildContext context) {
+    final cardsPerPage = _cardsPerPage(context);
+    return (_gameModes.length / cardsPerPage).ceil();
+  }
 
   @override
   void dispose() {
@@ -156,7 +166,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           localizations?.upgradeRequired ?? 'Upgrade Required',
-          style: AppTypography.displayMedium.copyWith(fontSize: 20),
+          style: AppTypography.displayMedium.copyWith(
+            fontSize: ResponsiveHelper.isTablet(context)
+                ? 24 // Larger on tablets
+                : 20, // Standard size on phones
+          ),
         ),
         content: Text(
           localizations?.upgradeModeDescription ??
@@ -221,7 +235,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               Text(
                 'Shuffle Difficulty',
                 style: AppTypography.displayMedium.copyWith(
-                  fontSize: 24,
+                  fontSize: ResponsiveHelper.isTablet(context)
+                      ? 28 // Larger on tablets
+                      : 24, // Standard size on phones
                   color: colors.primaryText,
                 ),
               ),
@@ -293,7 +309,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               Text(
                 'Flip Mode Reveal Setting',
                 style: AppTypography.displayMedium.copyWith(
-                  fontSize: 24,
+                  fontSize: ResponsiveHelper.isTablet(context)
+                      ? 28 // Larger on tablets
+                      : 24, // Standard size on phones
                   color: colors.primaryText,
                 ),
               ),
@@ -374,7 +392,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               Text(
                 title,
                 style: AppTypography.labelLarge.copyWith(
-                  fontSize: 16,
+                  fontSize: ResponsiveHelper.isTablet(context)
+                      ? 18 // Larger on tablets
+                      : 16, // Standard size on phones
                   color: colors.primaryText,
                 ),
               ),
@@ -382,7 +402,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               Text(
                 desc,
                 style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 13,
+                  fontSize: ResponsiveHelper.isTablet(context)
+                      ? 15 // Larger on tablets
+                      : 13, // Standard size on phones
                   color: colors.secondaryText,
                 ),
               ),
@@ -421,7 +443,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     Text(
                       'Game Modes',
                       style: AppTypography.displayMedium.copyWith(
-                        fontSize: 24,
+                        fontSize: ResponsiveHelper.isTablet(context)
+                            ? 28 // Larger on tablets
+                            : 24, // Standard size on phones
                         color: Colors.white,
                       ),
                     ),
@@ -429,12 +453,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 ),
               ),
 
-              // Mode cards - 3 at a time with pagination
+              // Mode cards with responsive pagination (3 per page on phones, 6 on tablets)
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   children: [
-                    // Page view with 3 cards per page
+                    // Page view with responsive cards per page
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
@@ -443,10 +467,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             _currentPage = index;
                           });
                         },
-                        itemCount: _totalPages,
+                        itemCount: _totalPages(context),
                         itemBuilder: (context, pageIndex) {
-                          final startIndex = pageIndex * 3;
-                          final endIndex = (startIndex + 3).clamp(
+                          final cardsPerPage = _cardsPerPage(context);
+                          final startIndex = pageIndex * cardsPerPage;
+                          final endIndex = (startIndex + cardsPerPage).clamp(
                             0,
                             _gameModes.length,
                           );
@@ -455,35 +480,86 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             endIndex,
                           );
 
+                          // On tablets, use GridView for 2 columns; on phones, use Column
+                          final isTablet = ResponsiveHelper.isTablet(context);
+                          
                           return SingleChildScrollView(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  ...pageModes.map(
-                                    (modeData) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 16),
-                                      child: _buildModeCard(
-                                        context,
-                                        title: modeData['title'] as String,
-                                        description:
-                                            modeData['description'] as String,
-                                        mode: modeData['mode'] as GameMode?,
-                                        isPremium: modeData['isPremium'] == true,
-                                        onTap:
-                                            modeData['mode'] == GameMode.shuffle
-                                            ? () =>
-                                                  _showShuffleDifficulty(context)
-                                            : modeData['mode'] == GameMode.flip
-                                            ? () => _showFlipRevealMode(context)
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isTablet ? 32 : 16,
+                                vertical: isTablet ? 16 : 0,
                               ),
+                              child: isTablet
+                                  ? GridView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        childAspectRatio: 1.2,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                      ),
+                                      itemCount: pageModes.length,
+                                      itemBuilder: (context, index) {
+                                        final modeData = pageModes[index];
+                                        return _buildModeCard(
+                                          context,
+                                          title: modeData['title'] as String,
+                                          description:
+                                              modeData['description'] as String,
+                                          mode: modeData['mode'] as GameMode?,
+                                          isPremium:
+                                              modeData['isPremium'] == true,
+                                          onTap: modeData['mode'] ==
+                                                  GameMode.shuffle
+                                              ? () => _showShuffleDifficulty(
+                                                    context,
+                                                  )
+                                              : modeData['mode'] == GameMode.flip
+                                                  ? () => _showFlipRevealMode(
+                                                        context,
+                                                      )
+                                                  : null,
+                                        );
+                                      },
+                                    )
+                                  : Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        ...pageModes.map(
+                                          (modeData) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 16,
+                                            ),
+                                            child: _buildModeCard(
+                                              context,
+                                              title:
+                                                  modeData['title'] as String,
+                                              description: modeData[
+                                                  'description'] as String,
+                                              mode:
+                                                  modeData['mode'] as GameMode?,
+                                              isPremium: modeData['isPremium'] ==
+                                                  true,
+                                              onTap: modeData['mode'] ==
+                                                      GameMode.shuffle
+                                                  ? () => _showShuffleDifficulty(
+                                                        context,
+                                                      )
+                                                  : modeData['mode'] ==
+                                                          GameMode.flip
+                                                      ? () =>
+                                                          _showFlipRevealMode(
+                                                            context,
+                                                          )
+                                                      : null,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
                           );
                         },
@@ -528,7 +604,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: List.generate(
-                              _totalPages,
+                              _totalPages(context),
                               (index) => Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
@@ -550,15 +626,15 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                           Semantics(
                             label: 'Next page',
                             button: true,
-                            enabled: _currentPage < _totalPages - 1,
+                            enabled: _currentPage < _totalPages(context) - 1,
                             child: IconButton(
                               icon: Icon(
                                 Icons.arrow_forward_ios,
-                                color: _currentPage < _totalPages - 1
+                                color: _currentPage < _totalPages(context) - 1
                                     ? Colors.white
                                     : Colors.white.withValues(alpha: 0.3),
                               ),
-                              onPressed: _currentPage < _totalPages - 1
+                              onPressed: _currentPage < _totalPages(context) - 1
                                   ? () {
                                       if (_pageController.hasClients) {
                                         _pageController.nextPage(
@@ -593,6 +669,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     bool isPremium = false,
     VoidCallback? onTap,
   }) {
+    // Use responsive sizing - larger cards on tablets
+    final double minCardHeight = ResponsiveHelper.isTablet(context)
+        ? 160.0 // Larger cards on tablets
+        : 130.0; // Standard size on phones
     // Get color for left bar based on mode - ultralight colors
     Color getModeColor() {
       switch (mode) {
@@ -674,8 +754,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   }),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          constraints: const BoxConstraints(
-            minHeight: 100, // Ensure equal minimum height for all cards
+          constraints: BoxConstraints(
+            minHeight: minCardHeight, // Minimum height - responsive based on device
           ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.95),
@@ -684,6 +764,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             // No border - removed for cleaner look
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Colored vertical bar on left - ultralight
               Container(
@@ -702,7 +783,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Row(
                         children: [
@@ -710,7 +791,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             child: Text(
                               title,
                               style: AppTypography.headlineLarge.copyWith(
-                                fontSize: 22, // Larger text
+                                fontSize: ResponsiveHelper.isTablet(context)
+                                    ? 24 // Larger on tablets
+                                    : 20, // Standard size on phones
                                 color: isLocked
                                     ? AppColors.of(context).tertiaryText
                                     : getModeColor().withValues(
@@ -738,7 +821,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                 child: Text(
                                   'Premium',
                                   style: AppTypography.labelSmall.copyWith(
-                                    fontSize: 10,
+                                    fontSize: ResponsiveHelper.isTablet(context)
+                                        ? 12
+                                        : 10,
                                     color: AppColors.success,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -765,12 +850,19 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
+                      // Responsive description text - more lines on tablets
                       Text(
                         description,
-                        style: AppTypography.bodyLarge.copyWith(
-                          fontSize: 16, // Larger text
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontSize: ResponsiveHelper.isTablet(context)
+                              ? 16 // Larger on tablets
+                              : 14, // Standard size on phones
                           color: AppColors.of(context).secondaryText,
                         ),
+                        maxLines: ResponsiveHelper.isTablet(context)
+                            ? 3 // More lines on tablets
+                            : 2, // Limit to 2 lines on phones
+                        overflow: TextOverflow.ellipsis, // Show ellipsis if too long
                       ),
                     ],
                   ),

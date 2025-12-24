@@ -96,16 +96,17 @@ class StatsMenuScreen extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final optionColors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(24.0),
         decoration: BoxDecoration(
-          color: optionColors.cardBackgroundAlt,
+          // FIX: Remove white tiles - use transparent/semi-transparent design that blends with blue background
+          color: Colors.transparent, // No white background
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: optionColors.borderLight.withValues(alpha: 0.2),
+            color: Colors.white.withValues(alpha: 0.2), // Subtle white border
+            width: 1,
           ),
         ),
         child: Row(
@@ -119,10 +120,10 @@ class StatsMenuScreen extends StatelessWidget {
                 return animationPath != null
                     ? AnimationIcon(
                         animationPath: animationPath,
-                        size: 32,
-                        color: optionColors.onDarkText,
+                        size: 54, // 3/4 inch size
+                        color: Colors.white, // White icon on blue background
                       )
-                    : Icon(icon, color: optionColors.onDarkText, size: 32);
+                    : Icon(icon, color: Colors.white, size: 24); // Standard icon size
               },
             ),
             const SizedBox(width: 16),
@@ -133,20 +134,21 @@ class StatsMenuScreen extends StatelessWidget {
                   Text(
                     title,
                     style: AppTypography.titleLarge.copyWith(
-                      color: optionColors.onDarkText,
+                      color: Colors.white, // White text on blue background
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: AppTypography.bodyMedium.copyWith(
-                      color: optionColors.onDarkText.withValues(alpha: 0.7),
+                      color: Colors.white.withValues(alpha: 0.8), // Slightly transparent white
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: optionColors.onDarkText),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.8)),
           ],
         ),
       ),

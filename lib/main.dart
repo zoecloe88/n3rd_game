@@ -229,16 +229,15 @@ void main() async {
 
   // Initialize trivia templates (before AnalyticsService is available)
   // Analytics tracking will be done after AnalyticsService is initialized
-  // CRITICAL: If template initialization fails, show blocking error screen
-  // This prevents the app from starting in a broken state
-  // Load templates library (deferred import to reduce kernel size)
+  // OPTIMIZATION: Load templates synchronously but with minimal delay
+  // Reduced delays allow Dart VM Service to connect faster
   bool triviaInitializationFailed = false;
   String? triviaInitError;
   try {
     // CRITICAL: Load library first, then initialize
     await templates.loadLibrary();
-    // Small delay to ensure library is fully loaded
-    await Future.delayed(const Duration(milliseconds: 100));
+    // Reduced delay - just enough to ensure library is loaded
+    await Future.delayed(const Duration(milliseconds: 50)); // Reduced from 100ms
     await templates.EditionTriviaTemplates.initialize();
     if (!templates.EditionTriviaTemplates.isInitialized) {
       triviaInitializationFailed = true;
@@ -451,7 +450,9 @@ void main() async {
           update: (_, personalization, analytics, previous) {
             // Only create new instance if it doesn't exist
             if (previous == null) {
-              // Validate templates are initialized before creating service
+              // CRITICAL: Check if library is loaded - if not, templates won't be initialized
+              // The library should be loaded in main() before runApp, but verify here
+              // Try to access the library - if not loaded, this will throw
               if (!templates.EditionTriviaTemplates.isInitialized) {
                 final error =
                     templates.EditionTriviaTemplates.lastValidationError ??

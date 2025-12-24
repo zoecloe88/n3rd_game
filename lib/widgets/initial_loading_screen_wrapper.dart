@@ -32,10 +32,11 @@ class _InitialLoadingScreenWrapperState
     final fontLoadFuture = _preloadFonts();
 
     try {
-      // Show initial loading for 3 seconds, then navigate to logo loading screen
+      // Show initial loading for minimum 1 second (reduced from 3), then navigate to logo loading screen
       // Wait for fonts to load or timeout, whichever comes first
+      // Reduced delay allows Dart VM Service to connect faster
       await Future.wait([
-        Future.delayed(const Duration(seconds: 3)),
+        Future.delayed(const Duration(seconds: 1)), // Reduced from 3 seconds
         fontLoadFuture,
       ]);
 
@@ -48,7 +49,7 @@ class _InitialLoadingScreenWrapperState
         );
       }
     } catch (e) {
-      // Even if font loading fails, proceed after 3 seconds
+      // Even if font loading fails, proceed after 1 second
       // Log error for debugging but don't block app startup
       if (kDebugMode) {
         debugPrint(

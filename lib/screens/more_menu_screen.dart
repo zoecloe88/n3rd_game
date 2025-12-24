@@ -235,7 +235,7 @@ class MoreMenuScreen extends StatelessWidget {
             return animationPath != null
                 ? AnimationIcon(
                     animationPath: animationPath,
-                    size: 24,
+                    size: 54, // 3/4 inch size
                     color: itemColors.onDarkText,
                   )
                 : Icon(icon, color: itemColors.onDarkText, size: 24);

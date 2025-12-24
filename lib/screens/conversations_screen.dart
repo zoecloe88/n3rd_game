@@ -370,7 +370,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.delete_outline, color: AppColors.error),
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: Text(
                 'Delete Conversation',
                 style: AppTypography.labelLarge.copyWith(
@@ -402,25 +402,25 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   ),
                 );
                 if (confirmed == true) {
+                  if (!context.mounted) return;
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     await messageService.deleteConversation(conversation.id);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Conversation deleted'),
-                          backgroundColor: AppColors.success,
-                        ),
-                      );
-                    }
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Conversation deleted'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: ${e.toString()}'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
                   }
                 }
               },

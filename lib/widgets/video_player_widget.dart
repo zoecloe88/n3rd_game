@@ -53,17 +53,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Future<void> _initializeVideo() async {
     if (!mounted) return;
 
-    // Get the appropriate video path based on device aspect ratio
-    String actualPath;
-    try {
-      actualPath = VideoPathHelper.getVideoPath(context, widget.videoPath);
-    } catch (e) {
-      // Fallback to base path if helper fails
-      actualPath = widget.videoPath;
+    // CRITICAL FIX: Animation files (BoxFit.contain) don't have variants
+    // Only full-screen videos in assets/videos/ have variants
+    // Animation files in assets/animations/ should use base path directly
+    String pathToTry;
+    if (widget.fit == BoxFit.contain) {
+      // Icon-sized animations - use base path directly, no variants
+      pathToTry = widget.videoPath;
+    } else {
+      // Full-screen videos - check if it's in videos folder and use variants
+      if (widget.videoPath.contains('assets/videos/')) {
+        try {
+          pathToTry = VideoPathHelper.getVideoPath(context, widget.videoPath);
+        } catch (e) {
+          pathToTry = widget.videoPath;
+        }
+      } else {
+        // Not a video file, use base path
+        pathToTry = widget.videoPath;
+      }
     }
 
     try {
-      final controller = VideoPlayerController.asset(actualPath);
+      final controller = VideoPlayerController.asset(pathToTry);
       await controller.initialize();
       if (!mounted) {
         controller.dispose();
@@ -95,7 +107,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       // Log error for debugging
       if (kDebugMode) {
         debugPrint(
-          'VideoPlayerWidget: Failed to load video at $actualPath: $e',
+          'VideoPlayerWidget: Failed to load video at $pathToTry: $e',
         );
       }
 
@@ -107,7 +119,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
             context,
             listen: false,
           );
-          analyticsService.logVideoLoadFailure(actualPath, e.toString());
+          analyticsService.logVideoLoadFailure(pathToTry, e.toString());
         }
       } catch (analyticsError) {
         // Ignore analytics errors
@@ -116,8 +128,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         }
       }
 
-      // If variant doesn't exist, try fallback to base path
-      if (actualPath != widget.videoPath) {
+      // If we tried a variant and it failed, try fallback to base path
+      if (pathToTry != widget.videoPath) {
         try {
           if (kDebugMode) {
             debugPrint(

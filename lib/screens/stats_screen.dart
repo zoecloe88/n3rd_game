@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/stats_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/widgets/unified_background_widget.dart';
-import 'package:n3rd_game/config/screen_animations_config.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -22,14 +21,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final route = ModalRoute.of(context)?.settings.name ?? '/stats';
-    final animationPath = ScreenAnimationsConfig.getAnimationForRoute(route);
-
     return Scaffold(
       body: UnifiedBackgroundWidget(
-        animationPath: animationPath,
-        animationAlignment: Alignment.topCenter,
-        animationPadding: const EdgeInsets.only(top: 60, left: 20),
+        // Remove large animation overlay - stats screen should be clean
         child: SafeArea(
           child: Consumer<StatsService>(
             builder: (context, statsService, _) {
