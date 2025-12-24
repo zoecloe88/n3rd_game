@@ -14,7 +14,6 @@ class PerformanceInsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
-    final colors = AppColors.of(context);
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: Stack(
@@ -418,7 +417,6 @@ class PerformanceInsightsScreen extends StatelessWidget {
   }
 
   void _showGoalSettingDialog(BuildContext context) {
-    final colors = AppColors.of(context);
     int targetScore = 0;
     double targetAccuracy = 0.0;
     int targetStreak = 0;

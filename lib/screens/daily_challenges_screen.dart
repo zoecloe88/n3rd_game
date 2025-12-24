@@ -223,7 +223,6 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
   }
 
   Widget _buildChallengeCard(DailyChallenge challenge) {
-    final colors = AppColors.of(context);
     final progress = challenge.progress.toDouble();
     final target =
         (challenge.target['count'] ??

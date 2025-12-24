@@ -372,7 +372,6 @@ class _TitleScreenState extends State<TitleScreen> {
     String feature,
     String message,
   ) {
-    final colors = AppColors.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
