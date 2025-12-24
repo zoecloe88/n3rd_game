@@ -402,10 +402,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   ),
                 );
                 if (confirmed == true) {
+                  if (!context.mounted) return;
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     await messageService.deleteConversation(conversation.id);
                     if (!mounted) return;
-                    final messenger = ScaffoldMessenger.of(context);
                     messenger.showSnackBar(
                       const SnackBar(
                         content: Text('Conversation deleted'),
@@ -414,7 +415,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     );
                   } catch (e) {
                     if (!mounted) return;
-                    final messenger = ScaffoldMessenger.of(context);
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text('Error: ${e.toString()}'),

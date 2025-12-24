@@ -338,7 +338,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   ),
                 );
                 if (confirmed == true && _otherUserId != null) {
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   final navigator = Navigator.of(context);
                   final messenger = ScaffoldMessenger.of(context);
                   try {
