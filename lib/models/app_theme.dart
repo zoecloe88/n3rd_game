@@ -8,7 +8,7 @@ class AppTheme {
   final bool isPremium;
   final bool isSeasonal;
   final String?
-  season; // 'winter', 'spring', 'summer', 'fall', null for permanent
+      season; // 'winter', 'spring', 'summer', 'fall', null for permanent
 
   AppTheme({
     required this.id,
@@ -21,23 +21,23 @@ class AppTheme {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'description': description,
-    'colors': colors.map(
-      (k, v) => MapEntry(
-        k,
-        ((v.a * 255.0).round().clamp(0, 255) << 24 |
-                (v.r * 255.0).round().clamp(0, 255) << 16 |
-                (v.g * 255.0).round().clamp(0, 255) << 8 |
-                (v.b * 255.0).round().clamp(0, 255))
-            .toString(),
-      ),
-    ),
-    'isPremium': isPremium,
-    'isSeasonal': isSeasonal,
-    'season': season,
-  };
+        'id': id,
+        'name': name,
+        'description': description,
+        'colors': colors.map(
+          (k, v) => MapEntry(
+            k,
+            ((v.a * 255.0).round().clamp(0, 255) << 24 |
+                    (v.r * 255.0).round().clamp(0, 255) << 16 |
+                    (v.g * 255.0).round().clamp(0, 255) << 8 |
+                    (v.b * 255.0).round().clamp(0, 255))
+                .toString(),
+          ),
+        ),
+        'isPremium': isPremium,
+        'isSeasonal': isSeasonal,
+        'season': season,
+      };
 
   factory AppTheme.fromJson(Map<String, dynamic> json) {
     final colorMap = <String, Color>{};

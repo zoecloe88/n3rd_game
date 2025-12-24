@@ -36,36 +36,36 @@ class DailyStats {
       : 0;
 
   Map<String, dynamic> toJson() => {
-    'date': date.toIso8601String(),
-    'gamesPlayed': gamesPlayed,
-    'correctAnswers': correctAnswers,
-    'wrongAnswers': wrongAnswers,
-    'score': score,
-    'highestScore': highestScore,
-    'modePlayCounts': modePlayCounts,
-  };
+        'date': date.toIso8601String(),
+        'gamesPlayed': gamesPlayed,
+        'correctAnswers': correctAnswers,
+        'wrongAnswers': wrongAnswers,
+        'score': score,
+        'highestScore': highestScore,
+        'modePlayCounts': modePlayCounts,
+      };
 
   factory DailyStats.fromJson(Map<String, dynamic> json) => DailyStats(
-    date: () {
-      try {
-        return DateTime.parse(json['date'] as String);
-      } catch (e) {
-        // CRITICAL: Handle malformed date strings to prevent crashes
-        // Use current date as fallback for required field
-        LoggerService.warning(
-          'Failed to parse DailyStats date: ${json['date']}, using current date as fallback',
-          error: e,
-        );
-        return DateTime.now();
-      }
-    }(),
-    gamesPlayed: json['gamesPlayed'] ?? 0,
-    correctAnswers: json['correctAnswers'] ?? 0,
-    wrongAnswers: json['wrongAnswers'] ?? 0,
-    score: json['score'] ?? 0,
-    highestScore: json['highestScore'] ?? 0,
-    modePlayCounts: Map<String, int>.from(json['modePlayCounts'] ?? {}),
-  );
+        date: () {
+          try {
+            return DateTime.parse(json['date'] as String);
+          } catch (e) {
+            // CRITICAL: Handle malformed date strings to prevent crashes
+            // Use current date as fallback for required field
+            LoggerService.warning(
+              'Failed to parse DailyStats date: ${json['date']}, using current date as fallback',
+              error: e,
+            );
+            return DateTime.now();
+          }
+        }(),
+        gamesPlayed: json['gamesPlayed'] ?? 0,
+        correctAnswers: json['correctAnswers'] ?? 0,
+        wrongAnswers: json['wrongAnswers'] ?? 0,
+        score: json['score'] ?? 0,
+        highestScore: json['highestScore'] ?? 0,
+        modePlayCounts: Map<String, int>.from(json['modePlayCounts'] ?? {}),
+      );
 
   DailyStats copyWith({
     DateTime? date,
@@ -111,56 +111,55 @@ class GameStats {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.lastPlayDate,
-  }) : modePlayCounts = modePlayCounts ?? {},
-       dailyStats = dailyStats ?? [];
+  })  : modePlayCounts = modePlayCounts ?? {},
+        dailyStats = dailyStats ?? [];
 
   double get accuracy => totalCorrectAnswers + totalWrongAnswers > 0
       ? (totalCorrectAnswers / (totalCorrectAnswers + totalWrongAnswers)) * 100
       : 0;
 
   Map<String, dynamic> toJson() => {
-    'totalGamesPlayed': totalGamesPlayed,
-    'totalCorrectAnswers': totalCorrectAnswers,
-    'totalWrongAnswers': totalWrongAnswers,
-    'highestScore': highestScore,
-    'totalTimeAttackScore': totalTimeAttackScore,
-    'modePlayCounts': modePlayCounts,
-    'dailyStats': dailyStats.map((ds) => ds.toJson()).toList(),
-    'currentStreak': currentStreak,
-    'longestStreak': longestStreak,
-    'lastPlayDate': lastPlayDate?.toIso8601String(),
-  };
+        'totalGamesPlayed': totalGamesPlayed,
+        'totalCorrectAnswers': totalCorrectAnswers,
+        'totalWrongAnswers': totalWrongAnswers,
+        'highestScore': highestScore,
+        'totalTimeAttackScore': totalTimeAttackScore,
+        'modePlayCounts': modePlayCounts,
+        'dailyStats': dailyStats.map((ds) => ds.toJson()).toList(),
+        'currentStreak': currentStreak,
+        'longestStreak': longestStreak,
+        'lastPlayDate': lastPlayDate?.toIso8601String(),
+      };
 
   factory GameStats.fromJson(Map<String, dynamic> json) => GameStats(
-    totalGamesPlayed: json['totalGamesPlayed'] ?? 0,
-    totalCorrectAnswers: json['totalCorrectAnswers'] ?? 0,
-    totalWrongAnswers: json['totalWrongAnswers'] ?? 0,
-    highestScore: json['highestScore'] ?? 0,
-    totalTimeAttackScore: json['totalTimeAttackScore'] ?? 0,
-    modePlayCounts: Map<String, int>.from(json['modePlayCounts'] ?? {}),
-    dailyStats:
-        (json['dailyStats'] as List<dynamic>?)
-            ?.map((ds) => DailyStats.fromJson(ds as Map<String, dynamic>))
-            .toList() ??
-        [],
-    currentStreak: json['currentStreak'] ?? 0,
-    longestStreak: json['longestStreak'] ?? 0,
-    lastPlayDate: json['lastPlayDate'] != null
-        ? () {
-            try {
-              return DateTime.parse(json['lastPlayDate'] as String);
-            } catch (e) {
-              // CRITICAL: Handle malformed date strings to prevent crashes
-              // Return null if parsing fails for optional field
-              LoggerService.warning(
-                'Failed to parse GameStats lastPlayDate: ${json['lastPlayDate']}',
-                error: e,
-              );
-              return null;
-            }
-          }()
-        : null,
-  );
+        totalGamesPlayed: json['totalGamesPlayed'] ?? 0,
+        totalCorrectAnswers: json['totalCorrectAnswers'] ?? 0,
+        totalWrongAnswers: json['totalWrongAnswers'] ?? 0,
+        highestScore: json['highestScore'] ?? 0,
+        totalTimeAttackScore: json['totalTimeAttackScore'] ?? 0,
+        modePlayCounts: Map<String, int>.from(json['modePlayCounts'] ?? {}),
+        dailyStats: (json['dailyStats'] as List<dynamic>?)
+                ?.map((ds) => DailyStats.fromJson(ds as Map<String, dynamic>))
+                .toList() ??
+            [],
+        currentStreak: json['currentStreak'] ?? 0,
+        longestStreak: json['longestStreak'] ?? 0,
+        lastPlayDate: json['lastPlayDate'] != null
+            ? () {
+                try {
+                  return DateTime.parse(json['lastPlayDate'] as String);
+                } catch (e) {
+                  // CRITICAL: Handle malformed date strings to prevent crashes
+                  // Return null if parsing fails for optional field
+                  LoggerService.warning(
+                    'Failed to parse GameStats lastPlayDate: ${json['lastPlayDate']}',
+                    error: e,
+                  );
+                  return null;
+                }
+              }()
+            : null,
+      );
 
   GameStats copyWith({
     int? totalGamesPlayed,
@@ -234,13 +233,13 @@ class StatsService extends ChangeNotifier {
               .doc(userId)
               .get()
               .timeout(
-                timeoutDuration,
-                onTimeout: () {
-                  throw TimeoutException(
-                    'Firestore load timeout after ${timeoutDuration.inSeconds}s',
-                  );
-                },
+            timeoutDuration,
+            onTimeout: () {
+              throw TimeoutException(
+                'Firestore load timeout after ${timeoutDuration.inSeconds}s',
               );
+            },
+          );
           if (doc.exists && doc.data() != null) {
             final data = doc.data();
             if (data != null) {
@@ -329,9 +328,8 @@ class StatsService extends ChangeNotifier {
         correctAnswers: existing.correctAnswers + correctAnswers,
         wrongAnswers: existing.wrongAnswers + wrongAnswers,
         score: existing.score + score,
-        highestScore: score > existing.highestScore
-            ? score
-            : existing.highestScore,
+        highestScore:
+            score > existing.highestScore ? score : existing.highestScore,
         modePlayCounts: {
           ...existing.modePlayCounts,
           mode: (existing.modePlayCounts[mode] ?? 0) + 1,
@@ -423,13 +421,13 @@ class StatsService extends ChangeNotifier {
                   .doc(userId)
                   .set(_stats.toJson(), SetOptions(merge: true))
                   .timeout(
-                    timeoutDuration,
-                    onTimeout: () {
-                      throw TimeoutException(
-                        'Firestore save timeout after ${timeoutDuration.inSeconds}s',
-                      );
-                    },
+                timeoutDuration,
+                onTimeout: () {
+                  throw TimeoutException(
+                    'Firestore save timeout after ${timeoutDuration.inSeconds}s',
                   );
+                },
+              );
 
               if (attempt > 1) {
                 LoggerService.info(
@@ -451,12 +449,12 @@ class StatsService extends ChangeNotifier {
                 try {
                   await firebase_crashlytics.FirebaseCrashlytics.instance
                       .recordError(
-                        e,
-                        StackTrace.current,
-                        reason:
-                            'Stats Firestore save failed after $maxRetries retries',
-                        fatal: false,
-                      );
+                    e,
+                    StackTrace.current,
+                    reason:
+                        'Stats Firestore save failed after $maxRetries retries',
+                    fatal: false,
+                  );
                 } catch (crashlyticsError) {
                   // Ignore Crashlytics errors - not critical
                   LoggerService.warning(
@@ -492,8 +490,8 @@ class StatsService extends ChangeNotifier {
 
     // Calculate cutoff date
     final cutoff = DateTime.now().toUtc().subtract(
-      const Duration(days: AppConfig.maxDailyStatsDays),
-    );
+          const Duration(days: AppConfig.maxDailyStatsDays),
+        );
     final cutoffNormalized = _normalizeDate(cutoff);
 
     // Remove stats older than cutoff

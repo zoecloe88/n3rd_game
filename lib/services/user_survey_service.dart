@@ -169,8 +169,8 @@ class UserSurveyService {
       final lastSurveyData =
           lastSurvey.docs.first.data() as Map<String, dynamic>?;
       if (lastSurveyData == null) return true;
-      final lastSurveyDate = (lastSurveyData['createdAt'] as Timestamp?)
-          ?.toDate();
+      final lastSurveyDate =
+          (lastSurveyData['createdAt'] as Timestamp?)?.toDate();
       if (lastSurveyDate == null) return true;
 
       final daysSince = DateTime.now().difference(lastSurveyDate).inDays;

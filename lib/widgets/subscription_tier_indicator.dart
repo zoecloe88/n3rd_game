@@ -5,7 +5,6 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 
-
 /// Widget to display current subscription tier status
 /// Shows tier badge with icon and name
 class SubscriptionTierIndicator extends StatelessWidget {

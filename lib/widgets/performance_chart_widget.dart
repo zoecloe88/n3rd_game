@@ -114,9 +114,8 @@ class PerformanceChartWidget extends StatelessWidget {
           sideTitles: SideTitles(
             showTitles: true,
             reservedSize: 30,
-            interval: metrics.length > 7
-                ? (metrics.length / 7).ceilToDouble()
-                : 1,
+            interval:
+                metrics.length > 7 ? (metrics.length / 7).ceilToDouble() : 1,
             getTitlesWidget: (value, meta) {
               if (value.toInt() >= metrics.length) return const Text('');
               final date = metrics[value.toInt()].date;

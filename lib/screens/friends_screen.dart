@@ -6,7 +6,6 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -652,7 +651,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       child: Row(
                         children: [
                           Icon(Icons.message,
-                              size: 20, color: itemColors.primaryText),
+                              size: 20, color: itemColors.primaryText,),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             AppLocalizations.of(context)?.chat ?? 'Message',
@@ -666,7 +665,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.person_outline,
-                            size: 20, color: itemColors.primaryText),
+                            size: 20, color: itemColors.primaryText,),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           'View Profile',
@@ -680,7 +679,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     child: Row(
                       children: [
                         const Icon(Icons.block,
-                            size: 20, color: AppColors.error),
+                            size: 20, color: AppColors.error,),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           'Block',
@@ -696,7 +695,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     child: Row(
                       children: [
                         const Icon(Icons.delete_outline,
-                            size: 20, color: AppColors.error),
+                            size: 20, color: AppColors.error,),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           AppLocalizations.of(context)?.deleteButton ??
@@ -729,7 +728,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.6,
-                child: Center(
+                child: const Center(
                   child: EmptyStateWidget(
                     icon: Icons.mark_email_read_outlined,
                     title: 'No pending requests',

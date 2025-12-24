@@ -94,17 +94,17 @@ class ModeConfig {
         final memorizeTime = round == 1
             ? 12
             : round == 2
-            ? 10
-            : round == 3
-            ? 8
-            : 6;
+                ? 10
+                : round == 3
+                    ? 8
+                    : 6;
         final playTime = round == 1
             ? 18
             : round == 2
-            ? 15
-            : round == 3
-            ? 12
-            : 10;
+                ? 15
+                : round == 3
+                    ? 12
+                    : 10;
         return ModeConfig(memorizeTime: memorizeTime, playTime: playTime);
       case GameMode.streak:
         return ModeConfig(memorizeTime: 10, playTime: 20);
@@ -207,7 +207,8 @@ class GameService extends ChangeNotifier {
       }
       if (_timeAttackSecondsLeft != null && _timeAttackSecondsLeft! > 0) {
         // CRITICAL: Clamp time attack seconds to prevent negative values (defensive programming)
-        _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1).clamp(0, GameConstants.maxTimeSeconds);
+        _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1)
+            .clamp(0, GameConstants.maxTimeSeconds);
         _safeNotifyListeners();
       } else {
         timer.cancel();
@@ -269,7 +270,7 @@ class GameService extends ChangeNotifier {
   Timer? _flipInitialTimer; // Timer for initial flip delay
   Timer? _flipPeriodicTimer; // Timer for periodic tile flipping
   Future<void>?
-  _pendingNextRoundDelay; // Track pending nextRound auto-advance to prevent leaks and race conditions
+      _pendingNextRoundDelay; // Track pending nextRound auto-advance to prevent leaks and race conditions
   String shuffleDifficulty = 'medium';
 
   GameMode _currentMode = GameMode.classic;
@@ -317,9 +318,8 @@ class GameService extends ChangeNotifier {
         // CRITICAL: Filter empty/whitespace strings from list FIRST to maintain size consistency
         // This prevents index mismatches between _shuffledWords list and _shuffledWordsMap
         // Empty strings shouldn't exist, but if they do, filtering prevents flip mode failures
-        _shuffledWords = _shuffledWords
-            .where((word) => word.trim().isNotEmpty)
-            .toList();
+        _shuffledWords =
+            _shuffledWords.where((word) => word.trim().isNotEmpty).toList();
 
         // CRITICAL: Rebuild shuffledWordsMap after filtering to keep indices in sync with Flip Mode
         // Flip Mode uses this map for O(1) lookups (line 2396), so it must match the shuffled order exactly
@@ -328,10 +328,12 @@ class GameService extends ChangeNotifier {
         // Duplicates shouldn't exist, but if they do, this ensures consistent behavior
         _shuffledWordsMap = {};
         for (int i = 0; i < _shuffledWords.length; i++) {
-          _shuffledWordsMap[_shuffledWords[i]] = i; // Last occurrence wins if duplicates exist
+          _shuffledWordsMap[_shuffledWords[i]] =
+              i; // Last occurrence wins if duplicates exist
         }
         // CRITICAL: Clamp shuffle count to prevent integer overflow (defensive programming)
-        _shuffleCount = (_shuffleCount + 1).clamp(0, GameConstants.maxShuffleCount);
+        _shuffleCount =
+            (_shuffleCount + 1).clamp(0, GameConstants.maxShuffleCount);
         _safeNotifyListeners();
       } else {
         timer.cancel();
@@ -370,8 +372,7 @@ class GameService extends ChangeNotifier {
     } else if (_currentTrivia?.words != null) {
       // Fallback to words.length if shuffledWords not yet set (defensive check)
       // Use null-aware operator for safer access
-      final wordsLength =
-          _currentTrivia?.words.length ??
+      final wordsLength = _currentTrivia?.words.length ??
           GameConstants.requiredWordsForGameplay;
       _flippedTiles = List.filled(wordsLength, true);
       _flipCurrentIndex = 0;
@@ -397,7 +398,7 @@ class GameService extends ChangeNotifier {
       final int tilesToFlip = _shuffledWords.isNotEmpty
           ? _shuffledWords.length
           : (_currentTrivia?.words.length ??
-                GameConstants.requiredWordsForGameplay);
+              GameConstants.requiredWordsForGameplay);
 
       // CRITICAL: Prevent division by zero if tilesToFlip is 0
       if (tilesToFlip == 0) {
@@ -405,8 +406,7 @@ class GameService extends ChangeNotifier {
         return;
       }
 
-      int flipInterval =
-          (flipDuration * 1000) ~/
+      int flipInterval = (flipDuration * 1000) ~/
           tilesToFlip; // Divide flip duration by number of tiles
 
       // CRITICAL: Ensure flip interval is at least 1ms to prevent Timer.periodic with Duration.zero
@@ -425,7 +425,8 @@ class GameService extends ChangeNotifier {
 
       // CRITICAL: Store periodic timer reference separately to prevent leaks
       // Check sequence ID in periodic callback to ensure we cancel if new sequence started
-      _flipPeriodicTimer = Timer.periodic(Duration(milliseconds: flipInterval), (
+      _flipPeriodicTimer =
+          Timer.periodic(Duration(milliseconds: flipInterval), (
         timer,
       ) {
         // Check if disposed or if this sequence was canceled (new sequence started)
@@ -555,7 +556,7 @@ class GameService extends ChangeNotifier {
   bool _hasStreakShield = false;
   final List<String> _hintedWords = []; // Words eliminated by hint
   DateTime?
-  _gameStartTime; // Track game start time for marathon mode duration limits
+      _gameStartTime; // Track game start time for marathon mode duration limits
   int _consecutiveSaveFailures =
       0; // Track consecutive save failures for user notification
   int _consecutiveExtendedStateFailures =
@@ -569,12 +570,12 @@ class GameService extends ChangeNotifier {
   int _streakMultiplier = 1; // For Streak Mode (max 5x)
   int _survivalPerfectCount = 0; // For Survival Mode
   DateTime?
-  _competitiveChallengeStartTime; // For competitive challenge tracking
+      _competitiveChallengeStartTime; // For competitive challenge tracking
   DateTime? _competitiveChallengePauseTime; // Track when game was paused
   int _competitiveChallengePausedDuration = 0; // Total paused time in seconds
   String? _competitiveChallengeId; // Current competitive challenge ID
   int?
-  _competitiveChallengeTargetRounds; // Target rounds for competitive challenge
+      _competitiveChallengeTargetRounds; // Target rounds for competitive challenge
   bool _competitiveChallengeScoreSubmitted =
       false; // Prevent duplicate submissions
   String? _precisionError; // For Precision Mode error feedback
@@ -601,7 +602,7 @@ class GameService extends ChangeNotifier {
       []; // Track selection order for flip mode (order-sensitive)
   int _flipCurrentIndex = 0; // Current tile being flipped
   int?
-  _flipSequenceId; // Track current flip sequence to prevent race conditions
+      _flipSequenceId; // Track current flip sequence to prevent race conditions
   String _flipRevealMode = 'instant'; // 'instant', 'blind', 'random'
   bool _flipRevealModeIsInstant =
       true; // Cached random reveal mode for current round
@@ -613,7 +614,7 @@ class GameService extends ChangeNotifier {
     }
     final elapsed =
         DateTime.now().difference(_aiModeRoundStartTime!).inMilliseconds /
-        1000.0;
+            1000.0;
     return elapsed;
   }
 
@@ -713,8 +714,8 @@ class GameService extends ChangeNotifier {
 
     _competitiveChallengeId = challengeId;
     _competitiveChallengeTargetRounds = targetRounds;
-    _competitiveChallengeStartTime = DateTime.now()
-        .toUtc(); // Use UTC for consistency
+    _competitiveChallengeStartTime =
+        DateTime.now().toUtc(); // Use UTC for consistency
     _competitiveChallengePauseTime = null;
     _competitiveChallengePausedDuration = 0;
 
@@ -809,16 +810,15 @@ class GameService extends ChangeNotifier {
               .difference(_competitiveChallengePauseTime!.toUtc())
               .inSeconds;
         }
-        final completionTime =
-            totalElapsed -
+        final completionTime = totalElapsed -
             _competitiveChallengePausedDuration -
             currentPauseDuration;
 
         // Calculate accuracy first (before handling negative time)
         final accuracy = _sessionCorrectAnswers + _sessionWrongAnswers > 0
             ? (_sessionCorrectAnswers /
-                      (_sessionCorrectAnswers + _sessionWrongAnswers)) *
-                  100.0
+                    (_sessionCorrectAnswers + _sessionWrongAnswers)) *
+                100.0
             : 0.0;
 
         // Ensure completion time is non-negative (handle clock changes)
@@ -1164,7 +1164,8 @@ class GameService extends ChangeNotifier {
             _currentMode == GameMode.survival) {
           initialLives = 1;
         } else if (_currentMode == GameMode.marathon) {
-          initialLives = GameConstants.marathonModeInfiniteLives; // Effectively infinite
+          initialLives =
+              GameConstants.marathonModeInfiniteLives; // Effectively infinite
         }
 
         _state = GameState(
@@ -1410,9 +1411,8 @@ class GameService extends ChangeNotifier {
 
     // CRITICAL: Detect duplicate normalized words in input to catch data corruption early
     // This prevents silently fixing corrupted trivia items from TriviaGeneratorService
-    final inputWordsCount = currentTrivia.words
-        .where((w) => w.trim().isNotEmpty)
-        .length;
+    final inputWordsCount =
+        currentTrivia.words.where((w) => w.trim().isNotEmpty).length;
     if (inputWordsCount != allWordsSet.length) {
       final duplicateCount = inputWordsCount - allWordsSet.length;
       final error =
@@ -1586,9 +1586,8 @@ class GameService extends ChangeNotifier {
     final validCorrectAnswers = currentTrivia.correctAnswers
         .where((ca) => ca.trim().isNotEmpty)
         .toList();
-    final correctAnswersSet = validCorrectAnswers
-        .map((ca) => ca.trim().toLowerCase())
-        .toSet();
+    final correctAnswersSet =
+        validCorrectAnswers.map((ca) => ca.trim().toLowerCase()).toSet();
 
     // CRITICAL: Validate that correctAnswers has exactly 3 normalized unique values
     // This catches corrupted data early with a clear error message
@@ -1631,9 +1630,7 @@ class GameService extends ChangeNotifier {
         <String>{}; // Track normalized values to prevent duplicates
     final distractorsInWords = <String>[];
     final distractorsInWordsNormalized =
-        <
-          String
-        >{}; // Track normalized values to prevent duplicates in distractors
+        <String>{}; // Track normalized values to prevent duplicates in distractors
 
     for (final word in validWords) {
       final normalized = word.trim().toLowerCase();
@@ -1736,12 +1733,12 @@ class GameService extends ChangeNotifier {
           recursionDepth: recursionDepth + 1,
         );
       } else {
-        final errorMsg =
-            (recursionDepth >= GameConstants.maxRecursionDepthGameService)
+        final errorMsg = (recursionDepth >=
+                GameConstants.maxRecursionDepthGameService)
             ? 'Max recursion depth reached while enforcing correct answer count.'
             : (triviaPool.length == 1)
-            ? 'Cannot find valid trivia item: Only one trivia item available and it has incorrect correct answer count (${correctAnswersInWords.length} instead of $expectedCorrectAnswers).'
-            : 'Cannot find valid trivia item after $recursionDepth attempts: Incorrect correct answer count (${correctAnswersInWords.length} instead of $expectedCorrectAnswers).';
+                ? 'Cannot find valid trivia item: Only one trivia item available and it has incorrect correct answer count (${correctAnswersInWords.length} instead of $expectedCorrectAnswers).'
+                : 'Cannot find valid trivia item after $recursionDepth attempts: Incorrect correct answer count (${correctAnswersInWords.length} instead of $expectedCorrectAnswers).';
         if (kDebugMode) {
           debugPrint('❌ Error: $errorMsg');
         }
@@ -1785,12 +1782,12 @@ class GameService extends ChangeNotifier {
           recursionDepth: recursionDepth + 1,
         );
       } else {
-        final errorMsg =
-            (recursionDepth >= GameConstants.maxRecursionDepthGameService)
+        final errorMsg = (recursionDepth >=
+                GameConstants.maxRecursionDepthGameService)
             ? 'Max recursion depth reached. Cannot find valid trivia item.'
             : (triviaPool.length == 1)
-            ? 'Cannot find valid trivia item: Only one trivia item available and it has insufficient distractors (${distractorsInWords.length} available, need $initialNeededDistractors to reach exactly $requiredWordsForGameplay total).'
-            : 'Cannot find valid trivia item after $recursionDepth attempts: Insufficient distractors (${distractorsInWords.length} available, need $initialNeededDistractors to reach exactly $requiredWordsForGameplay total).';
+                ? 'Cannot find valid trivia item: Only one trivia item available and it has insufficient distractors (${distractorsInWords.length} available, need $initialNeededDistractors to reach exactly $requiredWordsForGameplay total).'
+                : 'Cannot find valid trivia item after $recursionDepth attempts: Insufficient distractors (${distractorsInWords.length} available, need $initialNeededDistractors to reach exactly $requiredWordsForGameplay total).';
         if (kDebugMode) {
           debugPrint('❌ Error: $errorMsg');
         }
@@ -2083,9 +2080,8 @@ class GameService extends ChangeNotifier {
     }
 
     // CRITICAL: Filter empty/whitespace strings from list to maintain size consistency with map
-    _shuffledWords = _shuffledWords
-        .where((word) => word.trim().isNotEmpty)
-        .toList();
+    _shuffledWords =
+        _shuffledWords.where((word) => word.trim().isNotEmpty).toList();
 
     // Clear and rebuild word-to-index map for O(1) lookups in Flip Mode (performance optimization)
     // CRITICAL: Clear map before rebuilding to prevent stale entries
@@ -2112,12 +2108,12 @@ class GameService extends ChangeNotifier {
           recursionDepth: recursionDepth + 1,
         );
       } else {
-        final errorMsg =
-            (recursionDepth >= GameConstants.maxRecursionDepthGameService)
+        final errorMsg = (recursionDepth >=
+                GameConstants.maxRecursionDepthGameService)
             ? 'Max recursion depth reached. Cannot find valid trivia item.'
             : (triviaPool.length == 1)
-            ? 'Cannot find valid trivia item: Only one trivia item available and it has invalid word count (${_shuffledWords.length}, must be exactly $requiredWordsForGameplay).'
-            : 'Cannot find valid trivia item after $recursionDepth attempts: Invalid word count (${_shuffledWords.length}, must be exactly $requiredWordsForGameplay).';
+                ? 'Cannot find valid trivia item: Only one trivia item available and it has invalid word count (${_shuffledWords.length}, must be exactly $requiredWordsForGameplay).'
+                : 'Cannot find valid trivia item after $recursionDepth attempts: Invalid word count (${_shuffledWords.length}, must be exactly $requiredWordsForGameplay).';
         if (kDebugMode) {
           debugPrint('❌ Error: $errorMsg');
         }
@@ -2259,7 +2255,8 @@ class GameService extends ChangeNotifier {
       if (_isTimeFrozen) return;
 
       // CRITICAL: Clamp play time to prevent negative values (defensive programming)
-      _playTimeLeft = (_playTimeLeft - 1).clamp(0, GameConstants.maxTimerSeconds);
+      _playTimeLeft =
+          (_playTimeLeft - 1).clamp(0, GameConstants.maxTimerSeconds);
       _safeNotifyListeners();
       if (_playTimeLeft <= 0) {
         timer.cancel();
@@ -2394,11 +2391,9 @@ class GameService extends ChangeNotifier {
     // This matches the normalization logic used in normal mode for consistency
     final normalizedWord = word.trim().toLowerCase();
     final normalizedExpected = expectedWord.trim().toLowerCase();
-    final normalizedCorrectAnswers = correctAnswers
-        .map((w) => w.trim().toLowerCase())
-        .toSet();
-    final bool isCorrect =
-        normalizedWord == normalizedExpected &&
+    final normalizedCorrectAnswers =
+        correctAnswers.map((w) => w.trim().toLowerCase()).toSet();
+    final bool isCorrect = normalizedWord == normalizedExpected &&
         normalizedCorrectAnswers.contains(normalizedWord);
 
     // Handle reveal based on mode
@@ -2445,10 +2440,12 @@ class GameService extends ChangeNotifier {
         // Note: This tracks individual wrong selections, not the full round result
         // Each wrong click in instant mode counts as 1 wrong answer for session stats
         // CRITICAL: Clamp session stats to prevent integer overflow (defensive programming)
-        _sessionWrongAnswers = (_sessionWrongAnswers + 1).clamp(0, GameConstants.maxSessionAnswers);
+        _sessionWrongAnswers = (_sessionWrongAnswers + 1)
+            .clamp(0, GameConstants.maxSessionAnswers);
 
         // CRITICAL: Clamp lives to prevent negative values (defensive programming)
-        _state = _state.copyWith(lives: (_state.lives - 1).clamp(0, GameConstants.maxLives));
+        _state = _state.copyWith(
+            lives: (_state.lives - 1).clamp(0, GameConstants.maxLives),);
         _safeNotifyListeners(); // CRITICAL: Notify listeners of state change (life loss)
         if (_state.lives <= 0) {
           _state = _state.copyWith(isGameOver: true);
@@ -2528,16 +2525,13 @@ class GameService extends ChangeNotifier {
     // Check if all 3 are correct and in order
     // CRITICAL: Normalize strings for consistent comparison (matches _handleFlipModeSelection)
     // This prevents false negatives due to whitespace/case differences between words and correctAnswers
-    final normalizedSelected = _flipModeSelectedOrder
-        .map((w) => w.trim().toLowerCase())
-        .toList();
-    final normalizedCorrect = correctAnswers
-        .map((w) => w.trim().toLowerCase())
-        .toList();
+    final normalizedSelected =
+        _flipModeSelectedOrder.map((w) => w.trim().toLowerCase()).toList();
+    final normalizedCorrect =
+        correctAnswers.map((w) => w.trim().toLowerCase()).toList();
     // CRITICAL: Use loop instead of hardcoded array access to support variable expectedCorrectAnswers
     // This prevents breakage if expectedCorrectAnswers changes from 3
-    bool isPerfect =
-        normalizedSelected.length == expectedCorrectAnswers &&
+    bool isPerfect = normalizedSelected.length == expectedCorrectAnswers &&
         normalizedSelected.length == normalizedCorrect.length;
     if (isPerfect) {
       for (int i = 0; i < normalizedSelected.length; i++) {
@@ -2560,12 +2554,10 @@ class GameService extends ChangeNotifier {
       // Count wrong answers
       // CRITICAL: Normalize strings for consistent comparison (matches perfect check above)
       // This ensures wrong count calculation uses the same normalization as perfect check
-      final normalizedSelected = _flipModeSelectedOrder
-          .map((w) => w.trim().toLowerCase())
-          .toList();
-      final normalizedCorrect = correctAnswers
-          .map((w) => w.trim().toLowerCase())
-          .toList();
+      final normalizedSelected =
+          _flipModeSelectedOrder.map((w) => w.trim().toLowerCase()).toList();
+      final normalizedCorrect =
+          correctAnswers.map((w) => w.trim().toLowerCase()).toList();
       int wrongCount = 0;
       for (int i = 0; i < normalizedSelected.length; i++) {
         if (i >= normalizedCorrect.length ||
@@ -2598,10 +2590,9 @@ class GameService extends ChangeNotifier {
       );
       final selectedWrong = _flipModeSelectedOrder.length - numCorrect;
       final missedCorrect = expectedCorrect - numCorrect;
-      _sessionWrongAnswers =
-          (_sessionWrongAnswers +
-                  (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
-              .clamp(0, GameConstants.maxSessionAnswers);
+      _sessionWrongAnswers = (_sessionWrongAnswers +
+              (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
+          .clamp(0, GameConstants.maxSessionAnswers);
 
       // CRITICAL: Track results for UI display (matches _submitFlipModeAnswers pattern)
       // This ensures the result screen can display correct/wrong answers correctly
@@ -2716,10 +2707,9 @@ class GameService extends ChangeNotifier {
       // missedCorrect = expected correct - correct selected = expectedCorrect - numCorrect
       final selectedWrong = _flipModeSelectedOrder.length - numCorrect;
       final missedCorrect = expectedCorrect - numCorrect;
-      _sessionWrongAnswers =
-          (_sessionWrongAnswers +
-                  (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
-              .clamp(0, GameConstants.maxSessionAnswers);
+      _sessionWrongAnswers = (_sessionWrongAnswers +
+              (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
+          .clamp(0, GameConstants.maxSessionAnswers);
     }
 
     int points = 0;
@@ -2729,7 +2719,8 @@ class GameService extends ChangeNotifier {
       // Perfect round: 10 points per correct answer + 10 bonus
       points = 30 + 10; // 3 correct * 10 + 10 bonus
       // CRITICAL: Clamp perfect streak to prevent integer overflow (defensive programming)
-      newPerfectStreak = (_state.perfectStreak + 1).clamp(0, GameConstants.maxPerfectStreak);
+      newPerfectStreak =
+          (_state.perfectStreak + 1).clamp(0, GameConstants.maxPerfectStreak);
       _awardStreakReward(newPerfectStreak);
 
       // Log analytics for Flip Mode perfect round completion
@@ -2738,7 +2729,7 @@ class GameService extends ChangeNotifier {
       // Update state
       // CRITICAL: Don't increment round here - let nextRound() handle it to prevent double increment
       // CRITICAL: Clamp score to prevent integer overflow (especially in marathon mode with multipliers)
-        final newScore = (_state.score + points).clamp(0, GameConstants.maxScore);
+      final newScore = (_state.score + points).clamp(0, GameConstants.maxScore);
       _state = _state.copyWith(
         score: newScore,
         perfectStreak: newPerfectStreak,
@@ -2748,8 +2739,8 @@ class GameService extends ChangeNotifier {
       if (_personalizationService != null) {
         final String theme =
             (currentTrivia.theme != null && currentTrivia.theme!.isNotEmpty)
-            ? currentTrivia.theme!.toLowerCase().trim()
-            : 'general';
+                ? currentTrivia.theme!.toLowerCase().trim()
+                : 'general';
         final difficulty = currentTrivia.difficulty ?? DifficultyLevel.medium;
         _personalizationService!.updatePerformance(
           category: currentTrivia.category,
@@ -2810,12 +2801,10 @@ class GameService extends ChangeNotifier {
       // Not perfect - lose lives based on wrong answers
       // CRITICAL: Normalize strings for consistent comparison (matches other Flip Mode logic)
       // This ensures wrong count calculation is consistent with _handleFlipModeSelection and _revealFlipModeResults
-      final normalizedSelected = _flipModeSelectedOrder
-          .map((w) => w.trim().toLowerCase())
-          .toList();
-      final normalizedCorrect = correctAnswers
-          .map((w) => w.trim().toLowerCase())
-          .toList();
+      final normalizedSelected =
+          _flipModeSelectedOrder.map((w) => w.trim().toLowerCase()).toList();
+      final normalizedCorrect =
+          correctAnswers.map((w) => w.trim().toLowerCase()).toList();
       int wrongCount = 0;
       for (int i = 0; i < normalizedSelected.length; i++) {
         if (i >= normalizedCorrect.length ||
@@ -2939,7 +2928,8 @@ class GameService extends ChangeNotifier {
       }
     }
     // CRITICAL: Clamp reveal all uses to prevent negative values (defensive programming)
-    _revealAllUses = (_revealAllUses - 1).clamp(0, GameConstants.maxPowerUpUses);
+    _revealAllUses =
+        (_revealAllUses - 1).clamp(0, GameConstants.maxPowerUpUses);
     _safeNotifyListeners();
   }
 
@@ -3015,7 +3005,8 @@ class GameService extends ChangeNotifier {
     if (_phase != GamePhase.play) return;
     if (_state.isGameOver) return; // Cannot use power-ups when game is over
     // CRITICAL: Clamp streak shield uses to prevent negative values (defensive programming)
-    _streakShieldUses = (_streakShieldUses - 1).clamp(0, GameConstants.maxPowerUpUses);
+    _streakShieldUses =
+        (_streakShieldUses - 1).clamp(0, GameConstants.maxPowerUpUses);
     _hasStreakShield = true;
     _safeNotifyListeners();
   }
@@ -3027,7 +3018,8 @@ class GameService extends ChangeNotifier {
     if (_state.isGameOver) return; // Cannot use power-ups when game is over
 
     // CRITICAL: Clamp time freeze uses to prevent negative values (defensive programming)
-    _timeFreezeUses = (_timeFreezeUses - 1).clamp(0, GameConstants.maxPowerUpUses);
+    _timeFreezeUses =
+        (_timeFreezeUses - 1).clamp(0, GameConstants.maxPowerUpUses);
     _isTimeFrozen = true;
 
     // CRITICAL: Store current play time to preserve it during freeze
@@ -3101,7 +3093,8 @@ class GameService extends ChangeNotifier {
     if (_phase != GamePhase.play) return;
     if (_state.isGameOver) return; // Cannot use power-ups when game is over
     // CRITICAL: Clamp double score uses to prevent negative values (defensive programming)
-    _doubleScoreUses = (_doubleScoreUses - 1).clamp(0, GameConstants.maxPowerUpUses);
+    _doubleScoreUses =
+        (_doubleScoreUses - 1).clamp(0, GameConstants.maxPowerUpUses);
     _hasDoubleScore = true;
     _safeNotifyListeners();
   }
@@ -3127,7 +3120,8 @@ class GameService extends ChangeNotifier {
     } else if (streak == 12) {
       // 12th perfect streak: +1 reveal
       // CRITICAL: Clamp reveal all uses to prevent integer overflow (defensive programming)
-      _revealAllUses = (_revealAllUses + 1).clamp(0, GameConstants.maxPowerUpUses);
+      _revealAllUses =
+          (_revealAllUses + 1).clamp(0, GameConstants.maxPowerUpUses);
     }
   }
 
@@ -3162,9 +3156,8 @@ class GameService extends ChangeNotifier {
       final correct = Set<String>.from(
         currentTrivia.correctAnswers.map((w) => w.trim().toLowerCase()),
       );
-      final selected = _selectedAnswers
-          .map((w) => w.trim().toLowerCase())
-          .toSet();
+      final selected =
+          _selectedAnswers.map((w) => w.trim().toLowerCase()).toSet();
       final numCorrect = selected.where((w) => correct.contains(w)).length;
 
       // Get actual expected correct answers count (handle edge cases)
@@ -3208,10 +3201,9 @@ class GameService extends ChangeNotifier {
         0,
         GameConstants.maxSessionAnswers,
       );
-      _sessionWrongAnswers =
-          (_sessionWrongAnswers +
-                  (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
-              .clamp(0, GameConstants.maxSessionAnswers);
+      _sessionWrongAnswers = (_sessionWrongAnswers +
+              (selectedWrong + missedCorrect).clamp(0, expectedCorrect))
+          .clamp(0, GameConstants.maxSessionAnswers);
 
       int points = 0;
       int newPerfectStreak = _state.perfectStreak;
@@ -3255,7 +3247,8 @@ class GameService extends ChangeNotifier {
         if (_currentMode == GameMode.survival) {
           // CRITICAL: Clamp survival perfect count to prevent integer overflow (defensive programming)
           // Counter resets to 0 when >= 3, so clamp prevents overflow if reset logic fails
-          _survivalPerfectCount = (_survivalPerfectCount + 1).clamp(0, GameConstants.maxPowerUpUses);
+          _survivalPerfectCount = (_survivalPerfectCount + 1)
+              .clamp(0, GameConstants.maxPowerUpUses);
           if (_survivalPerfectCount >= 3 && _state.lives < 5) {
             _state = _state.copyWith(lives: _state.lives + 1);
             _survivalPerfectCount = 0; // Reset counter
@@ -3301,8 +3294,8 @@ class GameService extends ChangeNotifier {
         // Normalize theme to lowercase for consistency with personalization service
         String theme =
             (currentTrivia.theme != null && currentTrivia.theme!.isNotEmpty)
-            ? currentTrivia.theme!.toLowerCase().trim()
-            : 'general';
+                ? currentTrivia.theme!.toLowerCase().trim()
+                : 'general';
         if (theme.isEmpty || theme == 'general') {
           // Fallback: Try to extract theme from category pattern
           final category = currentTrivia.category;
@@ -3390,14 +3383,14 @@ class GameService extends ChangeNotifier {
 
       // 4. Apply gamification streak multiplier (if available)
       if (_gamificationService != null) {
-        final gamificationMultiplier = _gamificationService!
-            .getStreakMultiplier();
+        final gamificationMultiplier =
+            _gamificationService!.getStreakMultiplier();
         if (gamificationMultiplier > 1.0) {
           // CRITICAL: Clamp during multiplication to prevent intermediate overflow
           points = (points * gamificationMultiplier).round().clamp(
-            0,
-            GameConstants.maxScore,
-          );
+                0,
+                GameConstants.maxScore,
+              );
         }
 
         // Update gamification service with points before streak multiplier
@@ -3587,9 +3580,8 @@ class GameService extends ChangeNotifier {
     // Note: This requires _gameStartTime to be set when marathon mode starts
     // NOTE: Duration limit is checked second - if round limit is reached first, this won't execute
     if (_currentMode == GameMode.marathon && _gameStartTime != null) {
-      final elapsedMinutes = DateTime.now()
-          .difference(_gameStartTime!)
-          .inMinutes;
+      final elapsedMinutes =
+          DateTime.now().difference(_gameStartTime!).inMinutes;
       // CRITICAL: Protect against negative duration if system clock is adjusted backward
       // Clamp to minimum 0 to prevent false-positive game over
       final safeElapsedMinutes = elapsedMinutes < 0 ? 0 : elapsedMinutes;
@@ -3688,10 +3680,10 @@ class GameService extends ChangeNotifier {
 
               // Competitive challenge state
               'competitiveChallengeId': _competitiveChallengeId,
-              'competitiveChallengeStartTime': _competitiveChallengeStartTime
-                  ?.toIso8601String(),
-              'competitiveChallengePauseTime': _competitiveChallengePauseTime
-                  ?.toIso8601String(),
+              'competitiveChallengeStartTime':
+                  _competitiveChallengeStartTime?.toIso8601String(),
+              'competitiveChallengePauseTime':
+                  _competitiveChallengePauseTime?.toIso8601String(),
               'competitiveChallengePausedDuration':
                   _competitiveChallengePausedDuration,
               'competitiveChallengeTargetRounds':
@@ -3720,25 +3712,24 @@ class GameService extends ChangeNotifier {
               'currentTrivia': _currentTrivia
                   ?.toJson(), // Current trivia item (null if no active round)
               'shuffledWords': _shuffledWords, // Current shuffled word list
-              'selectedAnswers': _selectedAnswers
-                  .toList(), // Currently selected answers
-              'revealedWords': _revealedWords
-                  .toList(), // Words revealed by double-tap
+              'selectedAnswers':
+                  _selectedAnswers.toList(), // Currently selected answers
+              'revealedWords':
+                  _revealedWords.toList(), // Words revealed by double-tap
               'memorizeTimeLeft': _memorizeTimeLeft, // Remaining memorize time
               'playTimeLeft': _playTimeLeft, // Remaining play time
               'timeAttackSecondsLeft':
                   _timeAttackSecondsLeft, // Time attack timer (null if not in time attack)
               // Trivia pool for continuing to next round
-              'currentTriviaPool': _currentTriviaPool
-                  .map((item) => item.toJson())
-                  .toList(),
+              'currentTriviaPool':
+                  _currentTriviaPool.map((item) => item.toJson()).toList(),
 
               // Flip mode state (if applicable)
               'flipModeSelectedOrder': _flipModeSelectedOrder,
               'flipCurrentIndex': _flipCurrentIndex,
               'flippedTiles': _flippedTiles,
-              'hintedWords': _hintedWords
-                  .toList(), // Words eliminated by hint power-up
+              'hintedWords':
+                  _hintedWords.toList(), // Words eliminated by hint power-up
               // Additional state
               'shuffleCount': _shuffleCount,
               'isShuffling': _isShuffling,
@@ -4028,8 +4019,10 @@ class GameService extends ChangeNotifier {
           0,
           GameConstants.maxLoadedScore,
         );
-        final loadedLives = (stateMap['lives'] as int? ?? 3).clamp(0, GameConstants.maxLives);
-        final loadedRound = (stateMap['round'] as int? ?? 1).clamp(1, GameConstants.maxRoundCount);
+        final loadedLives =
+            (stateMap['lives'] as int? ?? 3).clamp(0, GameConstants.maxLives);
+        final loadedRound = (stateMap['round'] as int? ?? 1)
+            .clamp(1, GameConstants.maxRoundCount);
         final loadedPerfectStreak = (stateMap['perfectStreak'] as int? ?? 0)
             .clamp(0, GameConstants.maxPerfectStreak);
         final loadedIsGameOver = stateMap['isGameOver'] as bool? ?? false;
@@ -4068,23 +4061,23 @@ class GameService extends ChangeNotifier {
               );
               _streakShieldUses =
                   (extendedStateMap['streakShieldUses'] as int? ?? 0).clamp(
-                    0,
-                    999,
-                  );
+                0,
+                999,
+              );
               _timeFreezeUses =
                   (extendedStateMap['timeFreezeUses'] as int? ?? 0).clamp(
-                    0,
-                    999,
-                  );
+                0,
+                999,
+              );
               _hintUses = (extendedStateMap['hintUses'] as int? ?? 0).clamp(
                 0,
                 999,
               );
               _doubleScoreUses =
                   (extendedStateMap['doubleScoreUses'] as int? ?? 0).clamp(
-                    0,
-                    999,
-                  );
+                0,
+                999,
+              );
 
               // Restore competitive challenge state
               _competitiveChallengeId =
@@ -4183,8 +4176,7 @@ class GameService extends ChangeNotifier {
               // Validate target rounds (should be 1-100)
               final targetRounds =
                   extendedStateMap['competitiveChallengeTargetRounds'] as int?;
-              _competitiveChallengeTargetRounds =
-                  targetRounds != null &&
+              _competitiveChallengeTargetRounds = targetRounds != null &&
                       targetRounds > 0 &&
                       targetRounds <= 100
                   ? targetRounds
@@ -4192,8 +4184,8 @@ class GameService extends ChangeNotifier {
 
               _competitiveChallengeScoreSubmitted =
                   extendedStateMap['competitiveChallengeScoreSubmitted']
-                      as bool? ??
-                  false;
+                          as bool? ??
+                      false;
 
               // CRITICAL: Validate submission flag consistency
               // If score is marked as submitted but no challenge ID, reset flag
@@ -4226,9 +4218,9 @@ class GameService extends ChangeNotifier {
               // Validate mode-specific state with reasonable ranges
               _streakMultiplier =
                   (extendedStateMap['streakMultiplier'] as int? ?? 1).clamp(
-                    1,
-                    5,
-                  ); // Streak multiplier should be 1-5x (matches runtime max at line 3213)
+                1,
+                5,
+              ); // Streak multiplier should be 1-5x (matches runtime max at line 3213)
 
               // CRITICAL: Reset streak multiplier if not in streak mode (state consistency)
               if (_currentMode != GameMode.streak) {
@@ -4237,9 +4229,9 @@ class GameService extends ChangeNotifier {
 
               _survivalPerfectCount =
                   (extendedStateMap['survivalPerfectCount'] as int? ?? 0).clamp(
-                    0,
-                    999,
-                  ); // Survival perfect count should be reasonable
+                0,
+                999,
+              ); // Survival perfect count should be reasonable
 
               // CRITICAL: Reset survival perfect count if not in survival mode (state consistency)
               if (_currentMode != GameMode.survival) {
@@ -4278,9 +4270,9 @@ class GameService extends ChangeNotifier {
                       .clamp(0, GameConstants.maxSessionAnswers);
               _sessionWrongAnswers =
                   (extendedStateMap['sessionWrongAnswers'] as int? ?? 0).clamp(
-                    0,
-                    GameConstants.maxSessionAnswers,
-                  );
+                0,
+                GameConstants.maxSessionAnswers,
+              );
 
               // CRITICAL: Restore round-level state for full game resumption
               // Restore phase
@@ -4372,9 +4364,9 @@ class GameService extends ChangeNotifier {
               // Restore timer states
               _memorizeTimeLeft =
                   (extendedStateMap['memorizeTimeLeft'] as int? ?? 10).clamp(
-                    0,
-                    999,
-                  );
+                0,
+                999,
+              );
               _playTimeLeft = (extendedStateMap['playTimeLeft'] as int? ?? 20)
                   .clamp(0, 999);
 
@@ -4382,7 +4374,8 @@ class GameService extends ChangeNotifier {
               final timeAttackSecondsLeft =
                   extendedStateMap['timeAttackSecondsLeft'];
               _timeAttackSecondsLeft = timeAttackSecondsLeft != null
-                  ? (timeAttackSecondsLeft as int).clamp(0, GameConstants.maxTimeSeconds)
+                  ? (timeAttackSecondsLeft as int)
+                      .clamp(0, GameConstants.maxTimeSeconds)
                   : null;
 
               // Restore trivia pool
@@ -4424,9 +4417,9 @@ class GameService extends ChangeNotifier {
 
               _flipCurrentIndex =
                   (extendedStateMap['flipCurrentIndex'] as int? ?? 0).clamp(
-                    0,
-                    999,
-                  );
+                0,
+                999,
+              );
 
               // CRITICAL: Validate flip current index is within flippedTiles bounds
               // This prevents index out of bounds errors when resuming flip mode
@@ -4693,9 +4686,9 @@ class GameService extends ChangeNotifier {
         // This prevents edge cases where pause/resume cycles could accumulate excessive time
         _competitiveChallengePausedDuration =
             (_competitiveChallengePausedDuration + pauseDuration).clamp(
-              0,
-              10000,
-            );
+          0,
+          10000,
+        );
       }
       _competitiveChallengePauseTime = null;
     }
@@ -4780,7 +4773,8 @@ class GameService extends ChangeNotifier {
       _timeAttackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_timeAttackSecondsLeft != null && _timeAttackSecondsLeft! > 0) {
           // CRITICAL: Clamp time attack seconds to prevent negative values (defensive programming)
-          _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1).clamp(0, GameConstants.maxTimeSeconds);
+          _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1)
+              .clamp(0, GameConstants.maxTimeSeconds);
           _safeNotifyListeners();
         } else {
           timer.cancel();
@@ -4838,9 +4832,8 @@ class GameService extends ChangeNotifier {
         _shuffledWords = List.from(_currentTrivia!.words);
         _shuffledWords.shuffle(_random);
         // CRITICAL: Filter empty/whitespace strings to maintain size consistency with map
-        _shuffledWords = _shuffledWords
-            .where((word) => word.trim().isNotEmpty)
-            .toList();
+        _shuffledWords =
+            _shuffledWords.where((word) => word.trim().isNotEmpty).toList();
         // Rebuild shuffledWordsMap for O(1) lookups
         // Both list and map now have the same length, ensuring index consistency
         _shuffledWordsMap = {
@@ -5102,7 +5095,8 @@ class GameService extends ChangeNotifier {
         }
         if (_timeAttackSecondsLeft != null && _timeAttackSecondsLeft! > 0) {
           // CRITICAL: Clamp time attack seconds to prevent negative values (defensive programming)
-          _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1).clamp(0, GameConstants.maxTimeSeconds);
+          _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1)
+              .clamp(0, GameConstants.maxTimeSeconds);
           _safeNotifyListeners();
         } else {
           timer.cancel();

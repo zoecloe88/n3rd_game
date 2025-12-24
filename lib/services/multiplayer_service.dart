@@ -158,8 +158,7 @@ class MultiplayerService extends ChangeNotifier {
   Future<void> _checkConnectivity() async {
     try {
       final connectivityResults = await _connectivity.checkConnectivity();
-      final isOffline =
-          connectivityResults.contains(ConnectivityResult.none) ||
+      final isOffline = connectivityResults.contains(ConnectivityResult.none) ||
           connectivityResults.isEmpty;
       if (isOffline) {
         throw NetworkException(
@@ -289,30 +288,35 @@ class MultiplayerService extends ChangeNotifier {
     int retryCount = 0;
 
     // Use retry logic for room creation
-    final createdRoom = await _executeWithRetry<GameRoom>(() async {
-      retryCount++;
-      final docRef = await _firestore
-          .collection('game_rooms')
-          .add(room.toJson());
+    final createdRoom = await _executeWithRetry<GameRoom>(
+      () async {
+        retryCount++;
+        final docRef =
+            await _firestore.collection('game_rooms').add(room.toJson());
 
-      // Atomically set room ID and add host as first player
-      await docRef.update({
-        'id': docRef.id,
-        'players': [hostPlayer.toJson()],
-      });
+        // Atomically set room ID and add host as first player
+        await docRef.update({
+          'id': docRef.id,
+          'players': [hostPlayer.toJson()],
+        });
 
-      return room.copyWith(id: docRef.id, players: [hostPlayer]);
-    }, operationName: 'Create room',);
+        return room.copyWith(id: docRef.id, players: [hostPlayer]);
+      },
+      operationName: 'Create room',
+    );
 
     // Log performance metrics
     final duration = DateTime.now().difference(startTime);
-    unawaited(_analyticsService?.logRoomCreation(
-      duration,
-      success: true,
-      mode: mode.name,
-      maxPlayers: maxPlayers,
-      retryCount: retryCount - 1, // Subtract 1 since first attempt isn't a retry
-    ),);
+    unawaited(
+      _analyticsService?.logRoomCreation(
+        duration,
+        success: true,
+        mode: mode.name,
+        maxPlayers: maxPlayers,
+        retryCount:
+            retryCount - 1, // Subtract 1 since first attempt isn't a retry
+      ),
+    );
 
     _currentRoom = createdRoom;
     _listenToRoom(createdRoom.id);
@@ -364,45 +368,52 @@ class MultiplayerService extends ChangeNotifier {
 
     // Use transaction to atomically check room capacity and add player
     // This prevents race condition where multiple players join simultaneously
-    final room = await _executeWithRetry<GameRoom>(() async {
-      retryCount++;
-      return await _firestore.runTransaction<GameRoom>((transaction) async {
-        final docRef = _firestore.collection('game_rooms').doc(sanitizedRoomId);
-        final doc = await transaction.get(docRef);
+    final room = await _executeWithRetry<GameRoom>(
+      () async {
+        retryCount++;
+        return await _firestore.runTransaction<GameRoom>((transaction) async {
+          final docRef =
+              _firestore.collection('game_rooms').doc(sanitizedRoomId);
+          final doc = await transaction.get(docRef);
 
-        if (!doc.exists) {
-          throw ValidationException('Room not found');
-        }
+          if (!doc.exists) {
+            throw ValidationException('Room not found');
+          }
 
-        final room = GameRoom.fromFirestore(doc);
+          final room = GameRoom.fromFirestore(doc);
 
-        // Check if already in room
-        if (room.players.any((p) => p.userId == user.uid)) {
-          return room; // Already in room
-        }
+          // Check if already in room
+          if (room.players.any((p) => p.userId == user.uid)) {
+            return room; // Already in room
+          }
 
-        // Check room capacity atomically within transaction
-        if (room.isFull) {
-          throw ValidationException('Room is full');
-        }
+          // Check room capacity atomically within transaction
+          if (room.isFull) {
+            throw ValidationException('Room is full');
+          }
 
-        // Atomically add player within transaction
-        transaction.update(docRef, {
-          'players': FieldValue.arrayUnion([newPlayer.toJson()]),
+          // Atomically add player within transaction
+          transaction.update(docRef, {
+            'players': FieldValue.arrayUnion([newPlayer.toJson()]),
+          });
+
+          // Return updated room state
+          return room.copyWith(players: [...room.players, newPlayer]);
         });
-
-        // Return updated room state
-        return room.copyWith(players: [...room.players, newPlayer]);
-      });
-    }, operationName: 'Join room',);
+      },
+      operationName: 'Join room',
+    );
 
     // Log performance metrics
     final duration = DateTime.now().difference(startTime);
-    unawaited(_analyticsService?.logRoomJoining(
-      duration,
-      success: true,
-      retryCount: retryCount - 1, // Subtract 1 since first attempt isn't a retry
-    ),);
+    unawaited(
+      _analyticsService?.logRoomJoining(
+        duration,
+        success: true,
+        retryCount:
+            retryCount - 1, // Subtract 1 since first attempt isn't a retry
+      ),
+    );
 
     _currentRoom = room;
     _listenToRoom(sanitizedRoomId);
@@ -425,10 +436,8 @@ class MultiplayerService extends ChangeNotifier {
         return false; // Invalid room ID format
       }
 
-      final doc = await _firestore
-          .collection('game_rooms')
-          .doc(sanitizedRoomId)
-          .get();
+      final doc =
+          await _firestore.collection('game_rooms').doc(sanitizedRoomId).get();
 
       if (!doc.exists) return false;
 
@@ -463,35 +472,39 @@ class MultiplayerService extends ChangeNotifier {
     final wasHost = _currentRoom!.hostId == user.uid;
 
     try {
-      await _executeWithRetry(() async {
-        final docRef = _firestore.collection('game_rooms').doc(roomId);
+      await _executeWithRetry(
+        () async {
+          final docRef = _firestore.collection('game_rooms').doc(roomId);
 
-        // Remove player from room
-        await docRef.update({
-          'players': FieldValue.arrayRemove(
-            _currentRoom!.players
-                .where((p) => p.userId == user.uid)
-                .map((p) => p.toJson())
-                .toList(),
-          ),
-        });
+          // Remove player from room
+          await docRef.update({
+            'players': FieldValue.arrayRemove(
+              _currentRoom!.players
+                  .where((p) => p.userId == user.uid)
+                  .map((p) => p.toJson())
+                  .toList(),
+            ),
+          });
 
-        // If host left, check if room should be deleted or host transferred
-        if (wasHost) {
-          final updatedDoc = await docRef.get();
-          if (updatedDoc.exists) {
-            final updatedRoom = GameRoom.fromFirestore(updatedDoc);
-            if (updatedRoom.players.isEmpty) {
-              await docRef.delete();
-            } else if (updatedRoom.players.isNotEmpty) {
-              // CRITICAL: Double-check players list is not empty to prevent race condition
-              // List might become empty between isEmpty check and first access
-              // Transfer host to first remaining player
-              await docRef.update({'hostId': updatedRoom.players.first.userId});
+          // If host left, check if room should be deleted or host transferred
+          if (wasHost) {
+            final updatedDoc = await docRef.get();
+            if (updatedDoc.exists) {
+              final updatedRoom = GameRoom.fromFirestore(updatedDoc);
+              if (updatedRoom.players.isEmpty) {
+                await docRef.delete();
+              } else if (updatedRoom.players.isNotEmpty) {
+                // CRITICAL: Double-check players list is not empty to prevent race condition
+                // List might become empty between isEmpty check and first access
+                // Transfer host to first remaining player
+                await docRef
+                    .update({'hostId': updatedRoom.players.first.userId});
+              }
             }
           }
-        }
-      }, operationName: 'Leave room',);
+        },
+        operationName: 'Leave room',
+      );
     } catch (e) {
       LoggerService.warning('Error leaving room', error: e);
       // Continue with cleanup even if Firestore operation fails
@@ -511,17 +524,21 @@ class MultiplayerService extends ChangeNotifier {
     // Check connectivity before updating ready status
     await _checkConnectivity();
 
-    await _executeWithRetry(() async {
-      final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
-      final players = _currentRoom!.players.map((p) {
-        if (p.userId == user.uid) {
-          return p.copyWith(isReady: ready).toJson();
-        }
-        return p.toJson();
-      }).toList();
+    await _executeWithRetry(
+      () async {
+        final docRef =
+            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        final players = _currentRoom!.players.map((p) {
+          if (p.userId == user.uid) {
+            return p.copyWith(isReady: ready).toJson();
+          }
+          return p.toJson();
+        }).toList();
 
-      await docRef.update({'players': players});
-    }, operationName: 'Set player ready',);
+        await docRef.update({'players': players});
+      },
+      operationName: 'Set player ready',
+    );
   }
 
   // Start the game
@@ -562,22 +579,25 @@ class MultiplayerService extends ChangeNotifier {
       teams = _createTeams(_currentRoom!.players);
     }
 
-    await _executeWithRetry(() async {
-      final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
-      await docRef.update({
-        'status': RoomStatus.inProgress.name,
-        'startedAt': DateTime.now().toIso8601String(),
-        'currentRound': 1,
-        'selectedGameMode': gameMode,
-        'selectedDifficulty': difficulty,
-        'currentPlayerId': currentPlayerId,
-        'playerSubmissions': playerSubmissions,
-        'expiresAt': DateTime.now()
-            .add(const Duration(hours: 1))
-            .toIso8601String(),
-        if (teams != null) 'teams': teams.map((t) => t.toJson()).toList(),
-      });
-    }, operationName: 'Start game',);
+    await _executeWithRetry(
+      () async {
+        final docRef =
+            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        await docRef.update({
+          'status': RoomStatus.inProgress.name,
+          'startedAt': DateTime.now().toIso8601String(),
+          'currentRound': 1,
+          'selectedGameMode': gameMode,
+          'selectedDifficulty': difficulty,
+          'currentPlayerId': currentPlayerId,
+          'playerSubmissions': playerSubmissions,
+          'expiresAt':
+              DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
+          if (teams != null) 'teams': teams.map((t) => t.toJson()).toList(),
+        });
+      },
+      operationName: 'Start game',
+    );
   }
 
   // Create teams for squad showdown
@@ -623,17 +643,21 @@ class MultiplayerService extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _executeWithRetry(() async {
-      final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
-      final players = _currentRoom!.players.map((p) {
-        if (p.userId == user.uid) {
-          return p.copyWith(lastPing: DateTime.now()).toJson();
-        }
-        return p.toJson();
-      }).toList();
+    await _executeWithRetry(
+      () async {
+        final docRef =
+            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        final players = _currentRoom!.players.map((p) {
+          if (p.userId == user.uid) {
+            return p.copyWith(lastPing: DateTime.now()).toJson();
+          }
+          return p.toJson();
+        }).toList();
 
-      await docRef.update({'players': players});
-    }, operationName: 'Send ping',);
+        await docRef.update({'players': players});
+      },
+      operationName: 'Send ping',
+    );
   }
 
   // Assign role to player (for squad showdown)
@@ -677,51 +701,53 @@ class MultiplayerService extends ChangeNotifier {
     // Check connectivity before submitting answer
     await _checkConnectivity();
 
-    await _executeWithRetry(() async {
-      return await _firestore.runTransaction<void>((transaction) async {
-        final docRef = _firestore
-            .collection('game_rooms')
-            .doc(_currentRoom!.id);
-        final doc = await transaction.get(docRef);
+    await _executeWithRetry(
+      () async {
+        return await _firestore.runTransaction<void>((transaction) async {
+          final docRef =
+              _firestore.collection('game_rooms').doc(_currentRoom!.id);
+          final doc = await transaction.get(docRef);
 
-        if (!doc.exists) {
-          throw ValidationException('Room not found');
-        }
-
-        final room = GameRoom.fromFirestore(doc);
-
-        // Verify player is still in room
-        if (!room.players.any((p) => p.userId == user.uid)) {
-          throw ValidationException('Player not in room');
-        }
-
-        // Update player score atomically
-        final players = room.players.map((p) {
-          if (p.userId == user.uid) {
-            return p
-                .copyWith(
-                  score: p.score + score,
-                  correctAnswers: p.correctAnswers + correctAnswers,
-                  wrongAnswers: p.wrongAnswers + wrongAnswers,
-                )
-                .toJson();
+          if (!doc.exists) {
+            throw ValidationException('Room not found');
           }
-          return p.toJson();
-        }).toList();
 
-        // For battle royale, mark player as submitted
-        final Map<String, dynamic> updateData = {'players': players};
-        if (room.mode == MultiplayerMode.battleRoyale) {
-          final submissions = Map<String, bool>.from(
-            room.playerSubmissions ?? {},
-          );
-          submissions[user.uid] = true;
-          updateData['playerSubmissions'] = submissions;
-        }
+          final room = GameRoom.fromFirestore(doc);
 
-        transaction.update(docRef, updateData);
-      });
-    }, operationName: 'Submit round answer',);
+          // Verify player is still in room
+          if (!room.players.any((p) => p.userId == user.uid)) {
+            throw ValidationException('Player not in room');
+          }
+
+          // Update player score atomically
+          final players = room.players.map((p) {
+            if (p.userId == user.uid) {
+              return p
+                  .copyWith(
+                    score: p.score + score,
+                    correctAnswers: p.correctAnswers + correctAnswers,
+                    wrongAnswers: p.wrongAnswers + wrongAnswers,
+                  )
+                  .toJson();
+            }
+            return p.toJson();
+          }).toList();
+
+          // For battle royale, mark player as submitted
+          final Map<String, dynamic> updateData = {'players': players};
+          if (room.mode == MultiplayerMode.battleRoyale) {
+            final submissions = Map<String, bool>.from(
+              room.playerSubmissions ?? {},
+            );
+            submissions[user.uid] = true;
+            updateData['playerSubmissions'] = submissions;
+          }
+
+          transaction.update(docRef, updateData);
+        });
+      },
+      operationName: 'Submit round answer',
+    );
   }
 
   // Advance to next round (for battle royale, move to next player)
@@ -771,27 +797,35 @@ class MultiplayerService extends ChangeNotifier {
       };
     }
 
-    await _executeWithRetry(() async {
-      final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
-      await docRef.update({
-        'currentRound': currentRound + 1,
-        'currentPlayerId': nextPlayerId,
-        if (playerSubmissions != null) 'playerSubmissions': playerSubmissions,
-      });
-    }, operationName: 'Advance round',);
+    await _executeWithRetry(
+      () async {
+        final docRef =
+            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        await docRef.update({
+          'currentRound': currentRound + 1,
+          'currentPlayerId': nextPlayerId,
+          if (playerSubmissions != null) 'playerSubmissions': playerSubmissions,
+        });
+      },
+      operationName: 'Advance round',
+    );
   }
 
   // Finish the game
   Future<void> _finishGame() async {
     if (_currentRoom == null) return;
 
-    await _executeWithRetry(() async {
-      final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
-      await docRef.update({
-        'status': RoomStatus.finished.name,
-        'finishedAt': DateTime.now().toIso8601String(),
-      });
-    }, operationName: 'Finish game',);
+    await _executeWithRetry(
+      () async {
+        final docRef =
+            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        await docRef.update({
+          'status': RoomStatus.finished.name,
+          'finishedAt': DateTime.now().toIso8601String(),
+        });
+      },
+      operationName: 'Finish game',
+    );
   }
 
   // Listen to room changes
@@ -802,14 +836,14 @@ class MultiplayerService extends ChangeNotifier {
         .doc(roomId)
         .snapshots()
         .listen((snapshot) {
-          if (snapshot.exists) {
-            _currentRoom = GameRoom.fromFirestore(snapshot);
-            notifyListeners();
-          } else {
-            _currentRoom = null;
-            notifyListeners();
-          }
-        });
+      if (snapshot.exists) {
+        _currentRoom = GameRoom.fromFirestore(snapshot);
+        notifyListeners();
+      } else {
+        _currentRoom = null;
+        notifyListeners();
+      }
+    });
   }
 
   // Clean up abandoned/expired rooms (call on app start)
@@ -845,25 +879,25 @@ class MultiplayerService extends ChangeNotifier {
         .where('status', isEqualTo: RoomStatus.waiting.name)
         .snapshots()
         .map((snapshot) {
-          final now = DateTime.now();
-          return snapshot.docs
-              .map((doc) {
-                try {
-                  return GameRoom.fromFirestore(doc);
-                } catch (e) {
-                  debugPrint('Error parsing room ${doc.id}: $e');
-                  return null;
-                }
-              })
-              .where((room) {
-                if (room == null) return false;
-                final expiresAt = room.expiresAt;
-                return !room.isFull &&
-                    (expiresAt == null || expiresAt.isAfter(now));
-              })
-              .cast<GameRoom>()
-              .toList();
-        });
+      final now = DateTime.now();
+      return snapshot.docs
+          .map((doc) {
+            try {
+              return GameRoom.fromFirestore(doc);
+            } catch (e) {
+              debugPrint('Error parsing room ${doc.id}: $e');
+              return null;
+            }
+          })
+          .where((room) {
+            if (room == null) return false;
+            final expiresAt = room.expiresAt;
+            return !room.isFull &&
+                (expiresAt == null || expiresAt.isAfter(now));
+          })
+          .cast<GameRoom>()
+          .toList();
+    });
   }
 
   @override

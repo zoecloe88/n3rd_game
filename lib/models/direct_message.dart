@@ -20,26 +20,26 @@ class DirectMessage {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'conversationId': conversationId,
-    'fromUserId': fromUserId,
-    'toUserId': toUserId,
-    'fromDisplayName': fromDisplayName,
-    'message': message,
-    'timestamp': timestamp.toIso8601String(),
-    'isRead': isRead,
-  };
+        'id': id,
+        'conversationId': conversationId,
+        'fromUserId': fromUserId,
+        'toUserId': toUserId,
+        'fromDisplayName': fromDisplayName,
+        'message': message,
+        'timestamp': timestamp.toIso8601String(),
+        'isRead': isRead,
+      };
 
   factory DirectMessage.fromJson(Map<String, dynamic> json) => DirectMessage(
-    id: json['id'] as String,
-    conversationId: json['conversationId'] as String,
-    fromUserId: json['fromUserId'] as String,
-    toUserId: json['toUserId'] as String,
-    fromDisplayName: json['fromDisplayName'] as String?,
-    message: json['message'] as String,
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    isRead: json['isRead'] as bool?,
-  );
+        id: json['id'] as String,
+        conversationId: json['conversationId'] as String,
+        fromUserId: json['fromUserId'] as String,
+        toUserId: json['toUserId'] as String,
+        fromDisplayName: json['fromDisplayName'] as String?,
+        message: json['message'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        isRead: json['isRead'] as bool?,
+      );
 }
 
 class Conversation {

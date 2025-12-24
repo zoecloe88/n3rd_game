@@ -69,4 +69,3 @@ class FeatureTooltipWidget extends StatelessWidget {
     );
   }
 }
-

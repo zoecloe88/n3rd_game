@@ -193,7 +193,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                             ),
                           ] else if (!authService.isAuthenticated) ...[
                             const Icon(Icons.login,
-                                size: 64, color: Colors.orange),
+                                size: 64, color: Colors.orange,),
                             const SizedBox(height: 16),
                             Text(
                               'Login Required',
@@ -212,7 +212,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                               child: ElevatedButton(
                                 onPressed: () {
                                   NavigationHelper.safeNavigate(
-                                      context, '/login');
+                                      context, '/login',);
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.success,
@@ -225,7 +225,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                             ),
                           ] else if (groupId == null) ...[
                             const Icon(Icons.error_outline,
-                                size: 64, color: Colors.red),
+                                size: 64, color: Colors.red,),
                             const SizedBox(height: 16),
                             Text(
                               'Invalid Invitation',
@@ -240,7 +240,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                             ),
                           ] else ...[
                             const Icon(Icons.group,
-                                size: 64, color: AppColors.success),
+                                size: 64, color: AppColors.success,),
                             const SizedBox(height: 16),
                             Text(
                               'Family & Friends Invitation',
@@ -274,7 +274,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                                           strokeWidth: 2,
                                           valueColor:
                                               AlwaysStoppedAnimation<Color>(
-                                                  Colors.white),
+                                                  Colors.white,),
                                         ),
                                       )
                                     : const Text('Accept Invitation'),

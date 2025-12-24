@@ -108,26 +108,23 @@ class FeedbackService {
       });
 
       // Save feedback to Firestore
-      await _firestore
-          .collection('feedback')
-          .add({
-            'userId': userId,
-            'userEmail': userEmail ?? user?.email ?? 'anonymous',
-            'type': type,
-            'category': category ?? 'general',
-            'message': sanitizedMessage,
-            'images': imageUrls,
-            'deviceInfo': deviceInfoMap,
-            'status': 'new',
-            'priority': _getPriority(type, message),
-            'createdAt': FieldValue.serverTimestamp(),
-            'appVersion': '1.0.0',
-            'resolved': false,
-          })
-          .catchError((error) {
-            debugPrint('Failed to save feedback to Firestore: $error');
-            throw StorageException('Failed to submit feedback: $error');
-          });
+      await _firestore.collection('feedback').add({
+        'userId': userId,
+        'userEmail': userEmail ?? user?.email ?? 'anonymous',
+        'type': type,
+        'category': category ?? 'general',
+        'message': sanitizedMessage,
+        'images': imageUrls,
+        'deviceInfo': deviceInfoMap,
+        'status': 'new',
+        'priority': _getPriority(type, message),
+        'createdAt': FieldValue.serverTimestamp(),
+        'appVersion': '1.0.0',
+        'resolved': false,
+      }).catchError((error) {
+        debugPrint('Failed to save feedback to Firestore: $error');
+        throw StorageException('Failed to submit feedback: $error');
+      });
 
       debugPrint('Feedback submitted successfully');
     } catch (e) {

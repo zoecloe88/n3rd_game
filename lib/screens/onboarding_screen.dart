@@ -25,7 +25,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _pageController = PageController();
   final OnboardingService _onboardingService = OnboardingService();
   int _currentPage = 0;
-  
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -338,7 +337,7 @@ class OnboardingPage {
     this.videoPath,
     this.videoDuration,
   }) : assert(
-         icon != null || videoPath != null,
-         'Either icon or videoPath must be provided',
-       );
+          icon != null || videoPath != null,
+          'Either icon or videoPath must be provided',
+        );
 }

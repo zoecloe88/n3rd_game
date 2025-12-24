@@ -89,9 +89,8 @@ class HeatMapWidget extends StatelessWidget {
             itemCount: 24,
             itemBuilder: (context, index) {
               final data = timeOfDayData[index];
-              final intensity = maxScore > 0
-                  ? (data.averageScore / maxScore)
-                  : 0.0;
+              final intensity =
+                  maxScore > 0 ? (data.averageScore / maxScore) : 0.0;
               final hasData = data.totalGames > 0;
 
               return Container(

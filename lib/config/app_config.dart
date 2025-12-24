@@ -13,21 +13,21 @@ class AppConfig {
   // Firebase Cloud Functions configuration
   /// Cloud Function region (default: us-central1)
   static String get cloudFunctionRegion => const String.fromEnvironment(
-    'CLOUD_FUNCTION_REGION',
-    defaultValue: 'us-central1',
-  );
+        'CLOUD_FUNCTION_REGION',
+        defaultValue: 'us-central1',
+      );
 
   /// Firebase project ID (default: wordn3rd-7bd5d)
   static String get firebaseProjectId => const String.fromEnvironment(
-    'FIREBASE_PROJECT_ID',
-    defaultValue: 'wordn3rd-7bd5d',
-  );
+        'FIREBASE_PROJECT_ID',
+        defaultValue: 'wordn3rd-7bd5d',
+      );
 
   /// Cloud Function name (default: generateTrivia)
   static String get cloudFunctionName => const String.fromEnvironment(
-    'CLOUD_FUNCTION_NAME',
-    defaultValue: 'generateTrivia',
-  );
+        'CLOUD_FUNCTION_NAME',
+        defaultValue: 'generateTrivia',
+      );
 
   /// Get the full Cloud Function URL
   ///

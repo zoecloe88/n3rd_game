@@ -233,18 +233,15 @@ class _GameScreenState extends State<GameScreen>
           }
           if (buildContext.mounted) {
             final localizations = AppLocalizations.of(buildContext);
-            String errorMessage =
-                localizations?.failedToLoadTrivia ??
+            String errorMessage = localizations?.failedToLoadTrivia ??
                 'Failed to load trivia content. ';
             if (e.toString().contains('No templates available')) {
-              errorMessage +=
-                  localizations?.templateInitializationIssue ??
+              errorMessage += localizations?.templateInitializationIssue ??
                   'Template initialization issue detected. Please restart the app.';
             } else if (e.toString().contains(
-              'Unable to generate unique trivia',
-            )) {
-              errorMessage +=
-                  localizations?.allContentUsed ??
+                  'Unable to generate unique trivia',
+                )) {
+              errorMessage += localizations?.allContentUsed ??
                   'All available content has been used. Try clearing history or selecting a different theme.';
             } else {
               errorMessage += e.message;
@@ -306,22 +303,18 @@ class _GameScreenState extends State<GameScreen>
           if (buildContext.mounted) {
             // Provide more specific error message based on exception type
             final localizations = AppLocalizations.of(buildContext);
-            String errorMessage =
-                localizations?.failedToLoadTrivia ??
+            String errorMessage = localizations?.failedToLoadTrivia ??
                 'Failed to load trivia content. ';
             if (e.toString().contains('No templates available')) {
-              errorMessage +=
-                  localizations?.templateInitializationIssue ??
+              errorMessage += localizations?.templateInitializationIssue ??
                   'Template initialization issue detected. Please restart the app.';
             } else if (e.toString().contains(
-              'Unable to generate unique trivia',
-            )) {
-              errorMessage +=
-                  localizations?.allContentUsed ??
+                  'Unable to generate unique trivia',
+                )) {
+              errorMessage += localizations?.allContentUsed ??
                   'All available content has been used. Try clearing history or selecting a different theme.';
             } else {
-              errorMessage +=
-                  localizations?.checkConnectionAndRetry ??
+              errorMessage += localizations?.checkConnectionAndRetry ??
                   'Please check your connection and try again.';
             }
             _showTriviaErrorDialog(buildContext, errorMessage);
@@ -763,7 +756,7 @@ class _GameScreenState extends State<GameScreen>
         listen: false,
       );
       final gameService = Provider.of<GameService>(context, listen: false);
-      
+
       // Get FamilyGroupService to check family subscription status
       final familyGroupService = Provider.of<FamilyGroupService>(
         context,
@@ -772,7 +765,7 @@ class _GameScreenState extends State<GameScreen>
 
       // Re-sync subscription from RevenueCat/Firestore
       await subscriptionService.init();
-      
+
       // Reload family group to get latest subscription status
       if (familyGroupService.isInGroup) {
         await familyGroupService.init();
@@ -780,17 +773,18 @@ class _GameScreenState extends State<GameScreen>
 
       final currentTier = subscriptionService.currentTier;
       final tierChanged = _initialTier != null && currentTier != _initialTier;
-      
+
       // Check if user had premium access (individual or family) and lost it
       final hadPremiumAccess = _initialTier == SubscriptionTier.premium ||
           _initialTier == SubscriptionTier.familyFriends;
-      
+
       // Check current premium access: individual premium OR active family subscription
       final hasIndividualPremium = subscriptionService.isPremium;
       final hasActiveFamilySubscription = familyGroupService.isInGroup &&
           familyGroupService.currentGroup?.isSubscriptionActive == true;
-      final hasPremiumAccess = hasIndividualPremium || hasActiveFamilySubscription;
-      
+      final hasPremiumAccess =
+          hasIndividualPremium || hasActiveFamilySubscription;
+
       // Check if family subscription expired (user was in family, but subscription is now inactive)
       final familySubscriptionExpired = familyGroupService.isInGroup &&
           familyGroupService.currentGroup != null &&
@@ -818,7 +812,7 @@ class _GameScreenState extends State<GameScreen>
             final message = familySubscriptionExpired
                 ? 'Your Family & Friends subscription has expired. AI Mode is no longer available. The game will end after this round.'
                 : 'Your Premium subscription has expired. AI Mode is no longer available. The game will end after this round.';
-            
+
             ErrorHandler.showWarning(
               context,
               message,
@@ -898,8 +892,7 @@ class _GameScreenState extends State<GameScreen>
             // Check if competitive challenge is active by checking if we can submit
             // We'll use a workaround since _competitiveChallengeId is private
             final args = ModalRoute.of(context)?.settings.arguments;
-            final isCompetitive =
-                args is Map<String, dynamic> &&
+            final isCompetitive = args is Map<String, dynamic> &&
                 args['competitiveChallengeId'] != null;
 
             if (isCompetitive) {
@@ -936,8 +929,8 @@ class _GameScreenState extends State<GameScreen>
               if (shouldPop == true) {
                 if (!mounted || !context.mounted) return;
                 // Submit score before exiting
-                final response = await service
-                    .submitCompetitiveChallengeScore();
+                final response =
+                    await service.submitCompetitiveChallengeScore();
                 if (!mounted || !context.mounted) return;
 
                 // Show appropriate message based on result
@@ -1002,11 +995,12 @@ class _GameScreenState extends State<GameScreen>
               }
             } else {
               // Non-competitive mode: check if game is active
-              final gameService = Provider.of<GameService>(context, listen: false);
-              final isGameActive = !gameService.state.isGameOver && 
-                                   (gameService.phase == GamePhase.memorize || 
-                                    gameService.phase == GamePhase.play);
-              
+              final gameService =
+                  Provider.of<GameService>(context, listen: false);
+              final isGameActive = !gameService.state.isGameOver &&
+                  (gameService.phase == GamePhase.memorize ||
+                      gameService.phase == GamePhase.play);
+
               if (isGameActive) {
                 // Show confirmation dialog for active games
                 if (!mounted || !context.mounted) return;
@@ -1214,7 +1208,8 @@ class _GameScreenState extends State<GameScreen>
                     style: AppTypography.displayMedium.copyWith(
                       fontSize: ResponsiveHelper.responsiveFontSize(
                         context,
-                        baseSize: ResponsiveHelper.responsiveWidth(context, 0.075),
+                        baseSize:
+                            ResponsiveHelper.responsiveWidth(context, 0.075),
                         minSize: 20.0,
                         maxSize: 32.0,
                       ),
@@ -1358,16 +1353,14 @@ class _GameScreenState extends State<GameScreen>
                           _showTipDialog(capturedContext, tip);
                         }
                       },
-                      tooltip:
-                          AppLocalizations.of(context)?.hintButton ??
+                      tooltip: AppLocalizations.of(context)?.hintButton ??
                           'Get a tip',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ),
                   Semantics(
-                    label:
-                        AppLocalizations.of(context)?.gameSettings ??
+                    label: AppLocalizations.of(context)?.gameSettings ??
                         'Game settings',
                     button: true,
                     child: IconButton(
@@ -1378,8 +1371,7 @@ class _GameScreenState extends State<GameScreen>
                       ),
                       onPressed: () =>
                           NavigationHelper.safeNavigate(context, '/settings'),
-                      tooltip:
-                          AppLocalizations.of(context)?.settingsButton ??
+                      tooltip: AppLocalizations.of(context)?.settingsButton ??
                           'Settings',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -1410,7 +1402,7 @@ class _GameScreenState extends State<GameScreen>
       minSize: 9.0,
       maxSize: 14.0,
     );
-    
+
     // Time Attack timer
     if (service.currentMode == GameMode.timeAttack &&
         service.timeAttackSecondsLeft != null) {
@@ -1460,15 +1452,14 @@ class _GameScreenState extends State<GameScreen>
     }
 
     // Regular timer
-    final isUrgent =
-        (service.phase == GamePhase.memorize &&
+    final isUrgent = (service.phase == GamePhase.memorize &&
             service.memorizeTimeLeft <= 3) ||
         (service.phase == GamePhase.play && service.playTimeLeft <= 5);
     final timeLeft = service.phase == GamePhase.memorize
         ? service.memorizeTimeLeft
         : service.playTimeLeft;
     final label = service.phase == GamePhase.memorize ? 'MEMORIZE' : 'RECALL';
-    
+
     return Column(
       children: [
         Text(
@@ -1520,7 +1511,7 @@ class _GameScreenState extends State<GameScreen>
       minSize: 20.0,
       maxSize: 32.0,
     );
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Text(
@@ -1544,7 +1535,7 @@ class _GameScreenState extends State<GameScreen>
       final localizations = AppLocalizations.of(context);
       instruction = service.currentMode == GameMode.shuffle
           ? (localizations?.memorizeTheseWillShuffle ??
-                'Memorize—these will shuffle')
+              'Memorize—these will shuffle')
           : (localizations?.memorizeTheseWords ?? 'Memorize these words');
       // Read instruction with TTS if enabled (premium only)
       // Capture context and mounted before callback
@@ -1570,8 +1561,7 @@ class _GameScreenState extends State<GameScreen>
       });
     } else if (service.phase == GamePhase.play) {
       // Show play phase instruction
-      instruction =
-          AppLocalizations.of(context)?.instructionPlayPhaseMessage ??
+      instruction = AppLocalizations.of(context)?.instructionPlayPhaseMessage ??
           'Select ${GameService.expectedCorrectAnswers} correct answers';
       // Read instruction with TTS if enabled (premium only)
       // Capture context and mounted before callback
@@ -1596,8 +1586,7 @@ class _GameScreenState extends State<GameScreen>
         }
       });
     } else {
-      final expectedCorrect =
-          service.currentTrivia?.correctAnswers.length ??
+      final expectedCorrect = service.currentTrivia?.correctAnswers.length ??
           GameService.expectedCorrectAnswers;
       if (service.correctCount == expectedCorrect) {
         instruction = 'Perfect! +${expectedCorrect * 10} points';
@@ -1620,8 +1609,7 @@ class _GameScreenState extends State<GameScreen>
       textAlign: TextAlign.center,
       style: AppTypography.bodyMedium.copyWith(
         fontSize: 14,
-        color:
-            service.phase == GamePhase.result &&
+        color: service.phase == GamePhase.result &&
                 service.correctCount ==
                     (service.currentTrivia?.correctAnswers.length ??
                         GameService.expectedCorrectAnswers)
@@ -1784,7 +1772,8 @@ class _GameScreenState extends State<GameScreen>
         duration: Duration(milliseconds: isShuffling ? 150 : 200),
         curve: Curves.easeInOut,
         transform: isShuffling
-            ? (Matrix4.identity()..translateByDouble(
+            ? (Matrix4.identity()
+              ..translateByDouble(
                 (service.shuffleCount % 2 == 0 ? 1.0 : -1.0),
                 0.0,
                 0.0,
@@ -1813,9 +1802,9 @@ class _GameScreenState extends State<GameScreen>
                         if (!isMounted) return;
                         final subscriptionService =
                             Provider.of<SubscriptionService>(
-                              capturedContext,
-                              listen: false,
-                            );
+                          capturedContext,
+                          listen: false,
+                        );
                         if (subscriptionService.isPremium) {
                           final ttsService = Provider.of<TextToSpeechService>(
                             capturedContext,
@@ -1853,48 +1842,49 @@ class _GameScreenState extends State<GameScreen>
                               size: 40,
                             )
                           : isResult &&
-                                !service.lastCorrectAnswers.contains(word) &&
-                                service.lastSelectedAnswers.contains(word)
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      word,
-                                      style: AppTypography.labelLarge.copyWith(
-                                        fontSize: tileFontSize,
-                                        color: textColor,
-                                        letterSpacing: 0.3,
+                                  !service.lastCorrectAnswers.contains(word) &&
+                                  service.lastSelectedAnswers.contains(word)
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          word,
+                                          style:
+                                              AppTypography.labelLarge.copyWith(
+                                            fontSize: tileFontSize,
+                                            color: textColor,
+                                            letterSpacing: 0.3,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.visible,
+                                        ),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.visible,
                                     ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ],
+                                )
+                              : FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    showWord ? word : '?',
+                                    style: AppTypography.labelLarge.copyWith(
+                                      fontSize: tileFontSize,
+                                      color: textColor,
+                                      letterSpacing: 0.3,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ],
-                            )
-                          : FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                showWord ? word : '?',
-                                style: AppTypography.labelLarge.copyWith(
-                                  fontSize: tileFontSize,
-                                  color: textColor,
-                                  letterSpacing: 0.3,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.visible,
-                              ),
-                            ),
                     ),
                   ),
                   // Info icon - only show in result phase when word is visible
@@ -2028,14 +2018,14 @@ class _GameScreenState extends State<GameScreen>
                           try {
                             final generator =
                                 Provider.of<TriviaGeneratorService>(
-                                  buildContext,
-                                  listen: false,
-                                );
+                              buildContext,
+                              listen: false,
+                            );
                             final analyticsService =
                                 Provider.of<AnalyticsService>(
-                                  buildContext,
-                                  listen: false,
-                                );
+                              buildContext,
+                              listen: false,
+                            );
 
                             // Use retry logic for better reliability
                             final triviaPool = await _generateTriviaWithRetry(
@@ -2063,8 +2053,8 @@ class _GameScreenState extends State<GameScreen>
                             String errorMessage =
                                 'Failed to load trivia content. ';
                             if (e.toString().contains(
-                              'No templates available',
-                            )) {
+                                  'No templates available',
+                                )) {
                               errorMessage +=
                                   'Template initialization issue. Please restart the app.';
                             } else {
@@ -2092,10 +2082,8 @@ class _GameScreenState extends State<GameScreen>
               ),
               // Voice input button (Premium only)
               if (subscriptionService.isPremium)
-                Consumer2<
-                  VoiceRecognitionService,
-                  PronunciationDictionaryService
-                >(
+                Consumer2<VoiceRecognitionService,
+                    PronunciationDictionaryService>(
                   builder: (context, voiceService, pronunciationService, _) {
                     return Semantics(
                       label: 'Voice Input',
@@ -2105,13 +2093,13 @@ class _GameScreenState extends State<GameScreen>
                       child: IconButton(
                         onPressed:
                             voiceService.isEnabled && voiceService.isAvailable
-                            ? () => _handleVoiceInput(
-                                context,
-                                service,
-                                voiceService,
-                                pronunciationService,
-                              )
-                            : null,
+                                ? () => _handleVoiceInput(
+                                      context,
+                                      service,
+                                      voiceService,
+                                      pronunciationService,
+                                    )
+                                : null,
                         icon: Icon(
                           voiceService.isListening ? Icons.mic : Icons.mic_none,
                           color: voiceService.isListening
@@ -2121,8 +2109,7 @@ class _GameScreenState extends State<GameScreen>
                                 ),
                           size: 24,
                         ),
-                        tooltip:
-                            AppLocalizations.of(context)?.hintButton ??
+                        tooltip: AppLocalizations.of(context)?.hintButton ??
                             'Voice Input',
                       ),
                     );
@@ -2160,8 +2147,8 @@ class _GameScreenState extends State<GameScreen>
                 child: IconButton(
                   onPressed:
                       service.streakShieldUses > 0 && !service.hasStreakShield
-                      ? () => service.activateStreakShield()
-                      : null,
+                          ? () => service.activateStreakShield()
+                          : null,
                   icon: Icon(
                     Icons.shield,
                     color: service.hasStreakShield
@@ -2212,8 +2199,7 @@ class _GameScreenState extends State<GameScreen>
                     ),
                     size: 20,
                   ),
-                  tooltip:
-                      AppLocalizations.of(context)?.hintButton ??
+                  tooltip: AppLocalizations.of(context)?.hintButton ??
                       'Hint (${service.hintUses})',
                 ),
               ),
@@ -2226,8 +2212,8 @@ class _GameScreenState extends State<GameScreen>
                 child: IconButton(
                   onPressed:
                       service.doubleScoreUses > 0 && !service.hasDoubleScore
-                      ? () => service.activateDoubleScore()
-                      : null,
+                          ? () => service.activateDoubleScore()
+                          : null,
                   icon: Icon(
                     Icons.stars,
                     color: service.hasDoubleScore
@@ -2376,8 +2362,7 @@ class _GameScreenState extends State<GameScreen>
                   final category = currentTrivia.category;
 
                   // Calculate actual response time from round start
-                  final actualResponseTime =
-                      service.aiModeResponseTime ??
+                  final actualResponseTime = service.aiModeResponseTime ??
                       30.0; // Fallback to 30s if not available
                   final config = service.currentConfig;
 
@@ -2393,8 +2378,8 @@ class _GameScreenState extends State<GameScreen>
                   if (!isMounted || !capturedContext.mounted) return;
 
                   // Get updated timing for next round
-                  final (newMemorizeTime, newPlayTime) = aiModeService
-                      .getRecommendedTiming();
+                  final (newMemorizeTime, newPlayTime) =
+                      aiModeService.getRecommendedTiming();
 
                   // Update game service timing for AI mode
                   service.setAIModeTiming(newMemorizeTime, newPlayTime);
@@ -2440,8 +2425,8 @@ class _GameScreenState extends State<GameScreen>
                     errorMessage +=
                         'Template initialization issue. Please restart the app.';
                   } else if (e.toString().contains(
-                    'Unable to generate unique trivia',
-                  )) {
+                        'Unable to generate unique trivia',
+                      )) {
                     errorMessage +=
                         'All available content has been used. Try clearing history.';
                   } else {
@@ -2741,9 +2726,8 @@ class _GameScreenState extends State<GameScreen>
           // Get available themes and try a random one
           final availableThemes = generator.getAvailableThemes();
           if (availableThemes.isNotEmpty) {
-            final randomTheme =
-                availableThemes[DateTime.now().millisecondsSinceEpoch %
-                    availableThemes.length];
+            final randomTheme = availableThemes[
+                DateTime.now().millisecondsSinceEpoch % availableThemes.length];
             try {
               final pool = generator.generateBatch(50, theme: randomTheme);
               if (pool.isNotEmpty) {

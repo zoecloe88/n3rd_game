@@ -20,8 +20,7 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer>
-    with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -92,4 +91,3 @@ class _ShimmerEffect extends StatelessWidget {
     );
   }
 }
-

@@ -188,7 +188,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                         // Find competitive challenge
                         final competitiveChallenge = todayChallenges
                             .where(
-                                (c) => c.type == ChallengeType.dailyCompetitive)
+                                (c) => c.type == ChallengeType.dailyCompetitive,)
                             .firstOrNull;
 
                         return ListView(

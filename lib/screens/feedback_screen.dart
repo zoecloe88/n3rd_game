@@ -384,9 +384,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => Navigator.pop(context),
+                    onPressed:
+                        _isSubmitting ? null : () => Navigator.pop(context),
                     child: Text('Cancel', style: AppTypography.labelLarge),
                   ),
                   const SizedBox(width: 8),

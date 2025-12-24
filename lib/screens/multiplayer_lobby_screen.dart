@@ -289,8 +289,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             color: Colors.white,
                           ),
                           onPressed: () => NavigationHelper.safePop(context),
-                          tooltip:
-                              AppLocalizations.of(context)?.backButton ??
+                          tooltip: AppLocalizations.of(context)?.backButton ??
                               'Back',
                         ),
                       ),
@@ -516,8 +515,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                           itemCount: room.players.length,
                           itemBuilder: (context, index) {
                             final player = room.players[index];
-                            final isCurrentUser =
-                                player.userId ==
+                            final isCurrentUser = player.userId ==
                                 multiplayerService.currentUserId;
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -568,11 +566,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                                       ),
                                       child: Text(
                                         'HOST',
-                                        style: AppTypography.labelSmall
-                                            .copyWith(
-                                              fontSize: 10,
-                                              color: Colors.white,
-                                            ),
+                                        style:
+                                            AppTypography.labelSmall.copyWith(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -775,7 +773,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                       // Safe to access - we've checked isEmpty above
                       final currentPlayer = room.players.firstWhere(
                         (p) => p.userId == multiplayerService.currentUserId,
-                        orElse: () => room.players.first, // Safe - checked isEmpty
+                        orElse: () =>
+                            room.players.first, // Safe - checked isEmpty
                       );
                       final isReady = currentPlayer.isReady;
 
@@ -822,9 +821,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             // Get analytics service before async operation
                             final analyticsService =
                                 Provider.of<AnalyticsService>(
-                                  context,
-                                  listen: false,
-                                );
+                              context,
+                              listen: false,
+                            );
                             try {
                               await multiplayerService.startGame(
                                 gameMode: _selectedGameMode,
@@ -843,9 +842,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             } catch (e) {
                               if (!mounted) return;
                               final errorMessage = e.toString().replaceAll(
-                                'Exception: ',
-                                '',
-                              );
+                                    'Exception: ',
+                                    '',
+                                  );
                               messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(

@@ -37,7 +37,7 @@ class ContentValidationService {
   final ContentValidationConfig _config;
 
   ContentValidationService({ContentValidationConfig? config})
-    : _config = config ?? const ContentValidationConfig();
+      : _config = config ?? const ContentValidationConfig();
 
   /// Validate a trivia template
   ValidationResult validateTemplate(TriviaTemplate template) {
@@ -46,18 +46,16 @@ class ContentValidationService {
 
     // Check for empty or whitespace-only strings in pools
     // This prevents empty strings from being selected as answers or distractors
-    final emptyCorrect = template.correctPool
-        .where((w) => w.trim().isEmpty)
-        .toList();
+    final emptyCorrect =
+        template.correctPool.where((w) => w.trim().isEmpty).toList();
     if (emptyCorrect.isNotEmpty) {
       errors.add(
         'Empty or whitespace-only strings found in correct pool (${emptyCorrect.length} items)',
       );
     }
 
-    final emptyDistractor = template.distractorPool
-        .where((w) => w.trim().isEmpty)
-        .toList();
+    final emptyDistractor =
+        template.distractorPool.where((w) => w.trim().isEmpty).toList();
     if (emptyDistractor.isNotEmpty) {
       errors.add(
         'Empty or whitespace-only strings found in distractor pool (${emptyDistractor.length} items)',
@@ -65,12 +63,10 @@ class ContentValidationService {
     }
 
     // Check pool sizes (after filtering empty strings)
-    final validCorrectPool = template.correctPool
-        .where((w) => w.trim().isNotEmpty)
-        .toList();
-    final validDistractorPool = template.distractorPool
-        .where((w) => w.trim().isNotEmpty)
-        .toList();
+    final validCorrectPool =
+        template.correctPool.where((w) => w.trim().isNotEmpty).toList();
+    final validDistractorPool =
+        template.distractorPool.where((w) => w.trim().isNotEmpty).toList();
 
     if (validCorrectPool.length < _config.minCorrectItems) {
       errors.add(
@@ -84,9 +80,8 @@ class ContentValidationService {
 
     // Check for duplicates in correct pool (case-insensitive)
     // Normalize to lowercase to catch case variations (e.g., "Paris" vs "paris")
-    final correctNormalized = validCorrectPool
-        .map((w) => w.trim().toLowerCase())
-        .toList();
+    final correctNormalized =
+        validCorrectPool.map((w) => w.trim().toLowerCase()).toList();
     final correctSet = correctNormalized.toSet();
     if (correctSet.length != correctNormalized.length) {
       errors.add(
@@ -95,9 +90,8 @@ class ContentValidationService {
     }
 
     // Check for duplicates in distractor pool (case-insensitive)
-    final distractorNormalized = validDistractorPool
-        .map((w) => w.trim().toLowerCase())
-        .toList();
+    final distractorNormalized =
+        validDistractorPool.map((w) => w.trim().toLowerCase()).toList();
     final distractorSet = distractorNormalized.toSet();
     if (distractorSet.length != distractorNormalized.length) {
       errors.add(
@@ -144,9 +138,8 @@ class ContentValidationService {
         }
 
         // Check for duplicates in tiered pool (case-insensitive) - use valid pool
-        final poolNormalized = validTieredPool
-            .map((w) => w.trim().toLowerCase())
-            .toList();
+        final poolNormalized =
+            validTieredPool.map((w) => w.trim().toLowerCase()).toList();
         final poolSet = poolNormalized.toSet();
         if (poolSet.length != poolNormalized.length) {
           errors.add(
@@ -268,8 +261,7 @@ class ContentValidationService {
               'type',
               'style',
             ];
-            final hasMeaningfulSuffix =
-                words.length > 1 &&
+            final hasMeaningfulSuffix = words.length > 1 &&
                 meaningfulSuffixes.any(
                   (suffix) =>
                       words.last.contains(suffix) ||
@@ -374,8 +366,8 @@ class ContentValidationService {
           final template1 = themeTemplates[i];
           final template2 = themeTemplates[j];
           final overlap = template1.correctPool.toSet().intersection(
-            template2.correctPool.toSet(),
-          );
+                template2.correctPool.toSet(),
+              );
 
           if (overlap.length > 5) {
             warnings.add(

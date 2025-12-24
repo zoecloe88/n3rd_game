@@ -16,13 +16,13 @@ class PerformanceMetric {
   });
 
   Map<String, dynamic> toJson() => {
-    'date': date.toIso8601String(),
-    'score': score,
-    'accuracy': accuracy,
-    'gamesPlayed': gamesPlayed,
-    'category': category,
-    'hourOfDay': hourOfDay,
-  };
+        'date': date.toIso8601String(),
+        'score': score,
+        'accuracy': accuracy,
+        'gamesPlayed': gamesPlayed,
+        'category': category,
+        'hourOfDay': hourOfDay,
+      };
 
   factory PerformanceMetric.fromJson(Map<String, dynamic> json) =>
       PerformanceMetric(

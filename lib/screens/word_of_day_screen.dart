@@ -50,8 +50,8 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
 
     // Check onboarding first - must be completed before accessing word of day
     try {
-      final hasCompletedOnboarding = await _onboardingService
-          .hasCompletedOnboarding();
+      final hasCompletedOnboarding =
+          await _onboardingService.hasCompletedOnboarding();
       if (!hasCompletedOnboarding) {
         if (mounted && context.mounted) {
           NavigationHelper.safeNavigate(context, '/onboarding', replace: true);
@@ -125,7 +125,8 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: UnifiedBackgroundWidget(
-        videoPath: 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/word of the day.mp4',
+        videoPath:
+            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/word of the day.mp4',
         fit: BoxFit.cover, // Fill screen, logos in upper portion
         alignment: Alignment.topCenter, // Align to top where logos are
         child: SafeArea(
@@ -135,11 +136,11 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                   color: Color(0xFF00D9FF),
                 )
               : _loading
-              ? const StandardizedLoadingWidget(
-                  message: 'Loading word of the day...',
-                  color: Color(0xFF00D9FF),
-                )
-              : _buildContent(),
+                  ? const StandardizedLoadingWidget(
+                      message: 'Loading word of the day...',
+                      color: Color(0xFF00D9FF),
+                    )
+                  : _buildContent(),
         ),
       ),
     );
@@ -150,7 +151,8 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
     if (_word == null) {
       return ErrorRecoveryWidget(
         title: 'Unable to Load Word',
-        message: 'There was an error loading the word of the day. Please try again later.',
+        message:
+            'There was an error loading the word of the day. Please try again later.',
         onRetry: () => NavigationHelper.safeNavigate(context, '/title'),
         icon: Icons.error_outline,
         showRetryButton: false,
@@ -190,7 +192,8 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
-              ResponsiveHelper.responsiveHeight(context, 0.25).clamp(100.0, 200.0), // Top padding to push content down
+              ResponsiveHelper.responsiveHeight(context, 0.25)
+                  .clamp(100.0, 200.0), // Top padding to push content down
               horizontalPadding,
               verticalPadding + 100,
             ),

@@ -385,12 +385,10 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
       final sanitizedQuestion = InputSanitizer.sanitizeText(
         _questionController.text.trim(),
       );
-      final sanitizedWords = allWords
-          .map((w) => InputSanitizer.sanitizeText(w))
-          .toList();
-      final sanitizedAnswers = correctAnswers
-          .map((a) => InputSanitizer.sanitizeText(a))
-          .toList();
+      final sanitizedWords =
+          allWords.map((w) => InputSanitizer.sanitizeText(w)).toList();
+      final sanitizedAnswers =
+          correctAnswers.map((a) => InputSanitizer.sanitizeText(a)).toList();
 
       final triviaItem = {
         'category': sanitizedCategory,

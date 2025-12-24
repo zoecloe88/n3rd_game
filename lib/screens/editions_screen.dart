@@ -96,20 +96,19 @@ class _EditionsScreenState extends State<EditionsScreen> {
         const SizedBox(height: AppSpacing.sm),
         Text(
           'EDITIONS',
-          style:
-              AppTypography.playfairDisplay(
-                fontSize: 46,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF5F3ABB),
-                letterSpacing: 6,
-              ).copyWith(
-                shadows: [
-                  Shadow(
-                    offset: const Offset(3, 3),
-                    color: Colors.black.withValues(alpha: 0.25),
-                  ),
-                ],
+          style: AppTypography.playfairDisplay(
+            fontSize: 46,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF5F3ABB),
+            letterSpacing: 6,
+          ).copyWith(
+            shadows: [
+              Shadow(
+                offset: const Offset(3, 3),
+                color: Colors.black.withValues(alpha: 0.25),
               ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -315,9 +314,8 @@ class _EditionsScreenState extends State<EditionsScreen> {
       (e) => e.id == 'ai_edition',
       orElse: () => allEditions.first,
     );
-    final otherEditions = allEditions
-        .where((e) => e.id != 'ai_edition')
-        .toList();
+    final otherEditions =
+        allEditions.where((e) => e.id != 'ai_edition').toList();
 
     final sorted = [aiEdition, ...otherEditions];
 
@@ -494,8 +492,8 @@ class _EditionsScreenState extends State<EditionsScreen> {
                                             strokeWidth: 2,
                                             valueColor:
                                                 AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
+                                              Colors.white,
+                                            ),
                                           ),
                                         ),
                                         SizedBox(width: 12),
@@ -511,14 +509,14 @@ class _EditionsScreenState extends State<EditionsScreen> {
                                 // Capture BuildContext-dependent objects before async operations
                                 final subscriptionService =
                                     Provider.of<SubscriptionService>(
-                                      context,
-                                      listen: false,
-                                    );
+                                  context,
+                                  listen: false,
+                                );
                                 final analyticsService =
                                     Provider.of<AnalyticsService>(
-                                      context,
-                                      listen: false,
-                                    );
+                                  context,
+                                  listen: false,
+                                );
 
                                 // Log purchase attempt
                                 await analyticsService.logPurchaseAttempt(

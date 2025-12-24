@@ -103,13 +103,11 @@ class RevenueCatService extends ChangeNotifier {
 
     // Family & Friends tier: Check for family_friends entitlement
     // Family members get premium access through their group
-    _hasFamilyFriendsTier =
-        entitlements.containsKey('family_friends') &&
+    _hasFamilyFriendsTier = entitlements.containsKey('family_friends') &&
         entitlements['family_friends']?.isActive == true;
 
     // Premium tier: Check for premium entitlement
-    _hasPremiumTier =
-        entitlements.containsKey('premium') &&
+    _hasPremiumTier = entitlements.containsKey('premium') &&
         entitlements['premium']?.isActive == true;
 
     // Basic tier: Check for basic entitlement (subscription with trial support)

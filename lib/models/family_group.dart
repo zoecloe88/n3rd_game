@@ -53,7 +53,8 @@ class FamilyGroup {
   /// Get pending invite by email
   PendingInvite? getPendingInvite(String email) {
     try {
-      return pendingInvites.firstWhere((i) => i.email.toLowerCase() == email.toLowerCase());
+      return pendingInvites
+          .firstWhere((i) => i.email.toLowerCase() == email.toLowerCase());
     } catch (e) {
       return null;
     }
@@ -68,7 +69,8 @@ class FamilyGroup {
       subscriptionTier: data['subscriptionTier'] as String? ?? 'family_friends',
       maxMembers: data['maxMembers'] as int? ?? 4,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      subscriptionExpiresAt: (data['subscriptionExpiresAt'] as Timestamp?)?.toDate(),
+      subscriptionExpiresAt:
+          (data['subscriptionExpiresAt'] as Timestamp?)?.toDate(),
       members: (data['members'] as List<dynamic>?)
               ?.map((m) => FamilyMember.fromMap(m as Map<String, dynamic>))
               .toList() ??
@@ -159,5 +161,3 @@ class PendingInvite {
     };
   }
 }
-
-

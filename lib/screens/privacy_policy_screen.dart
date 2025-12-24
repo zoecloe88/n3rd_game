@@ -69,14 +69,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
-
                         _buildSection(
                           context,
                           '1. Introduction',
                           'N3RD Trivia ("we", "our", "us", or "the Company") operates the N3RD Trivia mobile application (the "Service"). This Privacy Policy informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.\n\n'
                               'We are committed to protecting your privacy and ensuring transparency about how we collect, use, and safeguard your information. By using our Service, you agree to the collection and use of information in accordance with this policy.',
                         ),
-
                         _buildSection(
                           context,
                           '2. Information We Collect',
@@ -107,7 +105,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Chat messages and communications (if applicable)\n'
                               '• Leaderboard rankings and competitive scores',
                         ),
-
                         _buildSection(
                           context,
                           '3. How We Use Your Information',
@@ -133,7 +130,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Comply with legal obligations\n'
                               '• Protect our rights and safety',
                         ),
-
                         _buildSection(
                           context,
                           '4. Third-Party Services and Data Sharing',
@@ -152,7 +148,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               'These third parties have access to your information only to perform these tasks on our behalf and are obligated not to disclose or use it for any other purpose.\n\n'
                               'We do not sell, trade, or rent your personal information to third parties for marketing purposes. We may share aggregated, non-personally identifiable information for analytics and research purposes.',
                         ),
-
                         _buildSection(
                           context,
                           '5. Data Storage and Security',
@@ -165,7 +160,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Access controls and authentication\n\n'
                               'However, no method of transmission over the Internet or electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee absolute security.',
                         ),
-
                         _buildSection(
                           context,
                           '6. Data Retention',
@@ -176,7 +170,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Support business operations\n\n'
                               'If you delete your account, we will delete or anonymize your personal information within 30 days, except where we are required to retain it for legal purposes or where deletion is not immediately possible due to technical constraints.',
                         ),
-
                         _buildSection(
                           context,
                           '7. Your Rights and Choices',
@@ -189,7 +182,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '**Account Deletion:** You can request account deletion, which will permanently delete your personal information, subject to our data retention policies.\n\n'
                               'To exercise these rights, please contact us at support@n3rdtrivia.app. We will respond to your request within 30 days.',
                         ),
-
                         _buildSection(
                           context,
                           '8. Children\'s Privacy',
@@ -197,7 +189,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               'If you are a parent or guardian and you are aware that your child has provided us with personal information, please contact us immediately. If we become aware that we have collected personal information from children under 13 without verification of parental consent, we will take steps to delete that information from our servers.\n\n'
                               'We comply with the Children\'s Online Privacy Protection Act (COPPA) and other applicable laws regarding children\'s privacy.',
                         ),
-
                         _buildSection(
                           context,
                           '9. International Data Transfers',
@@ -205,7 +196,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               'If you are located outside the United States and choose to provide information to us, please note that we transfer the data to the United States and process it there.\n\n'
                               'By using our Service, you consent to the transfer of your information to our facilities and those third parties with whom we share it as described in this Privacy Policy.',
                         ),
-
                         _buildSection(
                           context,
                           '10. GDPR and CCPA Rights',
@@ -227,7 +217,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Right to deletion of personal information\n\n'
                               'To exercise these rights, contact us at support@n3rdtrivia.app.',
                         ),
-
                         _buildSection(
                           context,
                           '11. Cookies and Tracking Technologies',
@@ -238,7 +227,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Device identifiers\n\n'
                               'You can instruct your browser or device to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our Service.',
                         ),
-
                         _buildSection(
                           context,
                           '12. Changes to This Privacy Policy',
@@ -249,7 +237,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '• Displaying a prominent notice in the app\n\n'
                               'You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.',
                         ),
-
                         _buildSection(
                           context,
                           '13. Contact Us',
@@ -260,7 +247,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
                               '**Data Protection Officer (if applicable):**\n'
                               'For inquiries regarding data protection, please include "Data Protection Inquiry" in your subject line.',
                         ),
-
                         const SizedBox(height: 24),
                         Text(
                           'By using N3RD Trivia, you acknowledge that you have read and understood this Privacy Policy and agree to the collection and use of your information as described herein.',

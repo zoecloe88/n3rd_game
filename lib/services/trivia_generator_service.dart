@@ -19,7 +19,7 @@ class TriviaTemplate {
 
   // Enhanced fields (all optional for backward compatibility)
   final Map<DistractorTier, List<String>>?
-  distractorPools; // Tiered distractors
+      distractorPools; // Tiered distractors
   final DifficultyLevel difficulty;
 
   TriviaTemplate({
@@ -14655,7 +14655,9 @@ class TriviaGeneratorService extends ChangeNotifier {
     if (kDebugMode) {
       debugPrint('✅ Initialized ${_allTemplates.length} trivia templates');
       debugPrint(
-        '🎨 Covering ${<String>{for (final t in _allTemplates) t.theme}.length} unique themes',
+        '🎨 Covering ${<String>{
+          for (final t in _allTemplates) t.theme,
+        }.length} unique themes',
       );
     }
   }
@@ -14688,8 +14690,8 @@ class TriviaGeneratorService extends ChangeNotifier {
       final normalizedTheme = theme?.toLowerCase().trim();
       final allTemplates = normalizedTheme != null
           ? _allTemplates
-                .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
-                .toList()
+              .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
+              .toList()
           : _allTemplates;
 
       if (allTemplates.isEmpty) {
@@ -14714,8 +14716,8 @@ class TriviaGeneratorService extends ChangeNotifier {
       final normalizedTheme = theme?.toLowerCase().trim();
       availableTemplates = normalizedTheme != null
           ? _allTemplates
-                .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
-                .toList()
+              .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
+              .toList()
           : _allTemplates;
     }
 
@@ -14735,8 +14737,8 @@ class TriviaGeneratorService extends ChangeNotifier {
         final normalizedTheme = theme?.toLowerCase().trim();
         availableTemplates = normalizedTheme != null
             ? _allTemplates
-                  .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
-                  .toList()
+                .where((t) => t.theme.toLowerCase().trim() == normalizedTheme)
+                .toList()
             : _allTemplates;
 
         // Final fallback: if still empty and theme was specified, try without theme filter
@@ -14790,8 +14792,7 @@ class TriviaGeneratorService extends ChangeNotifier {
 
     // Determine difficulty (use provided, template default, or personalization preference)
     // Use actuallyUsingPersonalization (not usePersonalization) in case fallback disabled it
-    final finalDifficulty =
-        difficulty ??
+    final finalDifficulty = difficulty ??
         (actuallyUsingPersonalization && _personalizationService != null
             ? _personalizationService!.preferredDifficulty
             : template.difficulty);
@@ -14802,9 +14803,8 @@ class TriviaGeneratorService extends ChangeNotifier {
 
     // Pre-validate correctPool to ensure we have enough valid items
     // This prevents inefficient retries and provides better error messages
-    final validCorrectPool = template.correctPool
-        .where((w) => w.trim().isNotEmpty)
-        .toList();
+    final validCorrectPool =
+        template.correctPool.where((w) => w.trim().isNotEmpty).toList();
     if (validCorrectPool.length < 3) {
       final error =
           'Insufficient valid items in correctPool: ${validCorrectPool.length} (minimum 3 required). Template: ${template.categoryPattern}';
@@ -14829,9 +14829,8 @@ class TriviaGeneratorService extends ChangeNotifier {
 
       // Filter empty strings BEFORE checking length
       // This ensures we only count valid (non-empty) items
-      distractorPool = distractorPool
-          .where((w) => w.trim().isNotEmpty)
-          .toList();
+      distractorPool =
+          distractorPool.where((w) => w.trim().isNotEmpty).toList();
 
       // Validate pool has enough valid items BEFORE using it
       // This prevents runtime errors and ensures we always have valid distractors
@@ -14842,9 +14841,8 @@ class TriviaGeneratorService extends ChangeNotifier {
           );
         }
         // Filter legacy pool for empty strings too
-        distractorPool = template.distractorPool
-            .where((w) => w.trim().isNotEmpty)
-            .toList();
+        distractorPool =
+            template.distractorPool.where((w) => w.trim().isNotEmpty).toList();
 
         // Validate legacy pool too
         if (distractorPool.length < 3) {
@@ -14949,11 +14947,8 @@ class TriviaGeneratorService extends ChangeNotifier {
         <String>{}; // Track normalized correct answers
     final allWordsNormalizedSet =
         <String>{}; // Set of normalized (lowercase) words for deduplication
-    final allWordsOriginal =
-        <
-          String,
-          String
-        >{}; // Map normalized -> first occurrence's original casing
+    final allWordsOriginal = <String,
+        String>{}; // Map normalized -> first occurrence's original casing
 
     // First, process all correct answers with normalized deduplication
     for (final word in correctAnswers) {
@@ -14997,11 +14992,10 @@ class TriviaGeneratorService extends ChangeNotifier {
     }
 
     // Convert back to list with original casing (preserve first occurrence's casing for display)
-    final allWords =
-        allWordsNormalizedSet
-            .map((normalized) => allWordsOriginal[normalized]!)
-            .toList()
-          ..shuffle(_random);
+    final allWords = allWordsNormalizedSet
+        .map((normalized) => allWordsOriginal[normalized]!)
+        .toList()
+      ..shuffle(_random);
 
     // Validate we have exactly 6 unique words total (3 correct + 3 distractors - no more, no less)
     if (allWords.length != 6) {
@@ -15017,11 +15011,8 @@ class TriviaGeneratorService extends ChangeNotifier {
         // This matches the main path fix and ensures recovery never produces duplicates like "Paris" and "paris"
         final recoveryNormalizedSet =
             <String>{}; // Set of normalized (lowercase) words for deduplication
-        final recoveryOriginal =
-            <
-              String,
-              String
-            >{}; // Map normalized -> first occurrence's original casing
+        final recoveryOriginal = <String,
+            String>{}; // Map normalized -> first occurrence's original casing
         final correctAnswersNormalizedSet =
             <String>{}; // Track normalized correct answers for validation
 
@@ -15074,11 +15065,10 @@ class TriviaGeneratorService extends ChangeNotifier {
           ); // Add all correct answers first (guaranteed >= 3)
 
           // Add distractors up to exactly 6 total
-          final availableDistractors =
-              recoveryNormalizedSet
-                  .where((n) => !correctAnswersNormalizedSet.contains(n))
-                  .toList()
-                ..shuffle(_random);
+          final availableDistractors = recoveryNormalizedSet
+              .where((n) => !correctAnswersNormalizedSet.contains(n))
+              .toList()
+            ..shuffle(_random);
 
           for (final normalized in availableDistractors) {
             if (selectedNormalized.length >= 6) break; // Stop at exactly 6
@@ -15144,9 +15134,8 @@ class TriviaGeneratorService extends ChangeNotifier {
 
     // Validate that we have at least 3 non-empty correct answers after normalization
     // This ensures empty strings don't reduce the count below 3
-    final normalizedCorrectCount = correctAnswers
-        .where((ca) => ca.trim().isNotEmpty)
-        .length;
+    final normalizedCorrectCount =
+        correctAnswers.where((ca) => ca.trim().isNotEmpty).length;
     if (normalizedCorrectCount < 3) {
       final error =
           'Invalid trivia: Only $normalizedCorrectCount non-empty correct answers after normalization (expected 3). Template: ${template.categoryPattern}';
@@ -15195,7 +15184,7 @@ class TriviaGeneratorService extends ChangeNotifier {
     if (distractorsNormalized.length != 3) {
       final duplicateCount =
           distractors.where((d) => d.trim().isNotEmpty).length -
-          distractorsNormalized.length;
+              distractorsNormalized.length;
       final error =
           'Invalid trivia: distractors contains $duplicateCount normalized duplicate(s) (${distractors.length} items, but only ${distractorsNormalized.length} unique after normalization). Expected exactly 3 normalized unique values. Template: ${template.categoryPattern}';
       if (kDebugMode) {
@@ -15446,7 +15435,8 @@ class TriviaGeneratorService extends ChangeNotifier {
   List<String> getAvailableThemes() {
     return <String>{
       for (final template in _allTemplates) template.theme,
-    }.toList()..sort();
+    }.toList()
+      ..sort();
   }
 
   @override

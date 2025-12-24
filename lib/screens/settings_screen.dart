@@ -29,491 +29,512 @@ class SettingsScreen extends StatelessWidget {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
         return Scaffold(
-      backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/setting screen.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Minimal top app bar (logos are in upper portion)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    Semantics(
-                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
-                      button: true,
-                      child: IconButton(
-                        onPressed: () {
-                          // Go back to previous screen, or to title if no back stack
-                          if (Navigator.of(context).canPop()) {
-                            NavigationHelper.safePop(context);
-                          } else {
-                            // Navigate to title screen if no back stack
-                            NavigationHelper.safeNavigate(context, '/title');
-                          }
-                        },
-                        icon: Icon(Icons.arrow_back, color: colors.onDarkText),
-                        tooltip:
-                            AppLocalizations.of(context)?.backButton ?? 'Back',
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Settings',
-                      style: AppTypography.headlineLarge.copyWith(
-                        color: colors.onDarkText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Spacer to push content to lower portion (logos are in upper portion)
-              SizedBox(
-                  height: ResponsiveHelper.responsiveHeight(context, 0.15)
-                      .clamp(80.0, 150.0)),
-
-              // Profile card
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: colors.cardBackground.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: AppShadows.light,
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: colors.primaryText,
-                        child: Text(
-                          authService.userEmail
-                                  ?.substring(0, 1)
-                                  .toUpperCase() ??
-                              'U',
-                          style: AppTypography.titleLarge.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colors.buttonText,
+          backgroundColor: colors.background,
+          body: UnifiedBackgroundWidget(
+            videoPath:
+                'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/setting screen.mp4',
+            fit: BoxFit.cover, // Fill screen, logos in upper portion
+            alignment: Alignment.topCenter, // Align to top where logos are
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Minimal top app bar (logos are in upper portion)
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Semantics(
+                          label: AppLocalizations.of(context)?.backButton ??
+                              'Back',
+                          button: true,
+                          child: IconButton(
+                            onPressed: () {
+                              // Go back to previous screen, or to title if no back stack
+                              if (Navigator.of(context).canPop()) {
+                                NavigationHelper.safePop(context);
+                              } else {
+                                // Navigate to title screen if no back stack
+                                NavigationHelper.safeNavigate(
+                                    context, '/title',);
+                              }
+                            },
+                            icon: Icon(Icons.arrow_back,
+                                color: colors.onDarkText,),
+                            tooltip: AppLocalizations.of(context)?.backButton ??
+                                'Back',
                           ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              authService.userEmail ?? 'Guest',
-                              style: AppTypography.labelLarge.copyWith(
-                                fontSize: 15,
-                                color: colors.primaryText,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              AppLocalizations.of(context)?.n3rdPlayer ??
-                                  'N3RD Player',
-                              style: AppTypography.bodyMedium.copyWith(
-                                fontSize: 13,
-                                color: colors.secondaryText,
-                              ),
-                            ),
-                          ],
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'Settings',
+                          style: AppTypography.headlineLarge.copyWith(
+                            color: colors.onDarkText,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
 
-              // Settings list
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
+                  // Spacer to push content to lower portion (logos are in upper portion)
+                  SizedBox(
+                      height: ResponsiveHelper.responsiveHeight(context, 0.15)
+                          .clamp(80.0, 150.0),),
+
+                  // Profile card
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.sm,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: colors.cardBackground.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: AppShadows.light,
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: colors.primaryText,
+                            child: Text(
+                              authService.userEmail
+                                      ?.substring(0, 1)
+                                      .toUpperCase() ??
+                                  'U',
+                              style: AppTypography.titleLarge.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colors.buttonText,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  authService.userEmail ?? 'Guest',
+                                  style: AppTypography.labelLarge.copyWith(
+                                    fontSize: 15,
+                                    color: colors.primaryText,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  AppLocalizations.of(context)?.n3rdPlayer ??
+                                      'N3RD Player',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontSize: 13,
+                                    color: colors.secondaryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  children: [
-                    // Profile Section
-                    Builder(
-                      builder: (context) {
-                        final localizations = AppLocalizations.of(context);
-                        return Column(
-                          children: [
-                            _buildSectionHeader(
-                              context,
-                              localizations?.account ?? 'Account',
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.person_outline,
-                              title:
-                                  localizations?.editProfile ?? 'Edit Profile',
-                              subtitle: localizations?.editProfileSubtitle ??
-                                  'Update display name and avatar',
-                              onTap: () =>
-                                  _showEditProfileDialog(context, authService),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.email_outlined,
-                              title: localizations?.emailSettings ??
-                                  'Email Settings',
-                              subtitle: localizations?.emailSettingsSubtitle ??
-                                  'Manage email notifications',
-                              onTap: () => _showEmailSettingsDialog(context),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
 
-                            // Premium Features Section
-                            _buildSectionHeader(
-                              context,
-                              localizations?.premiumFeatures ??
-                                  'Premium Features',
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.notifications_outlined,
-                              title: localizations?.notifications ??
-                                  'Notifications',
-                              subtitle: localizations?.notificationsSubtitle ??
-                                  'Push notifications and reminders',
-                              onTap: () => _showNotificationsSettings(context),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.emoji_events_outlined,
-                              title:
-                                  localizations?.achievements ?? 'Achievements',
-                              subtitle: localizations?.achievementsSubtitle ??
-                                  'View your achievements and badges',
-                              onTap: () {
-                                NavigationHelper.safeNavigate(
-                                  context,
-                                  '/achievements',
-                                );
-                              },
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.leaderboard_outlined,
-                              title:
-                                  localizations?.leaderboard ?? 'Leaderboard',
-                              subtitle: localizations?.leaderboardSubtitle ??
-                                  'View global rankings',
-                              onTap: () {
-                                NavigationHelper.safeNavigate(
-                                  context,
-                                  '/leaderboard',
-                                );
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-
-                            // Preferences Section
-                            _buildSectionHeader(
-                              context,
-                              localizations?.preferences ?? 'Preferences',
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.volume_up_outlined,
-                              title: localizations?.soundAndMusic ??
-                                  'Sound & Music',
-                              subtitle: localizations?.soundAndMusicSubtitle ??
-                                  'Adjust audio settings',
-                              onTap: () => _showAudioSettings(context),
-                            ),
-                            Consumer<SubscriptionService>(
-                              builder: (context, subscriptionService, _) {
-                                if (!subscriptionService.isPremium) {
-                                  return const SizedBox.shrink();
-                                }
-                                return _buildSettingTile(
-                                  context,
-                                  icon: Icons.mic_outlined,
-                                  title: localizations?.voiceSettings ??
-                                      'Voice Settings',
-                                  subtitle:
-                                      localizations?.voiceSettingsSubtitle ??
-                                          'Text-to-speech and voice input',
-                                  onTap: () => _showVoiceSettings(context),
-                                );
-                              },
-                            ),
-                            Consumer<SubscriptionService>(
-                              builder: (context, subscriptionService, _) {
-                                if (!subscriptionService.isPremium) {
-                                  return const SizedBox.shrink();
-                                }
-                                return _buildSettingTile(
-                                  context,
-                                  icon: Icons.record_voice_over_outlined,
-                                  title: localizations?.voiceCalibration ??
-                                      'Voice Calibration',
-                                  subtitle:
-                                      localizations?.voiceCalibrationSubtitle ??
-                                          'Train voice recognition',
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/voice-calibration'),
-                                );
-                              },
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.dark_mode_outlined,
-                              title: localizations?.appearance ?? 'Appearance',
-                              subtitle: localizations?.appearanceSubtitle ??
-                                  'Theme and display settings',
-                              onTap: () => _showAppearanceSettings(context),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.language_outlined,
-                              title: localizations?.language ?? 'Language',
-                              subtitle: localizations?.languageSubtitle ??
-                                  'Change app language',
-                              onTap: () => _showLanguageSettings(context),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.tune_outlined,
-                              title: localizations?.gameSettingsTitle ??
-                                  'Game Settings',
-                              subtitle: localizations?.gameSettingsSubtitle ??
-                                  'Customize gameplay experience',
-                              onTap: () => _showGameSettings(context),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-
-                            // Data & Privacy Section
-                            _buildSectionHeader(
-                              context,
-                              localizations?.dataAndPrivacy ?? 'Data & Privacy',
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.privacy_tip_outlined,
-                              title: localizations?.privacyPolicy ??
-                                  'Privacy Policy',
-                              subtitle: localizations?.privacyPolicySubtitle ??
-                                  'Read our privacy policy',
-                              onTap: () => _showPrivacyPolicy(context),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.description_outlined,
-                              title: localizations?.termsOfService ??
-                                  'Terms of Service',
-                              subtitle: localizations?.termsOfServiceSubtitle ??
-                                  'Read our terms of service',
-                              onTap: () => _showTermsOfService(context),
-                            ),
-                            _buildSettingTile(
-                              context,
-                              icon: Icons.download_outlined,
-                              title: localizations?.exportData ?? 'Export Data',
-                              subtitle: localizations?.exportDataSubtitle ??
-                                  'Download your data',
-                              onTap: () => _exportUserData(context),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.delete_outline,
-                      title: AppLocalizations.of(context)?.deleteAccount ??
-                          'Delete Account',
-                      subtitle:
-                          AppLocalizations.of(context)?.deleteAccountSubtitle ??
-                              'Permanently delete your account',
-                      isDestructive: true,
-                      onTap: () =>
-                          _showDeleteAccountDialog(context, authService),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-
-                    // Support & Help Section
-                    _buildSectionHeader(context, 'Support & Help'),
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.help_outline,
-                      title: 'Help Center',
-                      subtitle: 'FAQs, tips, and guides',
-                      onTap: () => NavigationHelper.safeNavigate(
-                        context,
-                        '/help-center',
+                  // Settings list
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
                       ),
-                    ),
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.feedback_outlined,
-                      title: 'Submit Feedback',
-                      subtitle: 'Report issues or suggest improvements',
-                      onTap: () => showDialog(
-                        context: context,
-                        builder: (context) => const FeedbackScreen(),
-                      ),
-                    ),
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.dashboard_outlined,
-                      title: 'Support Dashboard',
-                      subtitle: 'View support analytics (Admin)',
-                      onTap: () => NavigationHelper.safeNavigate(
-                          context, '/support-dashboard'),
-                    ),
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.info_outline,
-                      title: 'About',
-                      onTap: () {
-                        showDialog(
-                          context: context,
+                      children: [
+                        // Profile Section
+                        Builder(
                           builder: (context) {
-                            final dialogColors = AppColors.of(context);
-                            return AlertDialog(
-                              backgroundColor: dialogColors.cardBackground,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              title: Text(
-                                'N3RD Trivia',
-                                style: AppTypography.headlineLarge.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colors.primaryText,
+                            final localizations = AppLocalizations.of(context);
+                            return Column(
+                              children: [
+                                _buildSectionHeader(
+                                  context,
+                                  localizations?.account ?? 'Account',
                                 ),
-                              ),
-                              content: Text(
-                                'Version 1.0.0\n\nA memory-based trivia game that challenges your brain!\n\nCreated by Gerard',
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: colors.secondaryText,
-                                  height: 1.5,
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.person_outline,
+                                  title: localizations?.editProfile ??
+                                      'Edit Profile',
+                                  subtitle:
+                                      localizations?.editProfileSubtitle ??
+                                          'Update display name and avatar',
+                                  onTap: () => _showEditProfileDialog(
+                                      context, authService,),
                                 ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    if (context.mounted) {
-                                      Navigator.pop(context);
-                                    }
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.email_outlined,
+                                  title: localizations?.emailSettings ??
+                                      'Email Settings',
+                                  subtitle:
+                                      localizations?.emailSettingsSubtitle ??
+                                          'Manage email notifications',
+                                  onTap: () =>
+                                      _showEmailSettingsDialog(context),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+
+                                // Premium Features Section
+                                _buildSectionHeader(
+                                  context,
+                                  localizations?.premiumFeatures ??
+                                      'Premium Features',
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.notifications_outlined,
+                                  title: localizations?.notifications ??
+                                      'Notifications',
+                                  subtitle:
+                                      localizations?.notificationsSubtitle ??
+                                          'Push notifications and reminders',
+                                  onTap: () =>
+                                      _showNotificationsSettings(context),
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.emoji_events_outlined,
+                                  title: localizations?.achievements ??
+                                      'Achievements',
+                                  subtitle:
+                                      localizations?.achievementsSubtitle ??
+                                          'View your achievements and badges',
+                                  onTap: () {
+                                    NavigationHelper.safeNavigate(
+                                      context,
+                                      '/achievements',
+                                    );
                                   },
-                                  child: Text(
-                                    'Close',
-                                    style: AppTypography.labelLarge.copyWith(
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.leaderboard_outlined,
+                                  title: localizations?.leaderboard ??
+                                      'Leaderboard',
+                                  subtitle:
+                                      localizations?.leaderboardSubtitle ??
+                                          'View global rankings',
+                                  onTap: () {
+                                    NavigationHelper.safeNavigate(
+                                      context,
+                                      '/leaderboard',
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+
+                                // Preferences Section
+                                _buildSectionHeader(
+                                  context,
+                                  localizations?.preferences ?? 'Preferences',
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.volume_up_outlined,
+                                  title: localizations?.soundAndMusic ??
+                                      'Sound & Music',
+                                  subtitle:
+                                      localizations?.soundAndMusicSubtitle ??
+                                          'Adjust audio settings',
+                                  onTap: () => _showAudioSettings(context),
+                                ),
+                                Consumer<SubscriptionService>(
+                                  builder: (context, subscriptionService, _) {
+                                    if (!subscriptionService.isPremium) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return _buildSettingTile(
+                                      context,
+                                      icon: Icons.mic_outlined,
+                                      title: localizations?.voiceSettings ??
+                                          'Voice Settings',
+                                      subtitle: localizations
+                                              ?.voiceSettingsSubtitle ??
+                                          'Text-to-speech and voice input',
+                                      onTap: () => _showVoiceSettings(context),
+                                    );
+                                  },
+                                ),
+                                Consumer<SubscriptionService>(
+                                  builder: (context, subscriptionService, _) {
+                                    if (!subscriptionService.isPremium) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return _buildSettingTile(
+                                      context,
+                                      icon: Icons.record_voice_over_outlined,
+                                      title: localizations?.voiceCalibration ??
+                                          'Voice Calibration',
+                                      subtitle: localizations
+                                              ?.voiceCalibrationSubtitle ??
+                                          'Train voice recognition',
+                                      onTap: () => Navigator.of(
+                                        context,
+                                      ).pushNamed('/voice-calibration'),
+                                    );
+                                  },
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.dark_mode_outlined,
+                                  title:
+                                      localizations?.appearance ?? 'Appearance',
+                                  subtitle: localizations?.appearanceSubtitle ??
+                                      'Theme and display settings',
+                                  onTap: () => _showAppearanceSettings(context),
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.language_outlined,
+                                  title: localizations?.language ?? 'Language',
+                                  subtitle: localizations?.languageSubtitle ??
+                                      'Change app language',
+                                  onTap: () => _showLanguageSettings(context),
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.tune_outlined,
+                                  title: localizations?.gameSettingsTitle ??
+                                      'Game Settings',
+                                  subtitle:
+                                      localizations?.gameSettingsSubtitle ??
+                                          'Customize gameplay experience',
+                                  onTap: () => _showGameSettings(context),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+
+                                // Data & Privacy Section
+                                _buildSectionHeader(
+                                  context,
+                                  localizations?.dataAndPrivacy ??
+                                      'Data & Privacy',
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.privacy_tip_outlined,
+                                  title: localizations?.privacyPolicy ??
+                                      'Privacy Policy',
+                                  subtitle:
+                                      localizations?.privacyPolicySubtitle ??
+                                          'Read our privacy policy',
+                                  onTap: () => _showPrivacyPolicy(context),
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.description_outlined,
+                                  title: localizations?.termsOfService ??
+                                      'Terms of Service',
+                                  subtitle:
+                                      localizations?.termsOfServiceSubtitle ??
+                                          'Read our terms of service',
+                                  onTap: () => _showTermsOfService(context),
+                                ),
+                                _buildSettingTile(
+                                  context,
+                                  icon: Icons.download_outlined,
+                                  title: localizations?.exportData ??
+                                      'Export Data',
+                                  subtitle: localizations?.exportDataSubtitle ??
+                                      'Download your data',
+                                  onTap: () => _exportUserData(context),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.delete_outline,
+                          title: AppLocalizations.of(context)?.deleteAccount ??
+                              'Delete Account',
+                          subtitle: AppLocalizations.of(context)
+                                  ?.deleteAccountSubtitle ??
+                              'Permanently delete your account',
+                          isDestructive: true,
+                          onTap: () =>
+                              _showDeleteAccountDialog(context, authService),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+
+                        // Support & Help Section
+                        _buildSectionHeader(context, 'Support & Help'),
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.help_outline,
+                          title: 'Help Center',
+                          subtitle: 'FAQs, tips, and guides',
+                          onTap: () => NavigationHelper.safeNavigate(
+                            context,
+                            '/help-center',
+                          ),
+                        ),
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.feedback_outlined,
+                          title: 'Submit Feedback',
+                          subtitle: 'Report issues or suggest improvements',
+                          onTap: () => showDialog(
+                            context: context,
+                            builder: (context) => const FeedbackScreen(),
+                          ),
+                        ),
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.dashboard_outlined,
+                          title: 'Support Dashboard',
+                          subtitle: 'View support analytics (Admin)',
+                          onTap: () => NavigationHelper.safeNavigate(
+                              context, '/support-dashboard',),
+                        ),
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.info_outline,
+                          title: 'About',
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                final dialogColors = AppColors.of(context);
+                                return AlertDialog(
+                                  backgroundColor: dialogColors.cardBackground,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  title: Text(
+                                    'N3RD Trivia',
+                                    style: AppTypography.headlineLarge.copyWith(
+                                      fontWeight: FontWeight.bold,
                                       color: colors.primaryText,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  content: Text(
+                                    'Version 1.0.0\n\nA memory-based trivia game that challenges your brain!\n\nCreated by Gerard',
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: colors.secondaryText,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                        }
+                                      },
+                                      child: Text(
+                                        'Close',
+                                        style:
+                                            AppTypography.labelLarge.copyWith(
+                                          color: colors.primaryText,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
 
-                    // DEBUG: Subscription Tier Tester (only in debug mode)
-                    if (kDebugMode) ...[
-                      _buildSectionHeader(context, '🧪 Debug (Testing Only)'),
-                      Consumer<SubscriptionService>(
-                        builder: (context, subscriptionService, _) {
-                          return _buildDebugSubscriptionTile(
-                            context,
-                            subscriptionService,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
+                        // DEBUG: Subscription Tier Tester (only in debug mode)
+                        if (kDebugMode) ...[
+                          _buildSectionHeader(
+                              context, '🧪 Debug (Testing Only)',),
+                          Consumer<SubscriptionService>(
+                            builder: (context, subscriptionService, _) {
+                              return _buildDebugSubscriptionTile(
+                                context,
+                                subscriptionService,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
 
-                    _buildSettingTile(
-                      context,
-                      icon: Icons.logout,
-                      title: 'Sign Out',
-                      isDestructive: true,
-                      onTap: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) {
-                            final dialogColors = AppColors.of(context);
-                            return AlertDialog(
-                              backgroundColor: dialogColors.cardBackground,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              title: Text(
-                                'Sign Out?',
-                                style: AppTypography.headlineLarge.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colors.primaryText,
-                                ),
-                              ),
-                              content: Text(
-                                'Are you sure you want to sign out?',
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: colors.secondaryText,
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      NavigationHelper.safePop(context, false),
-                                  child: Text(
-                                    'Cancel',
-                                    style: AppTypography.labelLarge.copyWith(
+                        _buildSettingTile(
+                          context,
+                          icon: Icons.logout,
+                          title: 'Sign Out',
+                          isDestructive: true,
+                          onTap: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) {
+                                final dialogColors = AppColors.of(context);
+                                return AlertDialog(
+                                  backgroundColor: dialogColors.cardBackground,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  title: Text(
+                                    'Sign Out?',
+                                    style: AppTypography.headlineLarge.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: colors.primaryText,
+                                    ),
+                                  ),
+                                  content: Text(
+                                    'Are you sure you want to sign out?',
+                                    style: AppTypography.bodyMedium.copyWith(
                                       color: colors.secondaryText,
                                     ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () =>
-                                      NavigationHelper.safePop(context, true),
-                                  child: Text(
-                                    'Sign Out',
-                                    style: AppTypography.labelLarge.copyWith(
-                                      color: AppColors.error,
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => NavigationHelper.safePop(
+                                          context, false,),
+                                      child: Text(
+                                        'Cancel',
+                                        style:
+                                            AppTypography.labelLarge.copyWith(
+                                          color: colors.secondaryText,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                    TextButton(
+                                      onPressed: () => NavigationHelper.safePop(
+                                          context, true,),
+                                      child: Text(
+                                        'Sign Out',
+                                        style:
+                                            AppTypography.labelLarge.copyWith(
+                                          color: AppColors.error,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
-                          },
-                        );
 
-                        if (confirm == true) {
-                          await authService.signOut();
-                          if (context.mounted) {
-                            NavigationHelper.safeNavigateAndRemoveUntil(
-                              context,
-                              '/login',
-                              (route) => false,
-                            );
-                          }
-                        }
-                      },
+                            if (confirm == true) {
+                              await authService.signOut();
+                              if (context.mounted) {
+                                NavigationHelper.safeNavigateAndRemoveUntil(
+                                  context,
+                                  '/login',
+                                  (route) => false,
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
         );
       },
     );
@@ -810,7 +831,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     SwitchListTile(
                       title: Text('Daily Reminders',
-                          style: AppTypography.labelLarge),
+                          style: AppTypography.labelLarge,),
                       subtitle: Text(
                         'Remind me to play daily',
                         style: AppTypography.labelSmall,
@@ -912,7 +933,7 @@ class SettingsScreen extends StatelessWidget {
                   ],
                   SwitchListTile(
                     title: Text('Background Music',
-                        style: AppTypography.labelLarge),
+                        style: AppTypography.labelLarge,),
                     subtitle: Text(
                       'Enable background music during gameplay',
                       style: AppTypography.labelSmall,

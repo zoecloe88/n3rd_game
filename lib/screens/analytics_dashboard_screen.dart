@@ -55,13 +55,13 @@ class AnalyticsDashboardScreen extends StatelessWidget {
                     builder: (context, analyticsService, _) {
                       final weeklyTrends = analyticsService.getWeeklyTrends();
                       final monthlyTrends = analyticsService.getMonthlyTrends();
-                      final categoryBreakdown = analyticsService
-                          .getCategoryBreakdown();
-                      final timeOfDayData = analyticsService
-                          .getTimeOfDayPerformance();
+                      final categoryBreakdown =
+                          analyticsService.getCategoryBreakdown();
+                      final timeOfDayData =
+                          analyticsService.getTimeOfDayPerformance();
                       final personalBests = analyticsService.getPersonalBests();
-                      final improvements = analyticsService
-                          .getImprovementTracking();
+                      final improvements =
+                          analyticsService.getImprovementTracking();
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -382,31 +382,30 @@ class AnalyticsDashboardScreen extends StatelessWidget {
                     .asMap()
                     .entries
                     .map((entry) {
-                      final index = entry.key;
-                      final cat = entry.value as CategoryPerformance;
-                      final colors = [
-                        const Color(0xFF00D9FF),
-                        const Color(0xFF00FF88),
-                        const Color(0xFFFF00FF),
-                        const Color(0xFFFFD700),
-                        const Color(0xFFFF6B6B),
-                        const Color(0xFF4ECDC4),
-                        const Color(0xFFFFA07A),
-                        const Color(0xFF9370DB),
-                      ];
-                      return PieChartSectionData(
-                        value: cat.accuracy,
-                        title: '${cat.accuracy.toStringAsFixed(0)}%',
-                        color: colors[index % colors.length],
-                        radius: 80,
-                        titleStyle: AppTypography.bodyMedium.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      );
-                    })
-                    .toList(),
+                  final index = entry.key;
+                  final cat = entry.value as CategoryPerformance;
+                  final colors = [
+                    const Color(0xFF00D9FF),
+                    const Color(0xFF00FF88),
+                    const Color(0xFFFF00FF),
+                    const Color(0xFFFFD700),
+                    const Color(0xFFFF6B6B),
+                    const Color(0xFF4ECDC4),
+                    const Color(0xFFFFA07A),
+                    const Color(0xFF9370DB),
+                  ];
+                  return PieChartSectionData(
+                    value: cat.accuracy,
+                    title: '${cat.accuracy.toStringAsFixed(0)}%',
+                    color: colors[index % colors.length],
+                    radius: 80,
+                    titleStyle: AppTypography.bodyMedium.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                }).toList(),
                 sectionsSpace: 2,
                 centerSpaceRadius: 60,
               ),

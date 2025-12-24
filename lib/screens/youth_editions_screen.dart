@@ -78,45 +78,43 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                 children: [
                   Text(
                     'YOUTH',
-                    style:
-                        AppTypography.orbitron(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ).copyWith(
-                          letterSpacing: 6,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0xFF70F3FF),
-                              offset: Offset(-2, 0),
-                            ),
-                            Shadow(
-                              color: Color(0xFFB000E8),
-                              offset: Offset(2, 0),
-                            ),
-                          ],
+                    style: AppTypography.orbitron(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ).copyWith(
+                      letterSpacing: 6,
+                      shadows: const [
+                        Shadow(
+                          color: Color(0xFF70F3FF),
+                          offset: Offset(-2, 0),
                         ),
+                        Shadow(
+                          color: Color(0xFFB000E8),
+                          offset: Offset(2, 0),
+                        ),
+                      ],
+                    ),
                   ),
                   Text(
                     'EDITIONS',
-                    style:
-                        AppTypography.ibmPlexMono(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ).copyWith(
-                          letterSpacing: 4,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0xFF70F3FF),
-                              offset: Offset(-2, 0),
-                            ),
-                            Shadow(
-                              color: Color(0xFFB000E8),
-                              offset: Offset(2, 0),
-                            ),
-                          ],
+                    style: AppTypography.ibmPlexMono(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ).copyWith(
+                      letterSpacing: 4,
+                      shadows: const [
+                        Shadow(
+                          color: Color(0xFF70F3FF),
+                          offset: Offset(-2, 0),
                         ),
+                        Shadow(
+                          color: Color(0xFFB000E8),
+                          offset: Offset(2, 0),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

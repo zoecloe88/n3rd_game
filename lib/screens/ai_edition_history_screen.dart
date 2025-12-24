@@ -312,7 +312,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
 
                                 return Container(
                                   margin: const EdgeInsets.only(
-                                      bottom: AppSpacing.md),
+                                      bottom: AppSpacing.md,),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.1),
                                     borderRadius:
@@ -332,7 +332,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
                                         gradient: const LinearGradient(
                                           colors: [
                                             Color(0xFF6366F1),
-                                            Color(0xFF8B5CF6)
+                                            Color(0xFF8B5CF6),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(

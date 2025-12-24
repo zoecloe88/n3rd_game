@@ -126,12 +126,10 @@ class TriviaValidator {
 
     // Check for semantic similarity between correct answers and distractors
     // If all words are too similar, the question may be too easy or confusing
-    final allWordsLower = item.words
-        .map((w) => w.toLowerCase().trim())
-        .toList();
-    final correctAnswersLower = item.correctAnswers
-        .map((w) => w.toLowerCase().trim())
-        .toList();
+    final allWordsLower =
+        item.words.map((w) => w.toLowerCase().trim()).toList();
+    final correctAnswersLower =
+        item.correctAnswers.map((w) => w.toLowerCase().trim()).toList();
 
     // Check if correct answers are too similar to each other
     for (int i = 0; i < correctAnswersLower.length; i++) {
@@ -149,9 +147,8 @@ class TriviaValidator {
     }
 
     // Check if distractors are too similar to correct answers
-    final distractors = allWordsLower
-        .where((w) => !correctAnswersLower.contains(w))
-        .toList();
+    final distractors =
+        allWordsLower.where((w) => !correctAnswersLower.contains(w)).toList();
     for (final distractor in distractors) {
       for (final correct in correctAnswersLower) {
         final similarity = _calculateSimilarity(distractor, correct);
@@ -209,7 +206,7 @@ class TriviaValidator {
       'averageCategoryLength': items.isEmpty
           ? 0.0
           : items.map((i) => i.category.length).reduce((a, b) => a + b) /
-                items.length,
+              items.length,
       'timestamp': now.toIso8601String(),
     };
   }

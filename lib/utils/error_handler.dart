@@ -82,8 +82,7 @@ class ErrorHandler {
     if (!context.mounted) return;
 
     // Detect network errors automatically
-    final detectedOffline =
-        !isOffline &&
+    final detectedOffline = !isOffline &&
         (message.toLowerCase().contains('network') ||
             message.toLowerCase().contains('offline') ||
             message.toLowerCase().contains('connection') ||
@@ -109,9 +108,8 @@ class ErrorHandler {
           ],
         ),
         duration: duration,
-        backgroundColor: finalIsOffline
-            ? Colors.orange
-            : (backgroundColor ?? Colors.red),
+        backgroundColor:
+            finalIsOffline ? Colors.orange : (backgroundColor ?? Colors.red),
         action: SnackBarAction(
           label: 'Dismiss',
           textColor: Colors.white,

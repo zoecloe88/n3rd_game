@@ -159,7 +159,8 @@ class _InitialLoadingScreenWrapperState
                         height: 12,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       ),
                     if (!_fontsLoaded && _fontLoadError == null)

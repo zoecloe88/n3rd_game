@@ -131,8 +131,7 @@ class AISupportService {
         final hasTokens = userData?['hasTokens'] ?? true;
 
         return AISupportResponse(
-          message:
-              'Here\'s how to improve your gameplay:\n\n'
+          message: 'Here\'s how to improve your gameplay:\n\n'
               '**Scoring System:**\n'
               '• Each correct answer = 10 points\n'
               '• Perfect round (3/3) = +10 bonus points\n'
@@ -182,8 +181,7 @@ class AISupportService {
         final subscriptionStatus = userData?['subscriptionStatus'] ?? 'none';
 
         return AISupportResponse(
-          message:
-              'Here\'s information about subscriptions:\n\n'
+          message: 'Here\'s information about subscriptions:\n\n'
               '**Subscription Tiers:**\n'
               '• **Free:** 5 games/day, Classic mode only\n'
               '• **Basic (\$2.99/month):** All modes (except AI), unlimited play, no ads\n'
@@ -206,8 +204,7 @@ class AISupportService {
 
       case 'feature_inquiry':
         return AISupportResponse(
-          message:
-              'Here are some key features you might be interested in:\n\n'
+          message: 'Here are some key features you might be interested in:\n\n'
               '**Game Features:**\n'
               '• Multiple game modes (Classic, Speed, Shuffle, Challenge, etc.)\n'
               '• Power-ups and streak rewards\n'
@@ -238,8 +235,7 @@ class AISupportService {
 
       case 'performance':
         return AISupportResponse(
-          message:
-              'To improve app performance:\n\n'
+          message: 'To improve app performance:\n\n'
               '**Device Optimization:**\n'
               '• Close other apps to free memory\n'
               '• Restart device regularly\n'
@@ -261,8 +257,7 @@ class AISupportService {
 
       default:
         return AISupportResponse(
-          message:
-              'I\'m here to help! I can assist with:\n\n'
+          message: 'I\'m here to help! I can assist with:\n\n'
               '• Gameplay questions and strategies\n'
               '• Technical issues and troubleshooting\n'
               '• Subscription and billing questions\n'
@@ -351,9 +346,9 @@ class AISupportService {
         'intentsCount': intentsCount,
         'avgConfidence': aiLogsSnapshot.docs.isNotEmpty
             ? aiLogsSnapshot.docs
-                      .map((d) => d.data()['confidence'] ?? 0.0)
-                      .reduce((a, b) => a + b) /
-                  aiLogsSnapshot.docs.length
+                    .map((d) => d.data()['confidence'] ?? 0.0)
+                    .reduce((a, b) => a + b) /
+                aiLogsSnapshot.docs.length
             : 0.0,
       };
     } catch (e) {

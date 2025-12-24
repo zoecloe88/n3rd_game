@@ -105,7 +105,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
               );
               NavigationHelper.safePop(dialogContext);
               NavigationHelper.safePop(context); // Go back
-              NavigationHelper.safeNavigate(context, '/subscription-management');
+              NavigationHelper.safeNavigate(
+                  context, '/subscription-management',);
             },
             child: const Text('Upgrade to Premium'),
           ),
@@ -732,159 +733,151 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
           // Game content
           SafeArea(
-            child:
-                Consumer4<
-                  MultiplayerService,
-                  GameService,
-                  ChatService,
-                  NetworkService
-                >(
-                  builder:
-                      (
-                        context,
-                        multiplayerService,
-                        gameService,
-                        chatService,
-                        networkService,
-                        _,
-                      ) {
-                        final room = multiplayerService.currentRoom;
-                        if (room == null) {
-                          return const Center(
-                            child: Text(
-                              'Room not found',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          );
-                        }
+            child: Consumer4<MultiplayerService, GameService, ChatService,
+                NetworkService>(
+              builder: (
+                context,
+                multiplayerService,
+                gameService,
+                chatService,
+                networkService,
+                _,
+              ) {
+                final room = multiplayerService.currentRoom;
+                if (room == null) {
+                  return const Center(
+                    child: Text(
+                      'Room not found',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  );
+                }
 
-                        if (room.status == RoomStatus.finished) {
-                          return _buildGameFinishedScreen(
-                            room,
-                            multiplayerService,
-                          );
-                        }
+                if (room.status == RoomStatus.finished) {
+                  return _buildGameFinishedScreen(
+                    room,
+                    multiplayerService,
+                  );
+                }
 
-                        // Check if it's this player's turn (battle royale)
-                        if (room.mode == MultiplayerMode.battleRoyale) {
-                          if (room.currentPlayerId !=
-                              multiplayerService.currentUserId) {
-                            return _buildWaitingScreen(
-                              room,
-                              multiplayerService,
-                            );
-                          }
-                        }
+                // Check if it's this player's turn (battle royale)
+                if (room.mode == MultiplayerMode.battleRoyale) {
+                  if (room.currentPlayerId !=
+                      multiplayerService.currentUserId) {
+                    return _buildWaitingScreen(
+                      room,
+                      multiplayerService,
+                    );
+                  }
+                }
 
-                        // Show game if it's player's turn or squad showdown
-                        return Stack(
-                          children: [
-                            // Main game
-                            Column(
-                              children: [
-                                _buildGameHeader(room, multiplayerService),
-                                Expanded(
-                                  child:
-                                      gameService.currentTrivia == null ||
-                                          gameService.shuffledWords.isEmpty
-                                      ? const Center(
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : _buildGameContent(gameService, room),
-                                ),
-                              ],
-                            ),
-
-                            // Chat overlay
-                            if (_showChat) _buildChatOverlay(chatService),
-
-                            // Network status indicator
-                            if (!networkService.isConnected)
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(AppSpacing.sm),
-                                  color: Colors.red,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.wifi_off,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      Text(
-                                        'No Internet Connection',
-                                        style: AppTypography.labelSmall
-                                            .copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                            // Ping button for Squad Showdown
-                            if (room.mode == MultiplayerMode.squadShowdown)
-                              Positioned(
-                                bottom: AppSpacing.md,
-                                right: AppSpacing.md,
-                                child: FloatingActionButton(
-                                  onPressed: () async {
-                                    final messenger = ScaffoldMessenger.of(
-                                      context,
-                                    );
-                                    // Get analytics service before async operation
-                                    final analyticsService =
-                                        Provider.of<AnalyticsService>(
-                                          context,
-                                          listen: false,
-                                        );
-                                    try {
-                                      await multiplayerService.sendPing();
-                                      // Log analytics (fire-and-forget)
-                                      unawaited(analyticsService.logPingSent());
-                                      if (!mounted) return;
-                                      messenger.showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Ping sent!'),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      if (!mounted) return;
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Error sending ping: ${e.toString().replaceAll('Exception: ', '')}',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  backgroundColor: AppColors.of(
-                                    context,
-                                  ).primaryButton,
-                                  tooltip: 'Send Ping',
-                                  child: const Icon(
-                                    Icons.location_on,
+                // Show game if it's player's turn or squad showdown
+                return Stack(
+                  children: [
+                    // Main game
+                    Column(
+                      children: [
+                        _buildGameHeader(room, multiplayerService),
+                        Expanded(
+                          child: gameService.currentTrivia == null ||
+                                  gameService.shuffledWords.isEmpty
+                              ? const Center(
+                                  child: CircularProgressIndicator(
                                     color: Colors.white,
                                   ),
+                                )
+                              : _buildGameContent(gameService, room),
+                        ),
+                      ],
+                    ),
+
+                    // Chat overlay
+                    if (_showChat) _buildChatOverlay(chatService),
+
+                    // Network status indicator
+                    if (!networkService.isConnected)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          color: Colors.red,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.wifi_off,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(
+                                'No Internet Connection',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                          ],
-                        );
-                      },
-                ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Ping button for Squad Showdown
+                    if (room.mode == MultiplayerMode.squadShowdown)
+                      Positioned(
+                        bottom: AppSpacing.md,
+                        right: AppSpacing.md,
+                        child: FloatingActionButton(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(
+                              context,
+                            );
+                            // Get analytics service before async operation
+                            final analyticsService =
+                                Provider.of<AnalyticsService>(
+                              context,
+                              listen: false,
+                            );
+                            try {
+                              await multiplayerService.sendPing();
+                              // Log analytics (fire-and-forget)
+                              unawaited(analyticsService.logPingSent());
+                              if (!mounted) return;
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Ping sent!'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error sending ping: ${e.toString().replaceAll('Exception: ', '')}',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          backgroundColor: AppColors.of(
+                            context,
+                          ).primaryButton,
+                          tooltip: 'Send Ping',
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -1234,8 +1227,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
                   ),
                   const Spacer(),
                   Semantics(
-                    label:
-                        AppLocalizations.of(context)?.closeButton ??
+                    label: AppLocalizations.of(context)?.closeButton ??
                         'Close Chat',
                     button: true,
                     child: IconButton(
@@ -1339,8 +1331,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Semantics(
-                    label:
-                        AppLocalizations.of(context)?.sendMessage ??
+                    label: AppLocalizations.of(context)?.sendMessage ??
                         'Send Message',
                     button: true,
                     enabled: _chatController.text.trim().isNotEmpty,

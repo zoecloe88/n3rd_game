@@ -54,8 +54,8 @@ class NotificationService extends ChangeNotifier {
         );
 
         // CRITICAL: Store message opened subscription for proper cleanup
-        _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp
-            .listen(_handleMessageTap);
+        _messageOpenedSubscription =
+            FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
 
         // Check if app was opened from notification
         final initialMessage = await _messaging!.getInitialMessage();
@@ -81,10 +81,13 @@ class NotificationService extends ChangeNotifier {
       if (user == null) return;
 
       final firestore = FirebaseFirestore.instance;
-      await firestore.collection('user_tokens').doc(user.uid).set({
-        'fcmToken': token,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true),);
+      await firestore.collection('user_tokens').doc(user.uid).set(
+        {
+          'fcmToken': token,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     } catch (e) {
       debugPrint('Error saving FCM token: $e');
     }
@@ -119,10 +122,8 @@ class NotificationService extends ChangeNotifier {
   }) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      final tokenDoc = await firestore
-          .collection('user_tokens')
-          .doc(userId)
-          .get();
+      final tokenDoc =
+          await firestore.collection('user_tokens').doc(userId).get();
 
       if (!tokenDoc.exists) {
         debugPrint('User token not found for $userId');

@@ -142,7 +142,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       );
     }
 
-
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -179,11 +178,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       height: MediaQuery.of(context).size.height * 0.6,
                       child: EmptyStateWidget(
                         icon: Icons.message_outlined,
-                        title:
-                            AppLocalizations.of(context)?.noChatMessages ??
+                        title: AppLocalizations.of(context)?.noChatMessages ??
                             'No messages yet',
-                        description:
-                            AppLocalizations.of(context)?.noChatMessagesDescription ??
+                        description: AppLocalizations.of(context)
+                                ?.noChatMessagesDescription ??
                             'Start a conversation!',
                       ),
                     ),
@@ -207,7 +205,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       currentUserId,
                     );
                     final otherDisplayName =
-                        conversation.getOtherDisplayName(currentUserId) ?? 'User';
+                        conversation.getOtherDisplayName(currentUserId) ??
+                            'User';
 
                     return _buildConversationItem(
                       context,
@@ -247,7 +246,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             arguments: otherUserId,
           );
         },
-        onLongPress: () => _showConversationOptions(context, conversation, messageService),
+        onLongPress: () =>
+            _showConversationOptions(context, conversation, messageService),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),

@@ -379,15 +379,15 @@ class _LearningModeScreenState extends State<LearningModeScreen>
                   color: isCorrect
                       ? Colors.green.withValues(alpha: 0.3)
                       : wasSelected
-                      ? Colors.red.withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.1),
+                          ? Colors.red.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isCorrect
                         ? Colors.green
                         : wasSelected
-                        ? Colors.red
-                        : Colors.white.withValues(alpha: 0.2),
+                            ? Colors.red
+                            : Colors.white.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),

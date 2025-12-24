@@ -14,13 +14,13 @@ class ChallengeService extends ChangeNotifier {
 
   List<DailyChallenge> get challenges => _challenges;
   List<DailyChallenge> get todayChallenges => _challenges.where((c) {
-    // Use UTC for consistency with leaderboard service
-    final today = DateTime.now().toUtc();
-    final challengeDate = c.date.toUtc();
-    return challengeDate.year == today.year &&
-        challengeDate.month == today.month &&
-        challengeDate.day == today.day;
-  }).toList();
+        // Use UTC for consistency with leaderboard service
+        final today = DateTime.now().toUtc();
+        final challengeDate = c.date.toUtc();
+        return challengeDate.year == today.year &&
+            challengeDate.month == today.month &&
+            challengeDate.day == today.day;
+      }).toList();
 
   FirebaseFirestore? get _firestore {
     if (!_firebaseAvailable) return null;
@@ -49,15 +49,12 @@ class ChallengeService extends ChangeNotifier {
       final userId = _userId;
       if (userId != null) {
         try {
-          final doc = await _firestore!
-              .collection('user_challenges')
-              .doc(userId)
-              .get();
+          final doc =
+              await _firestore!.collection('user_challenges').doc(userId).get();
           if (doc.exists && doc.data() != null) {
             final data = doc.data();
             if (data == null) return;
-            _challenges =
-                (data['challenges'] as List?)
+            _challenges = (data['challenges'] as List?)
                     ?.map(
                       (c) => DailyChallenge.fromJson(c as Map<String, dynamic>),
                     )
@@ -86,8 +83,7 @@ class ChallengeService extends ChangeNotifier {
       final jsonString = prefs.getString(_storageKey);
       if (jsonString != null) {
         final data = jsonDecode(jsonString) as Map<String, dynamic>;
-        _challenges =
-            (data['challenges'] as List?)
+        _challenges = (data['challenges'] as List?)
                 ?.map((c) => DailyChallenge.fromJson(c as Map<String, dynamic>))
                 .toList() ??
             [];
@@ -114,10 +110,15 @@ class ChallengeService extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      await _firestore!.collection('user_challenges').doc(userId).set({
-        'challenges': _challenges.map((c) => c.toJson()).toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true,),);
+      await _firestore!.collection('user_challenges').doc(userId).set(
+        {
+          'challenges': _challenges.map((c) => c.toJson()).toList(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Failed to save challenges to Firestore: $e');
     }
@@ -284,8 +285,7 @@ class ChallengeService extends ChangeNotifier {
     if (index != -1) {
       final challenge = _challenges[index];
       final newProgress = challenge.progress + progress;
-      final targetValue =
-          challenge.target['count'] ??
+      final targetValue = challenge.target['count'] ??
           challenge.target['streak'] ??
           challenge.target['score'] ??
           1;

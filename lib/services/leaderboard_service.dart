@@ -135,9 +135,8 @@ class LeaderboardService {
           .asMap()
           .entries
           .map((entry) {
-            return LeaderboardEntry.fromFirestore(entry.value, entry.key + 1);
-          })
-          .toList();
+        return LeaderboardEntry.fromFirestore(entry.value, entry.key + 1);
+      }).toList();
 
       final hasMore = snapshot.docs.length > clampedLimit;
       final lastDocument = hasMore ? snapshot.docs[clampedLimit - 1] : null;
@@ -163,10 +162,8 @@ class LeaderboardService {
     if (firestore == null) return 0;
 
     try {
-      final userDoc = await firestore
-          .collection('user_stats')
-          .doc(userId)
-          .get();
+      final userDoc =
+          await firestore.collection('user_stats').doc(userId).get();
       if (!userDoc.exists) return 0;
 
       final userScore = (userDoc.data()?['highestScore'] as int?) ?? 0;
@@ -203,17 +200,12 @@ class LeaderboardService {
           .limit(startRank + range * 2)
           .get();
 
-      return snapshot.docs
-          .asMap()
-          .entries
-          .map((entry) {
-            return LeaderboardEntry.fromFirestore(entry.value, entry.key + 1);
-          })
-          .where((entry) {
-            final rank = entry.rank;
-            return rank >= startRank && rank <= userRank + range;
-          })
-          .toList();
+      return snapshot.docs.asMap().entries.map((entry) {
+        return LeaderboardEntry.fromFirestore(entry.value, entry.key + 1);
+      }).where((entry) {
+        final rank = entry.rank;
+        return rank >= startRank && rank <= userRank + range;
+      }).toList();
     } catch (e) {
       debugPrint('Error fetching leaderboard around user: $e');
       return [];

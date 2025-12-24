@@ -154,9 +154,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
               // Content
               Expanded(
-                child: _isSearching
-                    ? _buildSearchResults()
-                    : _buildTabContent(),
+                child:
+                    _isSearching ? _buildSearchResults() : _buildTabContent(),
               ),
             ],
           ),
@@ -223,11 +222,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           ),
         ),
         const SizedBox(height: 24),
-
         ...categories.map((category) {
-          final categoryGems = gems
-              .where((g) => g.category == category)
-              .toList();
+          final categoryGems =
+              gems.where((g) => g.category == category).toList();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -330,9 +327,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         ),
         const SizedBox(height: 24),
         ...categories.map((category) {
-          final categoryArticles = articles
-              .where((a) => a.category == category)
-              .toList();
+          final categoryArticles =
+              articles.where((a) => a.category == category).toList();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -483,8 +479,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                       child: IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
-                        tooltip:
-                            AppLocalizations.of(context)?.closeButton ??
+                        tooltip: AppLocalizations.of(context)?.closeButton ??
                             'Close',
                       ),
                     ),

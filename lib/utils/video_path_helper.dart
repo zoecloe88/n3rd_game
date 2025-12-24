@@ -48,9 +48,8 @@ class VideoPathHelper {
       final extension = lastDotIndex >= 0 && lastDotIndex < basePath.length - 1
           ? basePath.substring(lastDotIndex + 1)
           : 'mp4';
-      final baseName = lastDotIndex >= 0
-          ? basePath.substring(0, lastDotIndex)
-          : basePath;
+      final baseName =
+          lastDotIndex >= 0 ? basePath.substring(0, lastDotIndex) : basePath;
 
       String variant;
 

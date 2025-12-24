@@ -126,13 +126,15 @@ class StatsMenuScreen extends StatelessWidget {
                   Text(
                     subtitle,
                     style: AppTypography.bodyMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.8), // Slightly transparent white
+                      color: Colors.white
+                          .withValues(alpha: 0.8), // Slightly transparent white
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.8)),
+            Icon(Icons.chevron_right,
+                color: Colors.white.withValues(alpha: 0.8),),
           ],
         ),
       ),

@@ -257,7 +257,7 @@ class _SubscriptionManagementScreenState
                                       backgroundColor: AppColors.success,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 14),
+                                          vertical: 14,),
                                     ),
                                     child: const Text('Manage Group'),
                                   ),

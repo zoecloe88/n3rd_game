@@ -26,10 +26,11 @@ class SkeletonLoader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final defaultHeight = itemHeight ?? 72.0;
-    final defaultPadding = padding ?? const EdgeInsets.symmetric(
-      horizontal: AppSpacing.md,
-      vertical: AppSpacing.sm,
-    );
+    final defaultPadding = padding ??
+        const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        );
 
     return ListView.builder(
       padding: defaultPadding,
@@ -195,4 +196,3 @@ class SkeletonCardLoader extends StatelessWidget {
     );
   }
 }
-

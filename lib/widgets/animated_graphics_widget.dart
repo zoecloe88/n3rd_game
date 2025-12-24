@@ -26,9 +26,9 @@ class AnimatedGraphicsWidget extends StatefulWidget {
     this.loop = true,
     this.autoplay = true,
   }) : assert(
-         category != null || specificPath != null,
-         'Either category or specificPath must be provided',
-       );
+          category != null || specificPath != null,
+          'Either category or specificPath must be provided',
+        );
 
   @override
   State<AnimatedGraphicsWidget> createState() => _AnimatedGraphicsWidgetState();
@@ -63,8 +63,7 @@ class _AnimatedGraphicsWidgetState extends State<AnimatedGraphicsWidget> {
         if (parts.length >= 3 && parts[parts.length - 2] != 'animations') {
           final category = parts[parts.length - 2];
           final filename = parts[parts.length - 1];
-          path =
-              await randomizer.getAnimationPath(category, filename) ??
+          path = await randomizer.getAnimationPath(category, filename) ??
               widget.specificPath;
         } else {
           path = widget.specificPath;

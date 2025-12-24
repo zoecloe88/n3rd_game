@@ -18,16 +18,14 @@ class GameInstructions {
       InstructionMessage(
         id: 'double_tap',
         title: localizations?.instructionHowToPlayTitle ?? 'How to Play',
-        message:
-            localizations?.instructionHowToPlayMessage ??
+        message: localizations?.instructionHowToPlayMessage ??
             'Tap once on a tile to reveal and select it as an answer.\n\nSelect exactly ${GameService.expectedCorrectAnswers} correct answers to win the round.',
         showOnce: true,
       ),
       InstructionMessage(
         id: 'select_three',
         title: localizations?.instructionSelectThreeTitle ?? 'Select 3 Answers',
-        message:
-            localizations?.instructionSelectThreeMessage ??
+        message: localizations?.instructionSelectThreeMessage ??
             'You need to select exactly ${GameService.expectedCorrectAnswers} correct answers to win the round.\n\nPerfect rounds give you +${GameService.expectedCorrectAnswers * 10} points!',
         showOnce: false,
       ),
@@ -35,40 +33,35 @@ class GameInstructions {
         id: 'time_management',
         title:
             localizations?.instructionTimeManagementTitle ?? 'Time Management',
-        message:
-            localizations?.instructionTimeManagementMessage ??
+        message: localizations?.instructionTimeManagementMessage ??
             'Watch the timer! In Classic mode, you have 10 seconds to memorize and 20 seconds to select.\n\nTime runs out? Your current selections will be submitted automatically.',
         showOnce: false,
       ),
       InstructionMessage(
         id: 'shuffle_mode',
         title: localizations?.instructionShuffleModeTitle ?? 'Shuffle Mode Tip',
-        message:
-            localizations?.instructionShuffleModeMessage ??
+        message: localizations?.instructionShuffleModeMessage ??
             'In Shuffle mode, tiles will move around during play!\n\nTap to reveal and select quickly before they shuffle again.',
         showOnce: false,
       ),
       InstructionMessage(
         id: 'speed_mode',
         title: localizations?.instructionSpeedModeTitle ?? 'Speed Mode',
-        message:
-            localizations?.instructionSpeedModeMessage ??
+        message: localizations?.instructionSpeedModeMessage ??
             'Speed mode shows all words immediately—no memorization phase!\n\nYou have just 7 seconds to select ${GameService.expectedCorrectAnswers} correct answers. Think fast!',
         showOnce: false,
       ),
       InstructionMessage(
         id: 'lives_system',
         title: localizations?.instructionLivesSystemTitle ?? 'Lives System',
-        message:
-            localizations?.instructionLivesSystemMessage ??
+        message: localizations?.instructionLivesSystemMessage ??
             'You start with 3 lives (❤️).\n\nGet 0 correct answers and you lose a life. Run out of lives and it\'s game over!',
         showOnce: false,
       ),
       InstructionMessage(
         id: 'scoring',
         title: localizations?.instructionScoringTitle ?? 'Scoring',
-        message:
-            localizations?.instructionScoringMessage ??
+        message: localizations?.instructionScoringMessage ??
             'Perfect round (${GameService.expectedCorrectAnswers}/${GameService.expectedCorrectAnswers}): +${GameService.expectedCorrectAnswers * 10} points\n\nPartial (1-${GameService.expectedCorrectAnswers - 1}/${GameService.expectedCorrectAnswers}): +10 points per correct answer\n\nWrong (0/${GameService.expectedCorrectAnswers}): Lose a life',
         showOnce: false,
       ),
@@ -76,8 +69,7 @@ class GameInstructions {
         id: 'reveal_strategy',
         title:
             localizations?.instructionRevealStrategyTitle ?? 'Reveal Strategy',
-        message:
-            localizations?.instructionRevealStrategyMessage ??
+        message: localizations?.instructionRevealStrategyMessage ??
             'Tip: Reveal tiles strategically!\n\nTap tiles you\'re unsure about first, then select the ones you know are correct.',
         showOnce: false,
       ),

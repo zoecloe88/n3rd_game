@@ -46,10 +46,8 @@ class DataExportService {
       // Export stats
       try {
         if (firestore != null) {
-          final statsDoc = await firestore
-              .collection('user_stats')
-              .doc(userId)
-              .get();
+          final statsDoc =
+              await firestore.collection('user_stats').doc(userId).get();
           if (statsDoc.exists) {
             exportData['stats'] = statsDoc.data();
           }
@@ -61,10 +59,8 @@ class DataExportService {
       // Export analytics
       try {
         if (firestore != null) {
-          final analyticsDoc = await firestore
-              .collection('user_analytics')
-              .doc(userId)
-              .get();
+          final analyticsDoc =
+              await firestore.collection('user_analytics').doc(userId).get();
           if (analyticsDoc.exists) {
             exportData['analytics'] = analyticsDoc.data();
           }
@@ -76,10 +72,8 @@ class DataExportService {
       // Export learning data
       try {
         if (firestore != null) {
-          final learningDoc = await firestore
-              .collection('user_learning')
-              .doc(userId)
-              .get();
+          final learningDoc =
+              await firestore.collection('user_learning').doc(userId).get();
           if (learningDoc.exists) {
             exportData['learning'] = learningDoc.data();
           }
@@ -97,9 +91,8 @@ class DataExportService {
               .limit(100)
               .get();
 
-          exportData['gameHistory'] = gameHistorySnapshot.docs
-              .map((doc) => doc.data())
-              .toList();
+          exportData['gameHistory'] =
+              gameHistorySnapshot.docs.map((doc) => doc.data()).toList();
         }
       } catch (e) {
         debugPrint('Failed to export game history: $e');
@@ -129,9 +122,12 @@ class DataExportService {
       if (filePath != null) {
         final file = File(filePath);
         if (await file.exists()) {
-          await Share.shareXFiles([
-            XFile(filePath),
-          ], text: 'My N3RD Trivia Data Export',);
+          await Share.shareXFiles(
+            [
+              XFile(filePath),
+            ],
+            text: 'My N3RD Trivia Data Export',
+          );
         }
       }
     } catch (e) {
@@ -164,10 +160,8 @@ class DataExportService {
       // Export stats
       if (firestore != null) {
         try {
-          final statsDoc = await firestore
-              .collection('user_stats')
-              .doc(userId)
-              .get();
+          final statsDoc =
+              await firestore.collection('user_stats').doc(userId).get();
           if (statsDoc.exists) {
             final data = statsDoc.data();
             buffer.writeln('STATISTICS');

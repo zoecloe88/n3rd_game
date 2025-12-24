@@ -152,7 +152,7 @@ class FirestoreErrorHandler {
       return await operation();
     } catch (e) {
       final appException = handleFirestoreError(e, operationName);
-      
+
       // If fallback value provided, return it instead of throwing
       if (fallbackValue != null) {
         if (kDebugMode) {
@@ -162,7 +162,7 @@ class FirestoreErrorHandler {
         }
         return fallbackValue;
       }
-      
+
       throw appException;
     }
   }
@@ -187,10 +187,3 @@ class FirestoreErrorHandler {
     return false;
   }
 }
-
-
-
-
-
-
-

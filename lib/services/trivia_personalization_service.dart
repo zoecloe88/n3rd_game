@@ -329,9 +329,9 @@ class TriviaPersonalizationService extends ChangeNotifier {
         // Edge case: user has seen ALL templates (or more, which shouldn't happen but handle gracefully)
         // Keep only the most recent 25% to maintain some personalization
         final keepCount = (allTemplates.length * 0.25).round().clamp(
-          1,
-          allTemplates.length,
-        );
+              1,
+              allTemplates.length,
+            );
         // Remove all but the most recent keepCount items
         if (_recentCategories.length > keepCount) {
           _recentCategories.removeRange(

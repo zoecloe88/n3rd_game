@@ -48,15 +48,19 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
         // Future.wait may fail or return fewer items than expected
         if (results.length >= 3) {
           setState(() {
-            _analytics = results[0] as FeedbackAnalytics? ?? FeedbackAnalytics.empty();
-            _aiAnalytics = results[1] as Map<String, dynamic>? ?? <String, dynamic>{};
-            _surveyAnalytics = results[2] as SurveyAnalytics? ?? SurveyAnalytics.empty();
+            _analytics =
+                results[0] as FeedbackAnalytics? ?? FeedbackAnalytics.empty();
+            _aiAnalytics =
+                results[1] as Map<String, dynamic>? ?? <String, dynamic>{};
+            _surveyAnalytics =
+                results[2] as SurveyAnalytics? ?? SurveyAnalytics.empty();
             _isLoading = false;
           });
         } else {
           // Handle partial failure - set error state
           setState(() {
-            _error = 'Failed to load dashboard data: incomplete results (${results.length}/3)';
+            _error =
+                'Failed to load dashboard data: incomplete results (${results.length}/3)';
             _isLoading = false;
           });
         }
@@ -122,39 +126,40 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
                           child: CircularProgressIndicator(color: Colors.white),
                         )
                       : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                size: 64,
-                                color: Colors.white,
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    size: 64,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Error loading dashboard',
+                                    style: AppTypography.headlineLarge.copyWith(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _error!,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: _loadDashboardData,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Error loading dashboard',
-                                style: AppTypography.headlineLarge.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _error!,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadDashboardData,
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _buildDashboard(),
+                            )
+                          : _buildDashboard(),
                 ),
               ],
             ),
@@ -333,7 +338,6 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
             style: AppTypography.headlineLarge.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 20),
-
           _buildStatRow(
             'Total Interactions',
             aiData['totalAIInteractions'] ?? 0,
@@ -344,7 +348,6 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
             '${((aiData['avgConfidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
             AppColors.success,
           ),
-
           if (aiData['intentsCount'] != null) ...[
             const SizedBox(height: 16),
             Text(
@@ -403,7 +406,6 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
             style: AppTypography.headlineLarge.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 20),
-
           _buildStatRow('Total Surveys', survey.totalSurveys, AppColors.info),
           _buildStatRow(
             'Average Rating',
@@ -415,7 +417,6 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
             survey.withComments,
             AppColors.success,
           ),
-
           const SizedBox(height: 16),
           Text(
             'Rating Distribution',

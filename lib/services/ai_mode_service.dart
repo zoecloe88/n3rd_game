@@ -39,8 +39,8 @@ class AIModeService extends ChangeNotifier {
         _currentPerformanceData = AIPerformanceData(
           userId: userId,
           averageAccuracy: (jsonData['averageAccuracy'] ?? 0.0).toDouble(),
-          averageResponseTime: (jsonData['averageResponseTime'] ?? 10.0)
-              .toDouble(),
+          averageResponseTime:
+              (jsonData['averageResponseTime'] ?? 10.0).toDouble(),
           categoryAccuracy: Map<String, double>.from(
             jsonData['categoryAccuracy'] ?? {},
           ),
@@ -53,8 +53,8 @@ class AIModeService extends ChangeNotifier {
           lastUpdated: jsonData['lastUpdated'] != null
               ? DateTime.parse(jsonData['lastUpdated'] as String)
               : DateTime.now(),
-          currentDifficultyLevel: (jsonData['currentDifficultyLevel'] ?? 0.5)
-              .toDouble(),
+          currentDifficultyLevel:
+              (jsonData['currentDifficultyLevel'] ?? 0.5).toDouble(),
         );
       }
     } catch (e) {
@@ -266,9 +266,8 @@ class AIModeService extends ChangeNotifier {
     final data = currentData;
 
     // Update totals
-    final newTotalCorrect = wasCorrect
-        ? data.totalCorrect + 1
-        : data.totalCorrect;
+    final newTotalCorrect =
+        wasCorrect ? data.totalCorrect + 1 : data.totalCorrect;
     final newTotalWrong = wasCorrect ? data.totalWrong : data.totalWrong + 1;
     final newTotalRounds = data.totalRounds + 1;
 
@@ -295,8 +294,8 @@ class AIModeService extends ChangeNotifier {
     } else {
       final newCategoryAccuracy =
           ((currentCategoryAccuracy * currentCategoryAttempts) +
-              (wasCorrect ? 100.0 : 0.0)) /
-          (currentCategoryAttempts + 1);
+                  (wasCorrect ? 100.0 : 0.0)) /
+              (currentCategoryAttempts + 1);
       categoryAcc[category] = newCategoryAccuracy;
     }
 
@@ -372,9 +371,9 @@ class AIModeService extends ChangeNotifier {
     final responseTimeMultiplier = (avgResponseTime / 10.0).clamp(0.7, 1.3);
 
     final memorizeTime = (baseMemorize * difficultyMultiplier).round().clamp(
-      5,
-      15,
-    );
+          5,
+          15,
+        );
     final playTime = (basePlay * difficultyMultiplier * responseTimeMultiplier)
         .round()
         .clamp(8, 25);

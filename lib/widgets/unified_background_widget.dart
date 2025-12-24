@@ -4,21 +4,24 @@ import 'package:n3rd_game/config/screen_background_videos.dart';
 
 /// Unified background widget that provides screen-specific video backgrounds
 /// Falls back to static image if no video is configured for the route
-/// 
+///
 /// Videos are intentionally oversized (2000x3000) to preserve logo animation quality
 /// and maintain responsiveness across all devices (phones and tablets)
-/// 
+///
 /// Each screen can customize BoxFit and alignment based on where logos are positioned
 class UnifiedBackgroundWidget extends StatelessWidget {
   final Widget child;
-  final String? videoPath; // Optional: override video path, otherwise auto-detects from route
-  final BoxFit fit; // How the video should be fitted - defaults to cover for full-screen
+  final String?
+      videoPath; // Optional: override video path, otherwise auto-detects from route
+  final BoxFit
+      fit; // How the video should be fitted - defaults to cover for full-screen
   final Alignment alignment; // Alignment for the video - defaults to center
 
   // Fallback background configuration (used when no video is available)
   static const String fallbackBackgroundImage =
       'assets/images/game_screen_bg.png';
-  static const Color fallbackBackgroundColor = Color(0xFF00D9FF); // Cyan/turquoise
+  static const Color fallbackBackgroundColor =
+      Color(0xFF00D9FF); // Cyan/turquoise
 
   const UnifiedBackgroundWidget({
     super.key,
@@ -31,8 +34,8 @@ class UnifiedBackgroundWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get video path: use provided path, or auto-detect from route, or null
-    final String? backgroundVideo = videoPath ?? 
-        ScreenBackgroundVideos.getVideoForCurrentRoute(context);
+    final String? backgroundVideo =
+        videoPath ?? ScreenBackgroundVideos.getVideoForCurrentRoute(context);
 
     return Stack(
       children: [
@@ -80,5 +83,3 @@ class UnifiedBackgroundWidget extends StatelessWidget {
     );
   }
 }
-
-
