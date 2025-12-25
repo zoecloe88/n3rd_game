@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/services/animation_randomizer_service.dart';
 
 /// Widget that displays animated MP4 graphics (1024x1012) with proper sizing and placement
@@ -106,12 +105,9 @@ class _AnimatedGraphicsWidgetState extends State<AnimatedGraphicsWidget> {
     final width = widget.width;
     final height = widget.height;
 
-    Widget videoWidget = ClipRect(
-      child: VideoPlayerWidget(
-        videoPath: _animationPath!,
-        loop: widget.loop,
-        autoplay: widget.autoplay,
-      ),
+    Widget videoWidget = Container(
+      color: Colors.transparent,
+      // Video player removed - use static image or animation instead
     );
 
     // Apply sizing constraints

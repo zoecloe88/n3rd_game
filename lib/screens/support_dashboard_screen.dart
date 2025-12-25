@@ -4,7 +4,6 @@ import 'package:n3rd_game/services/ai_support_service.dart';
 import 'package:n3rd_game/services/user_survey_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 
 class SupportDashboardScreen extends StatefulWidget {
   const SupportDashboardScreen({super.key});
@@ -81,12 +80,9 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
       backgroundColor: AppColors.of(context).background,
       body: Stack(
         children: [
-          // Video background
-          // Video background - fills entire screen perfectly
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/settings_video.mp4',
-            loop: true,
-            autoplay: true,
+          // Background
+          Container(
+            color: AppColors.of(context).background,
           ),
 
           // Content

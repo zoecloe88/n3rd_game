@@ -4,7 +4,6 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/utils/subscription_guard.dart';
 import 'package:n3rd_game/widgets/upgrade_dialog.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -144,8 +143,7 @@ class _LockedScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: Container(
               margin: const EdgeInsets.all(24),
@@ -216,7 +214,6 @@ class _LockedScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }

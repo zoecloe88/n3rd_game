@@ -7,7 +7,6 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/models/daily_challenge.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
@@ -66,8 +65,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
         if (!subscriptionService.hasOnlineAccess) {
           return Scaffold(
             backgroundColor: colors.background,
-            body: UnifiedBackgroundWidget(
-              child: SafeArea(
+            body: SafeArea(
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
@@ -130,15 +128,13 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     ),
                   ),
                 ),
-              ),
             ),
           );
         }
 
         return Scaffold(
           backgroundColor: colors.background,
-          body: UnifiedBackgroundWidget(
-            child: SafeArea(
+          body: SafeArea(
               child: Column(
                 children: [
                   // Header
@@ -221,8 +217,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                 ],
               ),
             ),
-          ),
-        );
+          );
       },
     );
   }

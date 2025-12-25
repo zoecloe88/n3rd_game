@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -161,11 +160,9 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
           backgroundColor: colors.background,
           body: Stack(
             children: [
-              // Video background
-              const VideoPlayerWidget(
-                videoPath: 'assets/videos/settings_video.mp4',
-                loop: true,
-                autoplay: true,
+              // Background
+              Container(
+                color: colors.background,
               ),
 
               // Content overlay

@@ -19,10 +19,10 @@ class MainNavigationWrapper extends StatefulWidget {
   const MainNavigationWrapper({super.key, this.initialIndex = 0, this.child});
 
   @override
-  State<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
+  State<MainNavigationWrapper> createState() => MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
+class MainNavigationWrapperState extends State<MainNavigationWrapper> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   bool _checkingOnboarding = true;

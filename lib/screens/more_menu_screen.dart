@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -17,9 +16,7 @@ class MoreMenuScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        // Remove animationPath - animations should be icon-sized only, not background
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
@@ -188,7 +185,6 @@ class MoreMenuScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 

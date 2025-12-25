@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
@@ -13,8 +12,7 @@ class TermsOfServiceScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // App bar
@@ -280,7 +278,6 @@ class TermsOfServiceScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
       ),
     );
   }

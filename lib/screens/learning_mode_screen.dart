@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/learning_service.dart';
 import 'package:n3rd_game/models/reviewed_question.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
@@ -38,12 +37,10 @@ class _LearningModeScreenState extends State<LearningModeScreen>
       backgroundColor: AppColors.of(context).background,
       body: Stack(
         children: [
-          // Video background
-          const Positioned.fill(
-            child: VideoPlayerWidget(
-              videoPath: 'assets/videos/settings_video.mp4',
-              loop: true,
-              autoplay: true,
+          // Background
+          Positioned.fill(
+            child: Container(
+              color: AppColors.of(context).background,
             ),
           ),
 

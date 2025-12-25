@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/models/game_room.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/network_service.dart';
@@ -264,11 +263,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       body: Stack(
         children: [
           // Video background
-          // Video background - fills entire screen perfectly
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/mode_selection_video.mp4',
-            loop: true,
-            autoplay: true,
+          // Background
+          Container(
+            color: colors.background,
           ),
 
           SafeArea(

@@ -7,7 +7,6 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
@@ -245,12 +244,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     // If page has video, show video player
     if (page.videoPath != null) {
       return Container(
-        color: Colors.black,
-        child: VideoPlayerWidget(
-          videoPath: page.videoPath!,
-          loop: false,
-          autoplay: true,
-        ),
+        color: AppColors.of(context).background,
       );
     }
 

@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:n3rd_game/services/content_moderation_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
@@ -53,8 +52,7 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Header
@@ -317,7 +315,6 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
               ),
             ],
           ),
-        ),
       ),
     );
   }

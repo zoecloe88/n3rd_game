@@ -90,9 +90,20 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/videos/
-    - assets/animations/
     - assets/legal/
+    # Video assets - all videos are directly in assets/ folder
+    - assets/login screen.mp4
+    - assets/title screen.mp4
+    - assets/setting screen.mp4
+    - assets/stat screen.mp4
+    - assets/mode selection screen.mp4
+    - assets/mode selection 2.mp4
+    - assets/mode selection 3.mp4
+    - assets/mode selection transition screen.mp4
+    - assets/word of the day.mp4
+    - assets/edition.mp4
+    - assets/youth screen.mp4
+    - assets/logo:loadingscreen.mp4
 
   # To add assets to your application, add an assets section, like this:
   # assets:

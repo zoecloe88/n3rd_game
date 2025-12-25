@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -242,7 +242,8 @@ class _TitleScreenState extends State<TitleScreen> {
                             if (context.mounted) {
                               Navigator.pop(context);
                               if (context.mounted) {
-                                NavigationHelper.switchToTab(context, 3);
+                                // Leaderboard is accessed from StatsMenuScreen (tab 2)
+                                NavigationHelper.switchToTab(context, 2);
                               }
                             }
                           },
@@ -502,20 +503,24 @@ class _TitleScreenState extends State<TitleScreen> {
   }
 
   void _switchToModeTab(BuildContext context) {
-    // Use pushReplacementNamed to switch to modes tab
-    NavigationHelper.safeNavigate(context, '/modes', replace: true);
+    // FIXED: Use switchToTab to properly navigate to modes tab (index 1)
+    NavigationHelper.switchToTab(context, 1);
   }
 
   void _switchToStatsTab(BuildContext context) {
-    NavigationHelper.safeNavigate(context, '/stats', replace: true);
+    // FIXED: Use switchToTab to properly navigate to stats tab (index 2)
+    NavigationHelper.switchToTab(context, 2);
   }
 
   void _switchToLeaderboardTab(BuildContext context) {
-    NavigationHelper.safeNavigate(context, '/leaderboard', replace: true);
+    // FIXED: Leaderboard is accessed from StatsMenuScreen (tab 2), not a separate tab
+    // Navigate to StatsMenuScreen, user can then navigate to LeaderboardScreen from there
+    NavigationHelper.switchToTab(context, 2);
   }
 
   void _switchToMoreTab(BuildContext context) {
-    NavigationHelper.safeNavigate(context, '/more', replace: true);
+    // FIXED: Use switchToTab to properly navigate to more tab (index 4)
+    NavigationHelper.switchToTab(context, 4);
   }
 
   /// Helper to build leading icon
@@ -530,11 +535,12 @@ class _TitleScreenState extends State<TitleScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/title screen.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/title screen.mp4',
+        fit: BoxFit.cover, // CSS object-fit: cover equivalent
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: Stack(
           children: [
             SafeArea(

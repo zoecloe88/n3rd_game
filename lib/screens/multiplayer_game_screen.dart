@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/models/game_room.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/chat_service.dart';
@@ -723,12 +722,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       backgroundColor: colors.background,
       body: Stack(
         children: [
-          // Video background
-          // Video background - fills entire screen perfectly
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/mode_selection_video.mp4',
-            loop: true,
-            autoplay: true,
+          // Background
+          Container(
+            color: AppColors.of(context).background,
           ),
 
           // Game content

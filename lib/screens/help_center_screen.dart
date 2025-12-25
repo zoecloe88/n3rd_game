@@ -4,7 +4,6 @@ import 'package:n3rd_game/services/knowledge_base_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 
@@ -44,8 +43,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Header
@@ -160,8 +158,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildTab(String label, String value) {

@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -32,7 +33,7 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
   @override
   void initState() {
     super.initState();
-    // Randomize transition video
+    // Randomize transition video from available options
     _randomVideoPath = _getRandomTransitionVideo();
     // Navigate after 3 seconds with onboarding check
     registerTimer(
@@ -87,9 +88,14 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
   }
 
   String _getRandomTransitionVideo() {
-    // Use the mode selection transition screen video for general transitions
-    // This provides consistent transition animation throughout the app
-    return 'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection transition screen.mp4';
+    // Randomize between available transition videos
+    final random = Random();
+    final videos = [
+      'assets/mode selection transition screen.mp4',
+      'assets/mode selection 2.mp4',
+      'assets/mode selection 3.mp4',
+    ];
+    return videos[random.nextInt(videos.length)];
   }
 
   @override
@@ -110,49 +116,43 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: Stack(
-        children: [
-          // Video background - fills entire screen perfectly
-          VideoPlayerWidget(
-            videoPath: _randomVideoPath,
-            loop: false,
-            autoplay: true,
-          ),
-          // Content overlay - no gradients, just content
-          Positioned.fill(
-            child: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding,
-                  vertical: 32,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Simple loading indicator
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                accentColor,
-                              ),
-                            ),
+      body: VideoBackgroundWidget(
+        videoPath: _randomVideoPath,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: false,
+        autoplay: true,
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 32,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Simple loading indicator
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            accentColor,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

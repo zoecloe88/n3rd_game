@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/widgets/performance_chart_widget.dart';
 import 'package:n3rd_game/widgets/heat_map_widget.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
@@ -21,8 +20,7 @@ class AnalyticsDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Header
@@ -118,7 +116,6 @@ class AnalyticsDashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
       ),
     );
   }

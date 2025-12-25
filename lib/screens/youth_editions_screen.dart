@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -54,8 +54,12 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/youth screen.mp4',
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: SafeArea(
           child: Column(
             children: [

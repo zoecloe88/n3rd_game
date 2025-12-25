@@ -1,32 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/widgets/main_navigation_wrapper.dart';
 
 /// Helper class for safe navigation operations
 class NavigationHelper {
   /// Switch to a main navigation tab (for use within MainNavigationWrapper)
-  /// Uses pushReplacementNamed to avoid navigation conflicts
+  /// CRITICAL FIX: Detects if already inside MainNavigationWrapper and uses its internal switchToTab
+  /// This prevents navigation loops and state loss by avoiding recreation of MainNavigationWrapper
   static void switchToTab(BuildContext context, int tabIndex) {
     if (!context.mounted) return;
 
-    final navigator = Navigator.of(context);
+    // Validate tab index
+    if (tabIndex < 0 || tabIndex > 4) {
+      debugPrint('Invalid tab index: $tabIndex. Must be 0-4.');
+      return;
+    }
 
-    // Use pushReplacementNamed to switch tabs without creating navigation conflicts
+    // Try to find MainNavigationWrapper state in the widget tree
+    // If we're already inside MainNavigationWrapper, use its internal switchToTab method
+    final wrapperState = context.findAncestorStateOfType<MainNavigationWrapperState>();
+    
+    if (wrapperState != null) {
+      // We're already inside MainNavigationWrapper - use its internal method
+      // This prevents recreation and maintains state
+      wrapperState.switchToTab(tabIndex);
+      return;
+    }
+
+    // Not inside MainNavigationWrapper - navigate to the route
+    // This will create a new MainNavigationWrapper instance
+    final navigator = Navigator.of(context);
+    String route;
+    
     switch (tabIndex) {
       case 0:
-        navigator.pushReplacementNamed('/title');
+        route = '/title';
         break;
       case 1:
-        navigator.pushReplacementNamed('/modes');
+        route = '/modes';
         break;
       case 2:
-        navigator.pushReplacementNamed('/stats');
+        route = '/stats';
         break;
       case 3:
-        navigator.pushReplacementNamed('/leaderboard');
+        route = '/friends'; // Fixed: tab 3 is FriendsAndMessagesScreen, not leaderboard
         break;
       case 4:
-        navigator.pushReplacementNamed('/more');
+        route = '/more';
         break;
+      default:
+        route = '/title';
     }
+
+    // Use pushNamedAndRemoveUntil to prevent navigation loops
+    // This removes all previous routes and sets the new route as the only one
+    navigator.pushNamedAndRemoveUntil(route, (route) => route.isFirst);
   }
 
   /// Safely navigate to a route with error handling

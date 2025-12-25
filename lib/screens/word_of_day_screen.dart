@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/word_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
@@ -124,11 +124,12 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/word of the day.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/word of the day.mp4',
+        fit: BoxFit.cover, // CSS object-fit: cover equivalent
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: SafeArea(
           child: _checkingAuth
               ? const StandardizedLoadingWidget(
