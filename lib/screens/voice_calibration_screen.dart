@@ -4,7 +4,6 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -27,8 +26,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Consumer3<VoiceCalibrationService, VoiceRecognitionService,
               PronunciationDictionaryService>(
             builder: (context, calibrationService, voiceService,
@@ -372,7 +370,6 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
             },
           ),
         ),
-      ),
-    );
+      );
   }
 }

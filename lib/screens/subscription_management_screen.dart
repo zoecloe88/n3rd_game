@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
@@ -63,11 +62,9 @@ class _SubscriptionManagementScreenState
       backgroundColor: colors.background,
       body: Stack(
         children: [
-          // Video background - fills entire screen perfectly
-          const VideoPlayerWidget(
-            videoPath: 'assets/videos/settings_video.mp4',
-            loop: true,
-            autoplay: true,
+          // Background
+          Container(
+            color: colors.background,
           ),
 
           // Professional overlay

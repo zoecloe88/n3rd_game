@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -20,8 +19,7 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Top app bar
@@ -199,7 +197,6 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
               ),
             ],
           ),
-        ),
       ),
     );
   }

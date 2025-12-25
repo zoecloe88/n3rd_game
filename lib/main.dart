@@ -1096,6 +1096,8 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
       '/game',
       '/stats',
       '/leaderboard',
+      '/friends',
+      '/more',
       '/settings',
       '/word-of-day',
       '/editions',

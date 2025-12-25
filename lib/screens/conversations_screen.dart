@@ -7,7 +7,6 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -78,9 +77,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: const UnifiedBackgroundWidget(
-          child: Center(child: CircularProgressIndicator()),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -105,9 +102,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             ),
           ),
         ),
-        body: UnifiedBackgroundWidget(
-          // Remove large animation overlay - use icon-sized animations only
-          child: Center(
+        body: Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Column(
@@ -138,8 +133,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ),
             ),
           ),
-        ),
-      );
+        );
     }
 
     return Scaffold(
@@ -162,9 +156,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           ),
         ),
       ),
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
-        child: SafeArea(
+      body: SafeArea(
           child: Consumer<DirectMessageService>(
             builder: (context, messageService, _) {
               final conversations = messageService.conversations;
@@ -221,8 +213,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             },
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildConversationItem(
@@ -424,10 +415,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   }
                 }
               },
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
   }
 }

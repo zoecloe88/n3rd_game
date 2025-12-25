@@ -3,7 +3,6 @@ import 'package:n3rd_game/screens/stats_screen.dart';
 import 'package:n3rd_game/screens/leaderboard_screen.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
 /// Screen that provides menu to choose between Stats and Leaderboard
@@ -16,9 +15,7 @@ class StatsMenuScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Header
@@ -82,7 +79,6 @@ class StatsMenuScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
       ),
     );
   }

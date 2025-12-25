@@ -7,7 +7,7 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/text_to_speech_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/sound_service.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -30,11 +30,12 @@ class SettingsScreen extends StatelessWidget {
       builder: (context, authService, _) {
         return Scaffold(
           backgroundColor: colors.background,
-          body: UnifiedBackgroundWidget(
-            videoPath:
-                'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/setting screen.mp4',
-            fit: BoxFit.cover, // Fill screen, logos in upper portion
-            alignment: Alignment.topCenter, // Align to top where logos are
+          body: VideoBackgroundWidget(
+            videoPath: 'assets/setting screen.mp4',
+            fit: BoxFit.cover, // CSS object-fit: cover equivalent
+            alignment: Alignment.topCenter, // Characters/logos in upper portion
+            loop: true,
+            autoplay: true,
             child: SafeArea(
               child: Column(
                 children: [
@@ -49,13 +50,14 @@ class SettingsScreen extends StatelessWidget {
                           button: true,
                           child: IconButton(
                             onPressed: () {
-                              // Go back to previous screen, or to title if no back stack
+                              // Go back to previous screen
+                              // If accessed from More menu, this will pop back to MoreMenuScreen
+                              // If accessed as standalone route, navigate to More tab (index 4)
                               if (Navigator.of(context).canPop()) {
                                 NavigationHelper.safePop(context);
                               } else {
-                                // Navigate to title screen if no back stack
-                                NavigationHelper.safeNavigate(
-                                    context, '/title',);
+                                // No back stack - navigate to More tab (where Settings is typically accessed)
+                                NavigationHelper.switchToTab(context, 4);
                               }
                             },
                             icon: Icon(Icons.arrow_back,

@@ -7,9 +7,9 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
@@ -55,8 +55,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    // Preload all animations when screen loads - they'll initialize when pages are built
-    // VideoPlayerWidget handles initialization in addPostFrameCallback
+    // Videos and animations will initialize when pages are built via VideoBackgroundWidget
   }
 
   @override
@@ -242,69 +241,95 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildPage(OnboardingPage page, int pageIndex) {
     final pageColors = AppColors.of(context);
-    // If page has video, show video player
-    if (page.videoPath != null) {
-      return Container(
-        color: Colors.black,
-        child: VideoPlayerWidget(
-          videoPath: page.videoPath!,
-          loop: false,
-          autoplay: true,
+
+    // Content widget that can be used both for video overlay and regular display
+    Widget buildContent() {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated graphic (250px) or animation icon (only show if no video)
+            if (page.videoPath == null)
+              if (page.icon == null)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 24),
+                  child: AnimatedGraphicsWidget(
+                    category: 'shared',
+                    width: 250,
+                    height: 250,
+                    loop: true,
+                    autoplay: true,
+                  ),
+                )
+              else
+                // Icon for onboarding page
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Icon(
+                    page.icon!,
+                    size: 80,
+                    color: pageColors.primaryButton,
+                  ),
+                ),
+            const SizedBox(height: AppSpacing.xl),
+            // Title with text shadow for visibility over video
+            Text(
+              page.title,
+              textAlign: TextAlign.center,
+              style: AppTypography.headlineLarge.copyWith(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: pageColors.primaryText,
+                shadows: page.videoPath != null
+                    ? [
+                        Shadow(
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                          color: Colors.black.withValues(alpha: 0.8),
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Description with text shadow for visibility over video
+            Text(
+              page.description,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyMedium.copyWith(
+                fontSize: 16,
+                color: pageColors.secondaryText,
+                height: 1.5,
+                shadows: page.videoPath != null
+                    ? [
+                        Shadow(
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                          color: Colors.black.withValues(alpha: 0.8),
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+          ],
         ),
       );
     }
 
+    // If page has video, show video player with content overlay
+    if (page.videoPath != null) {
+      return VideoBackgroundWidget(
+        videoPath: page.videoPath!,
+        loop: page.videoDuration == null, // Loop only if no duration specified
+        autoplay: true,
+        alignment: Alignment.center,
+        child: buildContent(),
+      );
+    }
+
     // Otherwise show animated graphic or icon/text layout
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Animated graphic (250px) or animation icon
-          if (page.icon == null)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 24),
-              child: AnimatedGraphicsWidget(
-                category: 'shared',
-                width: 250,
-                height: 250,
-                loop: true,
-                autoplay: true,
-              ),
-            )
-          else
-            // Icon for onboarding page
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Icon(
-                page.icon!,
-                size: 80,
-                color: pageColors.primaryButton,
-              ),
-            ),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            page.title,
-            textAlign: TextAlign.center,
-            style: AppTypography.headlineLarge.copyWith(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: pageColors.primaryText,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            page.description,
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 16,
-              color: pageColors.secondaryText,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
+    return buildContent();
   }
 
   Widget _buildIndicator(BuildContext context, bool isActive) {

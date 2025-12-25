@@ -207,9 +207,12 @@ class GameService extends ChangeNotifier {
       }
       if (_timeAttackSecondsLeft != null && _timeAttackSecondsLeft! > 0) {
         // CRITICAL: Clamp time attack seconds to prevent negative values (defensive programming)
-        _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1)
+        final newTime = (_timeAttackSecondsLeft! - 1)
             .clamp(0, GameConstants.maxTimeSeconds);
-        _safeNotifyListeners();
+        if (newTime != _timeAttackSecondsLeft) {
+          _timeAttackSecondsLeft = newTime;
+          _safeNotifyListeners(); // Only notify when value actually changes
+        }
       } else {
         timer.cancel();
         if (!_disposed) {
@@ -419,12 +422,12 @@ class GameService extends ChangeNotifier {
         flipInterval = 1; // Use minimum 1ms interval
       }
 
-      int tilesFlipped = 0;
       // CRITICAL: Check again if sequence was canceled before creating periodic timer
       if (_disposed || _flipSequenceId != sequenceId) return;
 
       // CRITICAL: Store periodic timer reference separately to prevent leaks
       // Check sequence ID in periodic callback to ensure we cancel if new sequence started
+      // Use _flipCurrentIndex to track progress instead of redundant tilesFlipped variable
       _flipPeriodicTimer =
           Timer.periodic(Duration(milliseconds: flipInterval), (
         timer,
@@ -435,7 +438,9 @@ class GameService extends ChangeNotifier {
           _flipPeriodicTimer = null;
           return;
         }
-        if (tilesFlipped < tilesToFlip && _phase == GamePhase.memorize) {
+        // CRITICAL: Use _flipCurrentIndex to track progress (already tracks tiles flipped)
+        // This is more reliable than maintaining a separate counter variable
+        if (_flipCurrentIndex < tilesToFlip && _phase == GamePhase.memorize) {
           // Flip tile to face-down
           // CRITICAL: Check if flippedTiles is empty to prevent index errors
           if (_flippedTiles.isEmpty) {
@@ -446,7 +451,6 @@ class GameService extends ChangeNotifier {
           if (_flipCurrentIndex < _flippedTiles.length) {
             _flippedTiles[_flipCurrentIndex] = false;
             _flipCurrentIndex++;
-            tilesFlipped++;
             _safeNotifyListeners();
           }
         } else {
@@ -2202,8 +2206,11 @@ class GameService extends ChangeNotifier {
           return;
         }
         // CRITICAL: Clamp memorize time to prevent negative values (defensive programming)
-        _memorizeTimeLeft = (_memorizeTimeLeft - 1).clamp(0, 999);
-        _safeNotifyListeners();
+        final newTime = (_memorizeTimeLeft - 1).clamp(0, 999);
+        if (newTime != _memorizeTimeLeft) {
+          _memorizeTimeLeft = newTime;
+          _safeNotifyListeners(); // Only notify when value actually changes
+        }
         if (_memorizeTimeLeft <= 0) {
           timer.cancel();
           if (_disposed) return;
@@ -2255,9 +2262,12 @@ class GameService extends ChangeNotifier {
       if (_isTimeFrozen) return;
 
       // CRITICAL: Clamp play time to prevent negative values (defensive programming)
-      _playTimeLeft =
+      final newPlayTime =
           (_playTimeLeft - 1).clamp(0, GameConstants.maxTimerSeconds);
-      _safeNotifyListeners();
+      if (newPlayTime != _playTimeLeft) {
+        _playTimeLeft = newPlayTime;
+        _safeNotifyListeners(); // Only notify when value actually changes
+      }
       if (_playTimeLeft <= 0) {
         timer.cancel();
         if (_disposed) return;
@@ -2340,8 +2350,16 @@ class GameService extends ChangeNotifier {
 
   /// Handle flip mode selection (must select correct tiles in correct order)
   void _handleFlipModeSelection(String word) {
-    final words = _currentTrivia?.words ?? [];
-    final correctAnswers = _currentTrivia?.correctAnswers ?? [];
+    // CRITICAL: Validate trivia is available before processing selection
+    if (_currentTrivia == null || _currentTrivia!.correctAnswers.isEmpty) {
+      LoggerService.warning(
+        'Cannot handle flip mode selection: no trivia available',
+      );
+      return;
+    }
+    
+    final words = _currentTrivia!.words;
+    final correctAnswers = _currentTrivia!.correctAnswers;
 
     // CRITICAL: Ensure _flippedTiles is initialized before handling selection
     // This prevents race condition where selection happens before flip sequence starts
@@ -2677,7 +2695,7 @@ class GameService extends ChangeNotifier {
       // CRITICAL: Clamp session stats to prevent integer overflow (defensive programming)
       _sessionCorrectAnswers = (_sessionCorrectAnswers + 3).clamp(
         0,
-        2147483647,
+        GameConstants.maxSessionAnswers,
       );
     } else {
       final expectedCorrect =
@@ -2980,7 +2998,7 @@ class GameService extends ChangeNotifier {
     // CRITICAL: Clamp session stats to prevent integer overflow (defensive programming)
     _sessionWrongAnswers = (_sessionWrongAnswers + expectedCorrect).clamp(
       0,
-      2147483647,
+      GameConstants.maxSessionAnswers,
     ); // All answers missed when skipping
 
     // Check for game over
@@ -3463,8 +3481,8 @@ class GameService extends ChangeNotifier {
         // CRITICAL: Clamp score to prevent integer overflow (especially in marathon mode with multipliers)
         final newScore = (_state.score + points).clamp(
           0,
-          2147483647,
-        ); // Int max
+          GameConstants.maxScore,
+        );
         _state = _state.copyWith(
           score: newScore,
           perfectStreak: newPerfectStreak,
@@ -3491,6 +3509,16 @@ class GameService extends ChangeNotifier {
   }
 
   void nextRound([List<TriviaItem>? triviaPool]) {
+    // CRITICAL: Prevent nextRound during answer submission to avoid race conditions
+    if (_isSubmitting) {
+      if (kDebugMode) {
+        debugPrint(
+          '⚠️ Warning: Cannot advance round while submission in progress - ignoring nextRound call',
+        );
+      }
+      return; // Ignore call, submission will handle round advancement
+    }
+
     // Check competitive challenge round limit
     if (_competitiveChallengeTargetRounds != null &&
         _state.round >= _competitiveChallengeTargetRounds!) {
@@ -4773,9 +4801,12 @@ class GameService extends ChangeNotifier {
       _timeAttackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_timeAttackSecondsLeft != null && _timeAttackSecondsLeft! > 0) {
           // CRITICAL: Clamp time attack seconds to prevent negative values (defensive programming)
-          _timeAttackSecondsLeft = (_timeAttackSecondsLeft! - 1)
+          final newTime = (_timeAttackSecondsLeft! - 1)
               .clamp(0, GameConstants.maxTimeSeconds);
-          _safeNotifyListeners();
+          if (newTime != _timeAttackSecondsLeft) {
+            _timeAttackSecondsLeft = newTime;
+            _safeNotifyListeners(); // Only notify when value actually changes
+          }
         } else {
           timer.cancel();
           if (!_disposed) {

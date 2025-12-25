@@ -9,7 +9,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:flutter/gestures.dart';
@@ -195,11 +195,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       resizeToAvoidBottomInset: false, // Prevent screen narrowing
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/login screen.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/login screen.mp4',
+        fit: BoxFit.cover, // CSS object-fit: cover equivalent
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         // Content positioned in lower portion to avoid overlapping animated logos in upper portion
         child: SafeArea(
           child: Align(

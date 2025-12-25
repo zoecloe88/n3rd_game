@@ -5,7 +5,6 @@ import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
@@ -118,9 +117,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - leaderboard screen should be clean
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               // Header with filters
@@ -284,7 +281,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             ],
           ),
         ),
-      ),
     );
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/theme_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -24,11 +23,9 @@ class ThemesScreen extends StatelessWidget {
             backgroundColor: colors.background,
             body: Stack(
               children: [
-                // Video background - fills entire screen perfectly
-                const VideoPlayerWidget(
-                  videoPath: 'assets/videos/settings_video.mp4',
-                  loop: true,
-                  autoplay: true,
+                // Background
+                Container(
+                  color: colors.background,
                 ),
                 SafeArea(
                   child: Center(
@@ -101,12 +98,10 @@ class ThemesScreen extends StatelessWidget {
           backgroundColor: colors.background,
           body: Stack(
             children: [
-              // Video background
-              const Positioned.fill(
-                child: VideoPlayerWidget(
-                  videoPath: 'assets/videos/settings_video.mp4',
-                  loop: true,
-                  autoplay: true,
+              // Background
+              Positioned.fill(
+                child: Container(
+                  color: colors.background,
                 ),
               ),
 

@@ -8,7 +8,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -172,8 +171,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
         if (!subscriptionService.hasEditionsAccess) {
           return Scaffold(
             backgroundColor: colors.background,
-            body: UnifiedBackgroundWidget(
-              child: SafeArea(
+            body: SafeArea(
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
@@ -241,7 +239,6 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
                     ),
                   ),
                 ),
-              ),
             ),
           );
         }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
@@ -437,11 +437,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: UnifiedBackgroundWidget(
-        videoPath:
-            'assets/animations/Green Neutral Simple Serendipity Phone Wallpaper(1)/mode selection screen.mp4',
-        fit: BoxFit.cover, // Fill screen, logos in upper portion
-        alignment: Alignment.topCenter, // Align to top where logos are
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/mode selection screen.mp4',
+        fit: BoxFit.cover, // CSS object-fit: cover equivalent
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.max,

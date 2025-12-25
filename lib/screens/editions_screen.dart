@@ -7,7 +7,7 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/models/edition_model.dart';
 import 'package:n3rd_game/data/editions_catalog.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
@@ -46,8 +46,12 @@ class _EditionsScreenState extends State<EditionsScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/edition.mp4',
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),

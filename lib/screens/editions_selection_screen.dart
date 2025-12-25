@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -17,8 +17,12 @@ class EditionsSelectionScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: UnifiedBackgroundWidget(
-        // Remove large animation overlay - use icon-sized animations only
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/edition.mp4',
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
         child: SafeArea(
           child: Column(
             children: [

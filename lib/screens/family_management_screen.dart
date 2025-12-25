@@ -4,14 +4,12 @@ import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/models/family_group.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
-import 'package:n3rd_game/widgets/unified_background_widget.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -203,8 +201,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
           return Scaffold(
             backgroundColor: colors.background,
-            body: UnifiedBackgroundWidget(
-              child: SafeArea(
+            body: SafeArea(
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
@@ -276,7 +273,6 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                     ),
                   ),
                 ),
-              ),
             ),
           );
         }
@@ -285,11 +281,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           backgroundColor: colors.background,
           body: Stack(
             children: [
-              // Video background
-              const VideoPlayerWidget(
-                videoPath: 'assets/videos/settings_video.mp4',
-                loop: true,
-                autoplay: true,
+              // Background
+              Container(
+                color: colors.background,
               ),
 
               // Content overlay

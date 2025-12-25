@@ -6,7 +6,6 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/widgets/video_player_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -30,12 +29,10 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
       backgroundColor: AppColors.of(context).background,
       body: Stack(
         children: [
-          // Video background
-          const Positioned.fill(
-            child: VideoPlayerWidget(
-              videoPath: 'assets/videos/settings_video.mp4',
-              loop: true,
-              autoplay: true,
+          // Background
+          Positioned.fill(
+            child: Container(
+              color: AppColors.of(context).background,
             ),
           ),
 
