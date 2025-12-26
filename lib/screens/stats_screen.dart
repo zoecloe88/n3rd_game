@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/stats_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
-import 'package:n3rd_game/widgets/video_background_widget.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/stats_chart_widgets.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -23,30 +24,30 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: VideoBackgroundWidget(
-        videoPath: 'assets/stat screen.mp4',
-        fit: BoxFit.cover, // CSS object-fit: cover equivalent
-        alignment: Alignment.topCenter, // Characters/logos in upper portion
-        loop: true,
-        autoplay: true,
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
         child: SafeArea(
           child: Consumer<StatsService>(
             builder: (context, statsService, _) {
               final stats = statsService.stats;
               return Column(
                 children: [
-                  // Minimal header (logos are in upper portion)
+                  // Personal Stats header
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Row(
                       children: [
-                        // Back button removed - using bottom navigation instead
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => NavigationHelper.safePop(context),
+                        ),
                         const SizedBox(width: AppSpacing.md),
                         Text(
-                          'Statistics',
+                          'Personal Stats',
                           style: AppTypography.headlineLarge.copyWith(
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.of(context).onDarkText,
                           ),
                         ),
                         const Spacer(),
@@ -107,10 +108,10 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                   ),
 
-                  // Spacer to push content to lower portion (logos are in upper portion)
+                  // Spacer to position content below animations (reduced to move tiles up slightly)
                   SizedBox(
-                      height: ResponsiveHelper.responsiveHeight(context, 0.12)
-                          .clamp(60.0, 120.0),),
+                      height: ResponsiveHelper.responsiveHeight(context, 0.03)
+                          .clamp(20.0, 40.0),), // Further reduced to move tiles up without blocking animation
 
                   // Stats Cards
                   Expanded(

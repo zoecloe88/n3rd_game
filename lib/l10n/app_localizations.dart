@@ -305,7 +305,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) {
-    return ['en'].contains(locale.languageCode);
+    return ['en', 'es', 'fr', 'de'].contains(locale.languageCode);
   }
 
   @override
@@ -314,5 +314,5 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool shouldReload(_AppLocalizationsDelegate old) => false;
+  bool shouldReload(_AppLocalizationsDelegate old) => true; // Reload when locale changes
 }

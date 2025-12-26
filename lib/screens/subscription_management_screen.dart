@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
@@ -594,12 +595,38 @@ class _SubscriptionManagementScreenState
             icon: Icons.payment_outlined,
             title: 'Update Payment Method',
             subtitle: 'Change your payment information',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Payment method update coming soon'),
-                ),
-              );
+            onTap: () async {
+              try {
+                // Open App Store/Play Store subscription management
+                // iOS: opens Settings > Apple ID > Subscriptions
+                // Android: opens Play Store subscription management
+                final url = Uri.parse(
+                  defaultTargetPlatform == TargetPlatform.iOS
+                      ? 'https://apps.apple.com/account/subscriptions'
+                      : 'https://play.google.com/store/account/subscriptions',
+                );
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (mounted && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Unable to open subscription management. Please update your payment method in your device settings.'),
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
             },
           ),
         ],

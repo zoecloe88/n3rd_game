@@ -63,7 +63,7 @@ class EditionsSelectionScreen extends StatelessWidget {
                                 subscriptionService.hasEditionsAccess;
                             return _buildEditionOption(
                               context,
-                              title: 'Regular Editions',
+                              title: 'Editions',
                               description: hasAccess
                                   ? '100+ themed editions for adults'
                                   : 'Premium feature - Upgrade to access',

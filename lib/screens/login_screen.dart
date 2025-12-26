@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
@@ -27,9 +25,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _confirmPasswordController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+  final _displayNameFocusNode = FocusNode();
   bool _isLogin = true;
   bool _loading = false;
   bool _acceptTerms = false;
+  bool _isTyping = false;
   TapGestureRecognizer? _termsRecognizer;
   TapGestureRecognizer? _privacyRecognizer;
 
@@ -53,6 +56,43 @@ class _LoginScreenState extends State<LoginScreen> {
           };
       }
     });
+    
+    // Listen for focus changes to track typing state
+    _emailFocusNode.addListener(() {
+      _updateTypingState();
+    });
+    _passwordFocusNode.addListener(() {
+      _updateTypingState();
+    });
+    _confirmPasswordFocusNode.addListener(() {
+      _updateTypingState();
+    });
+    _displayNameFocusNode.addListener(() {
+      _updateTypingState();
+    });
+    
+    // Listen for text changes
+    _emailController.addListener(_updateTypingState);
+    _passwordController.addListener(_updateTypingState);
+    _confirmPasswordController.addListener(_updateTypingState);
+    _displayNameController.addListener(_updateTypingState);
+  }
+  
+  void _updateTypingState() {
+    final isTyping = _emailFocusNode.hasFocus ||
+        _passwordFocusNode.hasFocus ||
+        _confirmPasswordFocusNode.hasFocus ||
+        _displayNameFocusNode.hasFocus ||
+        _emailController.text.isNotEmpty ||
+        _passwordController.text.isNotEmpty ||
+        _confirmPasswordController.text.isNotEmpty ||
+        _displayNameController.text.isNotEmpty;
+    
+    if (_isTyping != isTyping) {
+      setState(() {
+        _isTyping = isTyping;
+      });
+    }
   }
 
   @override
@@ -61,6 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _displayNameController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
+    _displayNameFocusNode.dispose();
     _termsRecognizer?.dispose();
     _privacyRecognizer?.dispose();
     super.dispose();
@@ -113,28 +157,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         // Check onboarding status - new users who sign up must complete onboarding
         if (!_isLogin) {
-          // This is a signup - check if onboarding is needed
-          try {
-            final onboardingService = OnboardingService();
-            final hasCompletedOnboarding =
-                await onboardingService.hasCompletedOnboarding();
-
-            if (!hasCompletedOnboarding && mounted && context.mounted) {
-              // New user - redirect to onboarding
-              NavigationHelper.safeNavigate(
-                context,
-                '/onboarding',
-                replace: true,
-              );
-              return;
-            }
-          } catch (e) {
-            // Onboarding check failed - log error but allow access (fail-open to prevent blocking users)
-            if (kDebugMode) {
-              debugPrint('⚠️ Onboarding check failed during signup: $e');
-            }
-            // Continue with normal flow - don't block user if onboarding check fails
-            // User can complete onboarding later if needed
+          // This is a signup - new users should always see onboarding
+          // Don't check hasCompletedOnboarding - just redirect to onboarding
+          if (mounted && context.mounted) {
+            NavigationHelper.safeNavigate(
+              context,
+              '/onboarding',
+              replace: true,
+            );
+            return;
           }
         }
 
@@ -193,62 +224,63 @@ class _LoginScreenState extends State<LoginScreen> {
     final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: colors.background,
-      resizeToAvoidBottomInset: false, // Prevent screen narrowing
+      backgroundColor: Colors.black, // Black fallback - video or static background will cover
+      resizeToAvoidBottomInset: true, // Allow screen to resize when keyboard appears
       body: VideoBackgroundWidget(
-        videoPath: 'assets/login screen.mp4',
+        videoPath: 'assets/loginscreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent
         alignment: Alignment.topCenter, // Characters/logos in upper portion
         loop: true,
         autoplay: true,
-        // Content positioned in lower portion to avoid overlapping animated logos in upper portion
+        // Content centered vertically to avoid top/bottom animations
         child: SafeArea(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(
-                top: AppSpacing.xl,
-                left: AppSpacing.lg,
-                right: AppSpacing.lg,
-                bottom: AppSpacing.lg,
-              ),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: colors.cardBackground.withValues(alpha: 0.98),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: AppShadows.medium,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        _isLogin ? 'Sign In' : 'Create Account',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.displayLarge.copyWith(
-                          fontSize: 32,
-                          color: colors.primaryText,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.xl,
+                  ).copyWith(
+                    bottom: keyboardHeight > 0 ? keyboardHeight + AppSpacing.md : AppSpacing.xl,
+                  ),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Only show title when not typing
+                        if (!_isTyping) ...[
+                          Text(
+                            _isLogin ? 'Sign In' : 'Create Account',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.displayLarge.copyWith(
+                              fontSize: 32,
+                              color: Colors.white, // White text directly on video background
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
                       // Display Name field (only for sign up)
                       if (!_isLogin) ...[
                         TextFormField(
                           controller: _displayNameController,
+                          focusNode: _displayNameFocusNode,
                           style: AppTypography.bodyMedium.copyWith(
-                            color: colors.primaryText,
+                            color: Colors.white,
                           ),
                           decoration: InputDecoration(
                             labelText: 'Display Name',
                             labelStyle: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
                             filled: true,
-                            fillColor: colors.cardBackgroundAlt,
+                            fillColor: _displayNameFocusNode.hasFocus
+                                ? Colors.white.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.1),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(
                                 color: colors.borderLight,
@@ -257,9 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: colors.primaryText,
-                                width: 1.5,
+                              borderSide: const BorderSide(
+                                color: Colors.white,
+                                width: 2,
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -294,24 +326,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                       TextFormField(
                         controller: _emailController,
+                        focusNode: _emailFocusNode,
                         keyboardType: TextInputType.emailAddress,
                         style: AppTypography.bodyMedium.copyWith(
-                          color: colors.primaryText,
+                          color: Colors.white,
                         ),
                         decoration: InputDecoration(
                           labelText: 'Email',
                           labelStyle: AppTypography.bodyMedium.copyWith(
-                            color: colors.secondaryText,
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                           filled: true,
-                          fillColor: colors.cardBackgroundAlt,
+                          fillColor: _emailFocusNode.hasFocus
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.1),
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: colors.borderLight),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: colors.primaryText,
+                            borderSide: const BorderSide(
+                              color: Colors.white,
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(8),
@@ -341,27 +376,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      const SizedBox(height: AppSpacing.md),
                       TextFormField(
                         controller: _passwordController,
+                        focusNode: _passwordFocusNode,
                         obscureText: true,
                         style: AppTypography.bodyMedium.copyWith(
-                          color: colors.primaryText,
+                          color: Colors.white,
                         ),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           labelStyle: AppTypography.bodyMedium.copyWith(
-                            color: colors.secondaryText,
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                           filled: true,
-                          fillColor: colors.cardBackgroundAlt,
+                          fillColor: _passwordFocusNode.hasFocus
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.1),
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: colors.borderLight),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: colors.primaryText,
+                            borderSide: const BorderSide(
+                              color: Colors.white,
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(8),
@@ -396,17 +433,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: AppSpacing.md),
                         TextFormField(
                           controller: _confirmPasswordController,
+                          focusNode: _confirmPasswordFocusNode,
                           obscureText: true,
                           style: AppTypography.bodyMedium.copyWith(
-                            color: colors.primaryText,
+                            color: Colors.white,
                           ),
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             labelStyle: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
                             filled: true,
-                            fillColor: colors.cardBackgroundAlt,
+                            fillColor: _confirmPasswordFocusNode.hasFocus
+                                ? Colors.white.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.1),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(
                                 color: colors.borderLight,
@@ -415,9 +455,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: colors.primaryText,
-                                width: 1.5,
+                              borderSide: const BorderSide(
+                                color: Colors.white,
+                                width: 2,
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -560,7 +600,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-            ),
+            );
+            },
           ),
         ),
       ),

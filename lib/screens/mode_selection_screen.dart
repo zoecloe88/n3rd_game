@@ -436,9 +436,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: VideoBackgroundWidget(
-        videoPath: 'assets/mode selection screen.mp4',
+        videoPath: 'assets/modeselectionscreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent
         alignment: Alignment.topCenter, // Characters/logos in upper portion
         loop: true,
@@ -447,43 +446,17 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              // Top app bar
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    Semantics(
-                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
-                      button: true,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => NavigationHelper.safePop(context),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Game Modes',
-                      style: AppTypography.displayMedium.copyWith(
-                        fontSize: ResponsiveHelper.isTablet(context)
-                            ? 28 // Larger on tablets
-                            : 24, // Standard size on phones
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
               // Mode cards with responsive pagination (3 per page on phones, 6 on tablets)
               // Content positioned in lower portion to avoid overlapping animated logos in upper portion
+              // Header removed - back button handled by parent navigation
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   children: [
-                    // Spacer to push content to lower portion (logos are in upper portion)
+                    // Spacer to position tiles below animations (reduced to move tiles up to fit on screen)
                     SizedBox(
-                        height: ResponsiveHelper.responsiveHeight(context, 0.20)
-                            .clamp(120.0, 200.0),),
+                        height: ResponsiveHelper.responsiveHeight(context, 0.15)
+                            .clamp(100.0, 150.0),), // Reduced to move tiles up more
 
                     // Page view with responsive cards per page
                     Expanded(
@@ -724,6 +697,18 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           return Colors.indigo.withValues(alpha: 0.3); // Ultralight indigo
         case GameMode.challenge:
           return Colors.amber.withValues(alpha: 0.3); // Ultralight amber
+        case GameMode.streak:
+          return Colors.deepOrange.withValues(alpha: 0.3); // Ultralight deep orange
+        case GameMode.blitz:
+          return Colors.deepPurple.withValues(alpha: 0.3); // Ultralight deep purple
+        case GameMode.marathon:
+          return Colors.brown.withValues(alpha: 0.3); // Ultralight brown
+        case GameMode.perfect:
+          return Colors.lime.withValues(alpha: 0.3); // Ultralight lime
+        case GameMode.survival:
+          return Colors.red.withValues(alpha: 0.3); // Ultralight red (same as timeAttack but different font color)
+        case GameMode.precision:
+          return Colors.deepOrange.withValues(alpha: 0.3); // Ultralight deep orange (same as streak but different font color)
         case GameMode.flip:
           return Colors.cyan.withValues(
             alpha: 0.3,
@@ -740,6 +725,50 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           ); // Ultralight light green for Learning
         default:
           return Colors.grey.withValues(alpha: 0.3);
+      }
+    }
+
+    // Get distinct font color for each game mode
+    Color getModeFontColor() {
+      switch (mode) {
+        case GameMode.classic:
+          return Colors.blue; // Blue for Classic
+        case GameMode.regular:
+          return Colors.green; // Green for Regular
+        case GameMode.shuffle:
+          return Colors.purple; // Purple for Shuffle
+        case GameMode.timeAttack:
+          return Colors.red; // Red for Time Attack
+        case GameMode.classicII:
+          return Colors.orange; // Orange for Classic II
+        case GameMode.speed:
+          return Colors.teal; // Teal for Speed
+        case GameMode.random:
+          return Colors.indigo; // Indigo for Random
+        case GameMode.challenge:
+          return Colors.amber.shade700; // Amber for Challenge
+        case GameMode.streak:
+          return Colors.deepOrange; // Deep Orange for Streak
+        case GameMode.blitz:
+          return Colors.deepPurple; // Deep Purple for Blitz
+        case GameMode.marathon:
+          return Colors.brown.shade700; // Brown for Marathon
+        case GameMode.perfect:
+          return Colors.lime.shade700; // Lime for Perfect
+        case GameMode.survival:
+          return Colors.red.shade700; // Dark Red for Survival
+        case GameMode.precision:
+          return Colors.deepOrange.shade700; // Deep Orange for Precision
+        case GameMode.flip:
+          return Colors.cyan.shade700; // Cyan for Flip
+        case GameMode.ai:
+          return Colors.pink.shade700; // Pink for AI
+        case GameMode.practice:
+          return Colors.lightBlue.shade700; // Light Blue for Practice
+        case GameMode.learning:
+          return Colors.lightGreen.shade700; // Light Green for Learning
+        default:
+          return Colors.black;
       }
     }
 
@@ -769,18 +798,36 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             : (onTap ??
                 () {
                   if (mode != null) {
-                    // Practice and Learning modes go directly to their screens
-                    if (mode == GameMode.practice) {
-                      NavigationHelper.safeNavigate(context, '/practice');
-                    } else if (mode == GameMode.learning) {
-                      NavigationHelper.safeNavigate(context, '/learning');
-                    } else {
-                      // Other modes go through mode-transition
-                      NavigationHelper.safeNavigate(
-                        context,
-                        '/mode-transition',
-                        arguments: mode,
-                      );
+                    try {
+                      // Practice and Learning modes go directly to their screens
+                      if (mode == GameMode.practice) {
+                        if (context.mounted) {
+                          NavigationHelper.safeNavigate(context, '/practice');
+                        }
+                      } else if (mode == GameMode.learning) {
+                        if (context.mounted) {
+                          NavigationHelper.safeNavigate(context, '/learning');
+                        }
+                      } else {
+                        // Other modes go through mode-transition
+                        if (context.mounted) {
+                          NavigationHelper.safeNavigate(
+                            context,
+                            '/mode-transition',
+                            arguments: mode,
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      // Handle navigation error gracefully
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error starting game: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     }
                   }
                 }),
@@ -829,9 +876,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                     : 20, // Standard size on phones
                                 color: isLocked
                                     ? AppColors.of(context).tertiaryText
-                                    : getModeColor().withValues(
-                                        alpha: 0.8,
-                                      ), // Ultralight title color
+                                    : getModeFontColor(), // Distinct color for each mode
+                                fontWeight: FontWeight.bold,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -885,7 +931,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      // Responsive description text - more lines on tablets
+                      // Responsive description text - allow full text to display
                       Text(
                         description,
                         style: AppTypography.bodyMedium.copyWith(
@@ -894,24 +940,15 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               : 14, // Standard size on phones
                           color: AppColors.of(context).secondaryText,
                         ),
-                        maxLines: ResponsiveHelper.isTablet(context)
-                            ? 3 // More lines on tablets
-                            : 2, // Limit to 2 lines on phones
-                        overflow:
-                            TextOverflow.ellipsis, // Show ellipsis if too long
+                        maxLines: null, // Allow unlimited lines
+                        overflow: TextOverflow.visible, // Show full text
+                        softWrap: true, // Allow text wrapping
                       ),
                     ],
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.of(context).tertiaryText,
-                  size: 16,
-                ),
-              ),
+              // Removed redundant chevron icon
             ],
           ),
         ),

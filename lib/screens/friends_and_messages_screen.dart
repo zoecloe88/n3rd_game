@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/screens/friends_screen.dart';
 import 'package:n3rd_game/screens/conversations_screen.dart';
-import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
-import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
+import 'package:n3rd_game/screens/friends_more_screen.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
-/// Screen that combines Friends and Messages functionality
-/// Shows tabs for Friends List and Conversations
+/// Screen that combines Friends, Messages, and More functionality
+/// Shows tabs for Friends List, Conversations, and More
 class FriendsAndMessagesScreen extends StatefulWidget {
   const FriendsAndMessagesScreen({super.key});
 
@@ -22,7 +21,7 @@ class _FriendsAndMessagesScreenState extends State<FriendsAndMessagesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // Changed from 2 to 3
   }
 
   @override
@@ -33,45 +32,43 @@ class _FriendsAndMessagesScreenState extends State<FriendsAndMessagesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Row(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
+          child: Column(
           children: [
-            // Friends animation (150px)
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: AnimatedGraphicsWidget(
-                category: 'shared',
-                width: 120,
-                height: 120,
-                loop: true,
-                autoplay: true,
+            // Tabs at the top with proper styling
+            Container(
+              color: const Color(0xFF00D9FF), // Cyan background for tabs
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.black,
+                indicatorWeight: 3,
+                labelColor: Colors.black,
+                unselectedLabelColor: Colors.black.withValues(alpha: 0.6),
+                tabs: const [
+                  Tab(text: 'Friends'),
+                  Tab(text: 'Messages'),
+                  Tab(text: 'More'),
+                ],
               ),
             ),
-            Text(
-              'Friends',
-              style: AppTypography.headlineLarge.copyWith(color: Colors.white),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: const [
+                  FriendsScreen(),
+                  ConversationsScreen(),
+                  FriendsMoreScreen(),
+                ],
+              ),
             ),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF00D9FF),
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-          tabs: const [
-            Tab(text: 'Friends'),
-            Tab(text: 'Messages'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [FriendsScreen(), ConversationsScreen()],
       ),
     );
   }

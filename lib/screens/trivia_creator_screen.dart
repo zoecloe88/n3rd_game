@@ -1,11 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:n3rd_game/services/content_moderation_service.dart';
+import 'package:n3rd_game/services/friends_service.dart';
+import 'package:n3rd_game/services/ai_edition_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 
 class TriviaCreatorScreen extends StatefulWidget {
   const TriviaCreatorScreen({super.key});
@@ -51,8 +56,13 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
     // No need for redundant check here
 
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
-      body: SafeArea(
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/settingscreen.mp4', // Use settings video as fallback
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        loop: true,
+        autoplay: true,
+        child: SafeArea(
           child: Column(
             children: [
               // Header
@@ -286,27 +296,105 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
                             ),
                           );
                         }),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
-                        // Save button
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _saveTrivia();
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D9FF),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: Text(
-                            'Save Trivia',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                        // Action buttons row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate()) {
+                                    _saveTriviaLocally();
+                                  }
+                                },
+                                icon: const Icon(Icons.save_outlined),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                label: Text(
+                                  'Save Locally',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate()) {
+                                    _saveTrivia();
+                                  }
+                                },
+                                icon: const Icon(Icons.cloud_upload_outlined),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00D9FF),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                label: Text(
+                                  'Save to Cloud',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate()) {
+                                    _sendToFriend();
+                                  }
+                                },
+                                icon: const Icon(Icons.send_outlined),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                label: Text(
+                                  'Send to Friend',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  _showAIAssistDialog();
+                                },
+                                icon: const Icon(Icons.auto_awesome_outlined),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purple,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                label: Text(
+                                  'AI Assist',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -315,6 +403,7 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
               ),
             ],
           ),
+        ),
       ),
     );
   }
@@ -428,6 +517,315 @@ class _TriviaCreatorScreenState extends State<TriviaCreatorScreen> {
         SnackBar(
           content: Text(
             'Failed to save trivia: $e',
+            style: AppTypography.bodyMedium.copyWith(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Save trivia locally using SharedPreferences
+  Future<void> _saveTriviaLocally() async {
+    try {
+      final allWords = _wordControllers
+          .map((c) => c.text.trim())
+          .where((w) => w.isNotEmpty)
+          .toList();
+      final correctAnswers = _correctAnswerControllers
+          .map((c) => c.text.trim())
+          .where((w) => w.isNotEmpty)
+          .toList();
+
+      final triviaData = {
+        'category': _categoryController.text.trim(),
+        'question': _questionController.text.trim(),
+        'words': allWords,
+        'correctAnswers': correctAnswers,
+        'savedAt': DateTime.now().toIso8601String(),
+      };
+
+      final prefs = await SharedPreferences.getInstance();
+      final savedTriviaList = prefs.getStringList('saved_trivia') ?? [];
+      savedTriviaList.add(jsonEncode(triviaData));
+      await prefs.setStringList('saved_trivia', savedTriviaList);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Trivia saved locally!',
+            style: AppTypography.bodyMedium.copyWith(),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to save locally: $e',
+            style: AppTypography.bodyMedium.copyWith(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Send trivia to a friend
+  Future<void> _sendToFriend() async {
+    try {
+      final friendsService = Provider.of<FriendsService>(context, listen: false);
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (user == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please sign in to send trivia to friends',
+              style: AppTypography.bodyMedium.copyWith(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Get friend list
+      await friendsService.init();
+      final friends = friendsService.friends;
+
+      if (friends.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You have no friends. Add friends first!',
+              style: AppTypography.bodyMedium.copyWith(),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Show friend selection dialog
+      if (!mounted) return;
+      final selectedFriend = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.black.withValues(alpha: 0.95),
+          title: Text(
+            'Select Friend',
+            style: AppTypography.headlineLarge.copyWith(color: Colors.white),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: friends.length,
+              itemBuilder: (context, index) {
+                final friend = friends[index];
+                return ListTile(
+                  title: Text(
+                    friend.displayName ?? friend.email ?? 'Unknown',
+                    style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  onTap: () => Navigator.pop(context, friend.userId),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      if (selectedFriend != null) {
+        // Save trivia data to Firestore for friend
+        final firestore = FirebaseFirestore.instance;
+        final triviaData = {
+          'category': _categoryController.text.trim(),
+          'question': _questionController.text.trim(),
+          'words': _wordControllers
+              .map((c) => c.text.trim())
+              .where((w) => w.isNotEmpty)
+              .toList(),
+          'correctAnswers': _correctAnswerControllers
+              .map((c) => c.text.trim())
+              .where((w) => w.isNotEmpty)
+              .toList(),
+          'fromUserId': user.uid,
+          'fromUserName': user.displayName ?? user.email,
+          'toUserId': selectedFriend,
+          'sentAt': FieldValue.serverTimestamp(),
+        };
+
+        await firestore.collection('shared_trivia').add(triviaData);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Trivia sent to friend!',
+              style: AppTypography.bodyMedium.copyWith(),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to send trivia: $e',
+            style: AppTypography.bodyMedium.copyWith(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Show AI assistance dialog
+  void _showAIAssistDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black.withValues(alpha: 0.95),
+        title: Text(
+          'AI Assistance',
+          style: AppTypography.headlineLarge.copyWith(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Get AI suggestions for:',
+              style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.lightbulb_outline, color: Colors.white),
+              title: Text(
+                'Suggest Question',
+                style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _getAISuggestion('question');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_fields, color: Colors.white),
+              title: Text(
+                'Suggest Words',
+                style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _getAISuggestion('words');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline, color: Colors.white),
+              title: Text(
+                'Suggest Answers',
+                style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _getAISuggestion('answers');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: AppTypography.labelLarge.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get AI suggestion
+  Future<void> _getAISuggestion(String type) async {
+    try {
+      final aiService = Provider.of<AIEditionService>(context, listen: false);
+      final category = _categoryController.text.trim();
+      
+      if (category.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please enter a category first',
+              style: AppTypography.bodyMedium.copyWith(),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Generating AI suggestions...',
+            style: AppTypography.bodyMedium.copyWith(),
+          ),
+        ),
+      );
+
+      // Generate trivia for the category
+      final triviaItems = await aiService.generateTriviaForTopic(
+        topic: category,
+        isYouthEdition: false,
+        count: 1,
+      );
+
+      if (triviaItems.isNotEmpty && mounted) {
+        final item = triviaItems.first;
+        setState(() {
+          if (type == 'question') {
+            _questionController.text = item.category;
+          } else if (type == 'words') {
+            // Fill word controllers with AI suggestions
+            for (int i = 0; i < _wordControllers.length && i < item.words.length; i++) {
+              _wordControllers[i].text = item.words[i];
+            }
+          } else if (type == 'answers') {
+            // Fill answer controllers with AI suggestions
+            for (int i = 0; i < _correctAnswerControllers.length && i < item.correctAnswers.length; i++) {
+              _correctAnswerControllers[i].text = item.correctAnswers[i];
+            }
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'AI suggestions applied!',
+              style: AppTypography.bodyMedium.copyWith(),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to get AI suggestions: $e',
             style: AppTypography.bodyMedium.copyWith(),
           ),
           backgroundColor: Colors.red,

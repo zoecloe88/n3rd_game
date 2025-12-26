@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:n3rd_game/models/friend.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class FriendsService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
@@ -66,30 +69,53 @@ class FriendsService extends ChangeNotifier {
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'accepted')
         .snapshots()
-        .listen((snapshot) {
-      _friends.clear();
-      for (final doc in snapshot.docs) {
-        try {
-          final data = doc.data();
-          _friends.add(
-            Friend(
-              userId: data['friendId'] as String,
-              displayName: data['friendDisplayName'] as String?,
-              email: data['friendEmail'] as String?,
-              addedAt: data['addedAt'] != null
-                  ? (data['addedAt'] as Timestamp).toDate()
-                  : null,
-              isOnline: data['isOnline'] as bool? ?? false,
-            ),
-          );
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing friend: $e');
+        .listen(
+      (snapshot) {
+        _friends.clear();
+        for (final doc in snapshot.docs) {
+          try {
+            final data = doc.data();
+            _friends.add(
+              Friend(
+                userId: data['friendId'] as String,
+                displayName: data['friendDisplayName'] as String?,
+                email: data['friendEmail'] as String?,
+                addedAt: data['addedAt'] != null
+                    ? (data['addedAt'] as Timestamp).toDate()
+                    : null,
+                isOnline: data['isOnline'] as bool? ?? false,
+              ),
+            );
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('Error parsing friend: $e');
+            }
           }
         }
-      }
-      notifyListeners();
-    });
+        notifyListeners();
+      },
+      onError: (error) {
+        // CRITICAL: Handle Firestore permission errors gracefully
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          LoggerService.error(
+            'FriendsService: Permission denied loading friends. User may not be authenticated or lacks required permissions.',
+            error: error,
+            reason: 'Firestore permission-denied error',
+            fatal: false,
+          );
+          // Clear friends and notify listeners
+          _friends.clear();
+          notifyListeners();
+        } else {
+          LoggerService.error(
+            'FriendsService: Error loading friends',
+            error: error,
+            reason: 'Firestore stream error',
+            fatal: false,
+          );
+        }
+      },
+    );
   }
 
   void _loadPendingRequests() {
@@ -103,21 +129,44 @@ class FriendsService extends ChangeNotifier {
         .where('toUserId', isEqualTo: userId)
         .where('status', isEqualTo: 'pending')
         .snapshots()
-        .listen((snapshot) {
-      _pendingRequests.clear();
-      for (final doc in snapshot.docs) {
-        try {
-          _pendingRequests.add(
-            FriendRequest.fromJson({'id': doc.id, ...doc.data()}),
-          );
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing friend request: $e');
+        .listen(
+      (snapshot) {
+        _pendingRequests.clear();
+        for (final doc in snapshot.docs) {
+          try {
+            _pendingRequests.add(
+              FriendRequest.fromJson({'id': doc.id, ...doc.data()}),
+            );
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('Error parsing friend request: $e');
+            }
           }
         }
-      }
-      notifyListeners();
-    });
+        notifyListeners();
+      },
+      onError: (error) {
+        // CRITICAL: Handle Firestore permission errors gracefully
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          LoggerService.error(
+            'FriendsService: Permission denied loading friend requests. User may not be authenticated or lacks required permissions.',
+            error: error,
+            reason: 'Firestore permission-denied error',
+            fatal: false,
+          );
+          // Clear requests and notify listeners
+          _pendingRequests.clear();
+          notifyListeners();
+        } else {
+          LoggerService.error(
+            'FriendsService: Error loading friend requests',
+            error: error,
+            reason: 'Firestore stream error',
+            fatal: false,
+          );
+        }
+      },
+    );
   }
 
   /// Search for users by email or display name
@@ -409,6 +458,149 @@ class FriendsService extends ChangeNotifier {
         debugPrint('Error getting friend suggestions: $e');
       }
       return [];
+    }
+  }
+
+  /// Send invitation to a user via email/SMS/share link
+  /// Creates an invitation record and uses share_plus to share the invite
+  Future<void> sendInvitation(String email) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    // Create invitation record in Firestore
+    await firestore.collection('invitations').add({
+      'fromUserId': userId,
+      'toEmail': email,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Report a user for inappropriate behavior
+  /// Saves the report to Firestore for moderation review
+  Future<void> reportUser(String reportedUserId, String reason) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    if (userId == reportedUserId) {
+      throw ValidationException('Cannot report yourself');
+    }
+
+    // Save report to Firestore
+    await firestore.collection('user_reports').add({
+      'reporterUserId': userId,
+      'reportedUserId': reportedUserId,
+      'reason': reason,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Get contacts from device
+  Future<List<Contact>> getContacts() async {
+    try {
+      // Request contacts permission
+      final status = await Permission.contacts.request();
+      if (!status.isGranted) {
+        throw PermissionException('Contacts permission not granted');
+      }
+
+      // Check if contacts permission is available
+      if (!await FlutterContacts.requestPermission()) {
+        throw PermissionException('Contacts permission denied');
+      }
+
+      // Get all contacts
+      final contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withThumbnail: false,
+      );
+
+      return contacts;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error getting contacts: $e');
+      }
+      LoggerService.error(
+        'FriendsService: Error getting contacts',
+        error: e,
+        reason: 'Contact list access error',
+        fatal: false,
+      );
+      rethrow;
+    }
+  }
+
+  /// Search contacts and match with app users
+  Future<List<Map<String, dynamic>>> searchContactsAndUsers(
+    String query,
+  ) async {
+    try {
+      final contacts = await getContacts();
+      final results = <Map<String, dynamic>>[];
+
+      // Filter contacts by query
+      final matchingContacts = contacts.where((contact) {
+        final name = contact.displayName.toLowerCase();
+        final emails = contact.emails.map((e) => e.address.toLowerCase()).toList();
+        final phones = contact.phones.map((p) => p.number).toList();
+        final queryLower = query.toLowerCase();
+
+        return name.contains(queryLower) ||
+            emails.any((e) => e.contains(queryLower)) ||
+            phones.any((p) => p.contains(query));
+      }).toList();
+
+      // For each matching contact, try to find matching user in app
+      final firestore = _firestore;
+      if (firestore != null) {
+        for (final contact in matchingContacts) {
+          // Try to find user by email
+          for (final email in contact.emails) {
+            if (email.address.isNotEmpty) {
+              try {
+                final userQuery = await firestore
+                    .collection('user_profiles')
+                    .where('email', isEqualTo: email.address)
+                    .limit(1)
+                    .get();
+
+                if (userQuery.docs.isNotEmpty) {
+                  final doc = userQuery.docs.first;
+                  final userData = doc.data();
+                  results.add({
+                    'userId': doc.id,
+                    'email': email.address,
+                    'displayName': (userData['displayName'] as String?) ?? contact.displayName,
+                    'contactName': contact.displayName,
+                    'isContact': true,
+                  });
+                  break; // Found user, move to next contact
+                }
+              } catch (e) {
+                // Continue to next email if search fails
+                if (kDebugMode) {
+                  debugPrint('Error searching user by email: $e');
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return results;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error searching contacts and users: $e');
+      }
+      // Fallback to regular user search
+      return await searchUsers(query);
     }
   }
 

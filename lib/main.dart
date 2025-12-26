@@ -50,6 +50,8 @@ import 'package:n3rd_game/screens/terms_of_service_screen.dart';
 import 'package:n3rd_game/screens/ai_edition_history_screen.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
 import 'package:n3rd_game/screens/achievements_screen.dart';
+import 'package:n3rd_game/screens/leaderboard_screen.dart';
+import 'package:n3rd_game/screens/game_history_screen.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/initialization_error_screen.dart';
 import 'package:n3rd_game/widgets/main_navigation_wrapper.dart';
@@ -73,6 +75,7 @@ import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
 import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/theme_service.dart';
+import 'package:n3rd_game/services/language_service.dart';
 import 'package:n3rd_game/services/learning_service.dart';
 import 'package:n3rd_game/services/offline_service.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
@@ -84,6 +87,10 @@ import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
+import 'package:n3rd_game/services/direct_message_service.dart';
+import 'package:n3rd_game/services/game_history_service.dart';
+import 'package:n3rd_game/services/video_cache_service.dart';
+import 'package:n3rd_game/services/data_export_service.dart';
 
 /// Initialize SubscriptionService asynchronously
 /// Standardized async pattern using async/await instead of .then()
@@ -364,6 +371,14 @@ void main() async {
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
+  // Preload priority videos for better performance
+  // This happens asynchronously and doesn't block app startup
+  VideoCacheService().preloadPriorityVideos().catchError((e) {
+    if (kDebugMode) {
+      debugPrint('Video preloading error (non-critical): $e');
+    }
+  });
+
   // Create NavigatorObserver for screen view tracking
   final routeObserver = AnalyticsRouteObserver();
 
@@ -386,6 +401,7 @@ void main() async {
           create: (_) => VoiceCalibrationService()..init(),
         ),
         ChangeNotifierProvider(create: (_) => ThemeService()..init()),
+        ChangeNotifierProvider(create: (_) => LanguageService()),
         ChangeNotifierProvider(create: (_) => LearningService()..init()),
         ChangeNotifierProvider(create: (_) => OfflineService()..init()),
         ChangeNotifierProvider(create: (_) => AccessibilityService()..init()),
@@ -408,6 +424,12 @@ void main() async {
         // EditionAccessService is provided below via ProxyProvider2
         ChangeNotifierProvider(create: (_) => FamilyGroupService()..init()),
         ChangeNotifierProvider(create: (_) => FriendsService()..init()),
+        // Add DirectMessageService provider
+        ChangeNotifierProvider(create: (_) => DirectMessageService()),
+        // Add GameHistoryService provider
+        ChangeNotifierProvider(create: (_) => GameHistoryService()..init()),
+        // Add DataExportService provider
+        Provider(create: (_) => DataExportService()),
         // Add RevenueCatService provider
         ChangeNotifierProvider.value(value: revenueCatService),
         // Connect RevenueCat and AuthService to SubscriptionService
@@ -589,35 +611,61 @@ void main() async {
               // Continue - service might still work for basic operations
             }
 
+            // CRITICAL: Service is guaranteed to be non-null at this point due to flow analysis
+            // All code paths above ensure service is assigned before reaching here
+            // The explicit assignment in the else block and the throw in catch blocks
+            // ensure service is never null when we return it
             return service;
           },
         ),
-        // Wire GameService to personalization, gamification, and analytics services
+        // Create GameService once - single instance for all dependencies
+        ChangeNotifierProvider<GameService>(
+          create: (_) => GameService(),
+        ),
+        // Wire GameService to personalization, gamification services
+        // Uses ProxyProvider to reuse existing GameService instance
         ProxyProvider2<TriviaPersonalizationService, TriviaGamificationService,
             GameService>(
-          update: (_, personalization, gamification, previous) {
-            previous ??= GameService();
-            previous.setPersonalizationService(personalization);
-            previous.setGamificationService(gamification);
-            return previous;
+          update: (_, personalization, gamification, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setPersonalizationService(personalization);
+            service.setGamificationService(gamification);
+            return service;
           },
         ),
         // Wire AnalyticsService to GameService
-        ChangeNotifierProxyProvider<AnalyticsService, GameService>(
-          create: (_) => GameService(),
-          update: (_, analytics, previous) {
-            previous ??= GameService();
-            previous.setAnalyticsService(analytics);
-            return previous;
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<AnalyticsService, GameService>(
+          update: (_, analytics, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setAnalyticsService(analytics);
+            return service;
           },
         ),
         // Wire SubscriptionService to GameService
-        ChangeNotifierProxyProvider<SubscriptionService, GameService>(
-          create: (_) => GameService(),
-          update: (_, subscription, previous) {
-            previous ??= GameService();
-            previous.setSubscriptionService(subscription);
-            return previous;
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<SubscriptionService, GameService>(
+          update: (_, subscription, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setSubscriptionService(subscription);
+            return service;
+          },
+        ),
+        // Wire GameHistoryService to GameService
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<GameHistoryService, GameService>(
+          update: (_, gameHistory, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setGameHistoryService(gameHistory);
+            return service;
           },
         ),
         // Wire AnalyticsService to NetworkService for performance tracking
@@ -672,8 +720,8 @@ void main() async {
                 );
               }
 
-              return Consumer<ThemeService>(
-                builder: (context, themeService, _) {
+              return Consumer2<ThemeService, LanguageService>(
+                builder: (context, themeService, languageService, _) {
                   // Track app startup time after first frame
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     final analyticsService = Provider.of<AnalyticsService>(
@@ -691,6 +739,8 @@ void main() async {
                   });
 
                   return MaterialApp(
+                    // Force rebuild when language changes
+                    key: ValueKey(languageService.currentLocale.toString()),
                     // Localization support
                     localizationsDelegates: const [
                       AppLocalizations.delegate,
@@ -700,9 +750,11 @@ void main() async {
                     ],
                     supportedLocales: const [
                       Locale('en', ''), // English
-                      // Add more locales as needed: Locale('es', ''), Locale('fr', ''), etc.
+                      Locale('es', ''), // Spanish
+                      Locale('fr', ''), // French
+                      Locale('de', ''), // German
                     ],
-                    locale: const Locale('en', ''),
+                    locale: languageService.currentLocale,
                     // Theme configuration
                     theme: ThemeData(
                       brightness: themeService.brightness,
@@ -763,8 +815,9 @@ void main() async {
                       '/leaderboard': (context) => const RouteGuard(
                             requiresOnlineAccess: true,
                             featureName: 'Leaderboard',
-                            child: MainNavigationWrapper(initialIndex: 2),
+                            child: LeaderboardScreen(),
                           ),
+                      '/game-history': (context) => const GameHistoryScreen(),
                       '/friends': (context) => const RouteGuard(
                             requiresOnlineAccess: true,
                             featureName: 'Friends',
@@ -979,53 +1032,61 @@ void main() async {
                         builder: (context) => Scaffold(
                           backgroundColor: Colors.black,
                           body: SafeArea(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.error_outline,
-                                      size: 64,
-                                      color: Colors.red,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Text(
-                                      'Page Not Found',
-                                      style: AppTypography.headlineLarge
-                                          .copyWith(color: Colors.white),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'The page "${settings.name}" could not be found.',
-                                      style: AppTypography.bodyMedium.copyWith(
-                                        color: Colors.white70,
+                            // CRITICAL: Wrap in SingleChildScrollView to prevent RenderFlex overflow
+                            // This allows content to scroll if it exceeds screen height
+                            child: SingleChildScrollView(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline,
+                                        size: 64,
+                                        color: Colors.red,
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 32),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        NavigationHelper.safeNavigate(
-                                          context,
-                                          '/title',
-                                          replace: true,
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 32,
-                                          vertical: 16,
+                                      const SizedBox(height: 24),
+                                      Text(
+                                        'Page Not Found',
+                                        style: AppTypography.headlineLarge
+                                            .copyWith(color: Colors.white),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'The page "${settings.name}" could not be found.',
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          color: Colors.white70,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        // CRITICAL: Add overflow handling for long route names
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 3,
+                                      ),
+                                      const SizedBox(height: 32),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          NavigationHelper.safeNavigate(
+                                            context,
+                                            '/title',
+                                            replace: true,
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                            vertical: 16,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Go Home',
+                                          style: AppTypography.labelLarge,
                                         ),
                                       ),
-                                      child: Text(
-                                        'Go Home',
-                                        style: AppTypography.labelLarge,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1081,10 +1142,15 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
   }
 
   void _onAuthStateChanged() {
-    if (!mounted) return;
+    // CRITICAL: Check both mounted and context.mounted before proceeding
+    if (!mounted || !context.mounted) return;
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    final navigator = Navigator.of(context);
+    
+    // CRITICAL: Use Navigator.maybeOf instead of Navigator.of to handle null cases
+    // This prevents crashes when Navigator is not available
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null) return; // Navigator not available, skip navigation
 
     // Get current route
     final currentRoute = ModalRoute.of(context)?.settings.name;
@@ -1111,8 +1177,13 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
         currentRoute != null &&
         protectedRoutes.contains(currentRoute)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Double-check mounted and context.mounted before navigation
+        // Also re-check Navigator availability in callback
         if (mounted && context.mounted) {
-          navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+          final navigator = Navigator.maybeOf(context);
+          if (navigator != null) {
+            navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+          }
         }
       });
     }

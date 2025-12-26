@@ -193,8 +193,12 @@ class StatsService extends ChangeNotifier {
   GameStats _stats = GameStats();
   bool _firebaseAvailable = false;
   bool _isSaving = false; // Mutex to prevent concurrent saves
+  bool _isRecordingGameEnd = false; // Mutex to prevent concurrent recordGameEnd calls
+  bool _isInitialized = false;
+  bool _isInitializing = false; // Mutex to prevent concurrent initialization
 
   GameStats get stats => _stats;
+  bool get isInitialized => _isInitialized;
 
   // Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestore {
@@ -218,10 +222,15 @@ class StatsService extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    // Try to initialize Firebase
+    if (_isInitialized || _isInitializing) return;
+
+    _isInitializing = true;
+
     try {
-      Firebase.app();
-      _firebaseAvailable = true;
+      // Try to initialize Firebase
+      try {
+        Firebase.app();
+        _firebaseAvailable = true;
 
       // Try to load from Firestore if user is logged in (with timeout)
       final userId = _userId;
@@ -260,12 +269,25 @@ class StatsService extends ChangeNotifier {
       LoggerService.warning('Firebase not available for stats', error: e);
     }
 
-    // Fallback to local storage
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_storageKey);
-    if (json != null) {
-      _stats = GameStats.fromJson(jsonDecode(json));
-      notifyListeners();
+      // Fallback to local storage
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString(_storageKey);
+      if (json != null) {
+        _stats = GameStats.fromJson(jsonDecode(json));
+        notifyListeners();
+      }
+
+      _isInitialized = true;
+      LoggerService.info('StatsService initialized');
+    } catch (e, stackTrace) {
+      LoggerService.error(
+        'Error initializing StatsService',
+        error: e,
+        stack: stackTrace,
+      );
+      _isInitialized = false;
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -281,102 +303,168 @@ class StatsService extends ChangeNotifier {
     required int wrongAnswers,
     required String mode,
   }) async {
-    final newModePlayCounts = Map<String, int>.from(_stats.modePlayCounts);
-    newModePlayCounts[mode] = (newModePlayCounts[mode] ?? 0) + 1;
-
-    // Calculate streak with timezone-safe date normalization
-    final today = _normalizeDate(DateTime.now());
-    final lastPlayKey = _stats.lastPlayDate != null
-        ? _normalizeDate(_stats.lastPlayDate!)
-        : null;
-
-    int newCurrentStreak = _stats.currentStreak;
-    int newLongestStreak = _stats.longestStreak;
-
-    if (lastPlayKey == null) {
-      // First play
-      newCurrentStreak = 1;
-      newLongestStreak = 1;
-    } else {
-      final daysDiff = today.difference(lastPlayKey).inDays;
-      if (daysDiff == 0) {
-        // Same day - maintain streak
-        newCurrentStreak = _stats.currentStreak;
-      } else if (daysDiff == 1) {
-        // Consecutive day - increment streak
-        newCurrentStreak = _stats.currentStreak + 1;
-        if (newCurrentStreak > newLongestStreak) {
-          newLongestStreak = newCurrentStreak;
-        }
-      } else {
-        // Streak broken
-        newCurrentStreak = 1;
-      }
+    // Mutex to prevent concurrent calls
+    if (_isRecordingGameEnd) {
+      LoggerService.warning('recordGameEnd already in progress, skipping duplicate call');
+      return;
     }
+    _isRecordingGameEnd = true;
 
-    // Record daily stats with timezone-safe date comparison
-    final dailyStatsList = List<DailyStats>.from(_stats.dailyStats);
-    final todayIndex = dailyStatsList.indexWhere(
-      (ds) => _normalizeDate(ds.date) == today,
-    );
-
-    if (todayIndex >= 0) {
-      // Update existing day
-      final existing = dailyStatsList[todayIndex];
-      dailyStatsList[todayIndex] = existing.copyWith(
-        gamesPlayed: existing.gamesPlayed + 1,
-        correctAnswers: existing.correctAnswers + correctAnswers,
-        wrongAnswers: existing.wrongAnswers + wrongAnswers,
-        score: existing.score + score,
-        highestScore:
-            score > existing.highestScore ? score : existing.highestScore,
-        modePlayCounts: {
-          ...existing.modePlayCounts,
-          mode: (existing.modePlayCounts[mode] ?? 0) + 1,
-        },
-      );
-    } else {
-      // Add new day
-      dailyStatsList.add(
-        DailyStats(
-          date: DateTime.now().toUtc(), // Store actual UTC timestamp
-          gamesPlayed: 1,
-          correctAnswers: correctAnswers,
-          wrongAnswers: wrongAnswers,
-          score: score,
-          highestScore: score,
-          modePlayCounts: {mode: 1},
-        ),
-      );
-    }
-
-    // Cleanup old daily stats (keep only last N days)
-    _cleanupOldDailyStats(dailyStatsList);
-
-    _stats = _stats.copyWith(
-      totalGamesPlayed: _stats.totalGamesPlayed + 1,
-      totalCorrectAnswers: _stats.totalCorrectAnswers + correctAnswers,
-      totalWrongAnswers: _stats.totalWrongAnswers + wrongAnswers,
-      highestScore: score > _stats.highestScore ? score : _stats.highestScore,
-      modePlayCounts: newModePlayCounts,
-      dailyStats: dailyStatsList,
-      currentStreak: newCurrentStreak.clamp(0, AppConfig.maxStreakDisplay),
-      longestStreak: newLongestStreak.clamp(0, AppConfig.maxStreakDisplay),
-      lastPlayDate: DateTime.now().toUtc(), // Store actual UTC timestamp
-    );
-
-    await _save();
-    notifyListeners();
-
-    // Check achievements
     try {
-      final achievementService = AchievementService();
-      final unlocked = await achievementService.checkAchievements(_stats);
-      if (unlocked.isNotEmpty) {
-        LoggerService.info('Unlocked ${unlocked.length} achievement(s)');
+      // Validate input
+      if (score < 0) {
+        LoggerService.warning('Invalid score: $score');
+        _isRecordingGameEnd = false;
+        return;
       }
-    } catch (e) {
-      LoggerService.error('Error checking achievements', error: e);
+      if (correctAnswers < 0 || wrongAnswers < 0) {
+        LoggerService.warning('Invalid answer counts');
+        _isRecordingGameEnd = false;
+        return;
+      }
+      if (mode.isEmpty) {
+        LoggerService.warning('Invalid mode: empty string');
+        _isRecordingGameEnd = false;
+        return;
+      }
+
+      final newModePlayCounts = Map<String, int>.from(_stats.modePlayCounts);
+      newModePlayCounts[mode] = (newModePlayCounts[mode] ?? 0) + 1;
+
+      // Calculate streak with timezone-safe date normalization
+      final today = _normalizeDate(DateTime.now());
+      final lastPlayKey = _stats.lastPlayDate != null
+          ? _normalizeDate(_stats.lastPlayDate!)
+          : null;
+
+      int newCurrentStreak = _stats.currentStreak;
+      int newLongestStreak = _stats.longestStreak;
+
+      if (lastPlayKey == null) {
+        // First play
+        newCurrentStreak = 1;
+        newLongestStreak = 1;
+      } else {
+        final daysDiff = today.difference(lastPlayKey).inDays;
+        if (daysDiff == 0) {
+          // Same day - maintain streak
+          newCurrentStreak = _stats.currentStreak;
+        } else if (daysDiff == 1) {
+          // Consecutive day - increment streak
+          newCurrentStreak = _stats.currentStreak + 1;
+          if (newCurrentStreak > newLongestStreak) {
+            newLongestStreak = newCurrentStreak;
+          }
+        } else {
+          // Streak broken
+          newCurrentStreak = 1;
+        }
+      }
+
+      // Record daily stats with timezone-safe date comparison
+      final dailyStatsList = List<DailyStats>.from(_stats.dailyStats);
+      final todayIndex = dailyStatsList.indexWhere(
+        (ds) => _normalizeDate(ds.date) == today,
+      );
+
+      if (todayIndex >= 0) {
+        // Update existing day
+        final existing = dailyStatsList[todayIndex];
+        dailyStatsList[todayIndex] = existing.copyWith(
+          gamesPlayed: existing.gamesPlayed + 1,
+          correctAnswers: existing.correctAnswers + correctAnswers,
+          wrongAnswers: existing.wrongAnswers + wrongAnswers,
+          score: existing.score + score,
+          highestScore:
+              score > existing.highestScore ? score : existing.highestScore,
+          modePlayCounts: {
+            ...existing.modePlayCounts,
+            mode: (existing.modePlayCounts[mode] ?? 0) + 1,
+          },
+        );
+      } else {
+        // Add new day
+        dailyStatsList.add(
+          DailyStats(
+            date: DateTime.now().toUtc(), // Store actual UTC timestamp
+            gamesPlayed: 1,
+            correctAnswers: correctAnswers,
+            wrongAnswers: wrongAnswers,
+            score: score,
+            highestScore: score,
+            modePlayCounts: {mode: 1},
+          ),
+        );
+      }
+
+      // Cleanup old daily stats (keep only last N days)
+      _cleanupOldDailyStats(dailyStatsList);
+
+      _stats = _stats.copyWith(
+        totalGamesPlayed: _stats.totalGamesPlayed + 1,
+        totalCorrectAnswers: _stats.totalCorrectAnswers + correctAnswers,
+        totalWrongAnswers: _stats.totalWrongAnswers + wrongAnswers,
+        highestScore: score > _stats.highestScore ? score : _stats.highestScore,
+        modePlayCounts: newModePlayCounts,
+        dailyStats: dailyStatsList,
+        currentStreak: newCurrentStreak.clamp(0, AppConfig.maxStreakDisplay),
+        longestStreak: newLongestStreak.clamp(0, AppConfig.maxStreakDisplay),
+        lastPlayDate: DateTime.now().toUtc(), // Store actual UTC timestamp
+      );
+
+      // Use Firestore transaction for atomic update
+      final userId = _userId;
+      final firestore = _firestore;
+      if (userId != null && firestore != null) {
+        try {
+          await firestore.runTransaction((transaction) async {
+            final docRef = firestore.collection('user_stats').doc(userId);
+            final doc = await transaction.get(docRef);
+            
+            if (doc.exists) {
+              final existingData = doc.data()!;
+              final existingStats = GameStats.fromJson(existingData);
+              
+              // Calculate new values
+              final updatedStats = existingStats.copyWith(
+                totalGamesPlayed: existingStats.totalGamesPlayed + 1,
+                totalCorrectAnswers: existingStats.totalCorrectAnswers + correctAnswers,
+                totalWrongAnswers: existingStats.totalWrongAnswers + wrongAnswers,
+                highestScore: score > existingStats.highestScore ? score : existingStats.highestScore,
+                modePlayCounts: newModePlayCounts,
+                dailyStats: dailyStatsList,
+                currentStreak: newCurrentStreak.clamp(0, AppConfig.maxStreakDisplay),
+                longestStreak: newLongestStreak.clamp(0, AppConfig.maxStreakDisplay),
+                lastPlayDate: DateTime.now().toUtc(),
+              );
+              
+              transaction.set(docRef, updatedStats.toJson(), SetOptions(merge: true));
+            } else {
+              // Create new document
+              transaction.set(docRef, _stats.toJson());
+            }
+          });
+        } catch (e) {
+          LoggerService.error('Failed to save stats with transaction, falling back to local save', error: e);
+          // Fall through to local save
+        }
+      }
+
+      await _save();
+      notifyListeners();
+
+      // Check achievements
+      try {
+        final achievementService = AchievementService();
+        final unlocked = await achievementService.checkAchievements(_stats);
+        if (unlocked.isNotEmpty) {
+          LoggerService.info('Unlocked ${unlocked.length} achievement(s)');
+        }
+      } catch (e) {
+        LoggerService.error('Error checking achievements', error: e);
+      }
+    } finally {
+      _isRecordingGameEnd = false;
     }
   }
 

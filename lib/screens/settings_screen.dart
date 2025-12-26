@@ -1,12 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/text_to_speech_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/sound_service.dart';
+import 'package:n3rd_game/services/theme_service.dart';
+import 'package:n3rd_game/services/language_service.dart';
+import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -17,6 +22,7 @@ import 'package:n3rd_game/services/data_export_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:image_picker/image_picker.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -29,9 +35,9 @@ class SettingsScreen extends StatelessWidget {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
         return Scaffold(
-          backgroundColor: colors.background,
+          backgroundColor: Colors.black, // Black fallback
           body: VideoBackgroundWidget(
-            videoPath: 'assets/setting screen.mp4',
+            videoPath: 'assets/settingscreen.mp4',
             fit: BoxFit.cover, // CSS object-fit: cover equivalent
             alignment: Alignment.topCenter, // Characters/logos in upper portion
             loop: true,
@@ -39,9 +45,14 @@ class SettingsScreen extends StatelessWidget {
             child: SafeArea(
               child: Column(
                 children: [
-                  // Minimal top app bar (logos are in upper portion)
+                  // Minimal top app bar - moved closer to top
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm, // Reduced top padding
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                    ),
                     child: Row(
                       children: [
                         Semantics(
@@ -66,21 +77,16 @@ class SettingsScreen extends StatelessWidget {
                                 'Back',
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          'Settings',
-                          style: AppTypography.headlineLarge.copyWith(
-                            color: colors.onDarkText,
-                          ),
-                        ),
+                        // Settings header removed per user request
+                        const Spacer(),
                       ],
                     ),
                   ),
 
-                  // Spacer to push content to lower portion (logos are in upper portion)
+                  // Reduced spacer to move content closer to top
                   SizedBox(
-                      height: ResponsiveHelper.responsiveHeight(context, 0.15)
-                          .clamp(80.0, 150.0),),
+                      height: ResponsiveHelper.responsiveHeight(context, 0.05)
+                          .clamp(20.0, 40.0),), // Reduced from 0.15 to 0.05
 
                   // Profile card
                   Padding(
@@ -417,7 +423,7 @@ class SettingsScreen extends StatelessWidget {
                                     ),
                                   ),
                                   content: Text(
-                                    'Version 1.0.0\n\nA memory-based trivia game that challenges your brain!\n\nCreated by Gerard',
+                                    'Version 1.0.0\n\nA memory-based trivia game that challenges your brain!\n\nCreated by Girard Clairsaint',
                                     style: AppTypography.bodyMedium.copyWith(
                                       color: colors.secondaryText,
                                       height: 1.5,
@@ -633,78 +639,160 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          AppLocalizations.of(context)?.editProfile ?? 'Edit Profile',
-          style: AppTypography.headlineLarge.copyWith(
-            fontWeight: FontWeight.bold,
+        backgroundColor: Colors.transparent,
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/background n3rd.png'),
+              fit: BoxFit.cover,
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Display Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalizations.of(context)?.editProfile ?? 'Edit Profile',
+                style: AppTypography.headlineLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Cancel', style: AppTypography.labelLarge),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final displayName = nameController.text.trim();
-              if (displayName.isNotEmpty) {
-                try {
-                  await authService.updateDisplayName(displayName);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalizations.of(context)?.profileUpdated ??
-                              'Profile updated',
-                        ),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '${AppLocalizations.of(context)?.failedToUpdateProfile ?? 'Failed to update profile'}: $e',
-                        ),
-                      ),
-                    );
-                  }
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppLocalizations.of(context)?.pleaseEnterDisplayName ??
-                          'Please enter a display name',
+              const SizedBox(height: 16),
+              // Avatar upload
+              Center(
+                child: GestureDetector(
+                  onTap: () async {
+                    final ImagePicker picker = ImagePicker();
+                    try {
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 512,
+                        maxHeight: 512,
+                        imageQuality: 85,
+                      );
+                      if (image != null && context.mounted) {
+                        // Avatar upload functionality - Firebase Storage integration needed
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Avatar upload coming soon'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to pick image: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: const Icon(
+                      Icons.person,
+                      size: 50,
+                      color: Colors.white,
                     ),
                   ),
-                );
-              }
-            },
-            child: Text('Save', style: AppTypography.labelLarge),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Display Name',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white70),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white70),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Buttons inside tile
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text(
+                      'Cancel',
+                      style: AppTypography.labelLarge.copyWith(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final displayName = nameController.text.trim();
+                      if (displayName.isNotEmpty) {
+                        try {
+                          await authService.updateDisplayName(displayName);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  AppLocalizations.of(context)?.profileUpdated ??
+                                      'Profile updated',
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${AppLocalizations.of(context)?.failedToUpdateProfile ?? 'Failed to update profile'}: $e',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(context)?.pleaseEnterDisplayName ??
+                                  'Please enter a display name',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Save', style: AppTypography.labelLarge),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -927,7 +1015,7 @@ class SettingsScreen extends StatelessWidget {
                         width: 50,
                         child: Text(
                           '${(soundService.soundVolume * 100).toInt()}%',
-                          style: AppTypography.bodyMedium,
+                          style: AppTypography.bodyMedium.copyWith(),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -1164,7 +1252,9 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showAppearanceSettings(BuildContext context) {
-    String selectedTheme = 'system';
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    String selectedTheme = themeService.isDarkMode ? 'dark' : 'light';
+    
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1179,30 +1269,20 @@ class SettingsScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               RadioListTile<String>(
-                title: Text('System Default', style: AppTypography.bodyMedium),
-                value: 'system',
-                // ignore: deprecated_member_use
-                groupValue: selectedTheme,
-                // ignore: deprecated_member_use
-                onChanged: (String? value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedTheme = value;
-                    });
-                  }
-                },
-              ),
-              RadioListTile<String>(
                 title: Text('Light Mode', style: AppTypography.bodyMedium),
                 value: 'light',
                 // ignore: deprecated_member_use
                 groupValue: selectedTheme,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) {
+                onChanged: (String? value) async {
                   if (value != null) {
                     setState(() {
                       selectedTheme = value;
                     });
+                    await themeService.setDarkMode(false);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
                   }
                 },
               ),
@@ -1212,11 +1292,15 @@ class SettingsScreen extends StatelessWidget {
                 // ignore: deprecated_member_use
                 groupValue: selectedTheme,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) {
+                onChanged: (String? value) async {
                   if (value != null) {
                     setState(() {
                       selectedTheme = value;
                     });
+                    await themeService.setDarkMode(true);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
                   }
                 },
               ),
@@ -1229,7 +1313,7 @@ class SettingsScreen extends StatelessWidget {
                   Navigator.pop(context);
                 }
               },
-              child: Text('Done', style: AppTypography.labelLarge),
+              child: Text('Cancel', style: AppTypography.labelLarge),
             ),
           ],
         ),
@@ -1237,8 +1321,21 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showLanguageSettings(BuildContext context) {
+  void _showLanguageSettings(BuildContext context) async {
+    if (!context.mounted) return;
+    final languageService = Provider.of<LanguageService>(context, listen: false);
     String selectedLanguage = 'English';
+    // Get current language from service
+    final currentLocale = languageService.currentLocale;
+    if (currentLocale.languageCode == 'es') {
+      selectedLanguage = 'Spanish';
+    } else if (currentLocale.languageCode == 'fr') {
+      selectedLanguage = 'French';
+    } else if (currentLocale.languageCode == 'de') {
+      selectedLanguage = 'German';
+    }
+    
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1258,11 +1355,23 @@ class SettingsScreen extends StatelessWidget {
                 // ignore: deprecated_member_use
                 groupValue: selectedLanguage,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) {
+                onChanged: (String? value) async {
                   if (value != null) {
                     setState(() {
                       selectedLanguage = value;
                     });
+                    // Change language immediately using LanguageService
+                    await languageService.setLanguage(value);
+                    if (!context.mounted) return;
+                    // Close dialog first
+                    Navigator.pop(context);
+                    // Show message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Language changed to $value. Restart the app to see changes.'),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
                   }
                 },
               );
@@ -1283,13 +1392,16 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showGameSettings(BuildContext context) {
-    double timerSpeed = 1.0; // 0.5x to 2.0x
-    double difficulty = 1.0; // 0.5x to 2.0x
-    int revealUses = 3;
-    int clearUses = 3;
-    int skipUses = 3;
+  void _showGameSettings(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!context.mounted) return;
+    double timerSpeed = prefs.getDouble('game_timer_speed') ?? 1.0; // 0.5x to 2.0x
+    double difficulty = prefs.getDouble('game_difficulty') ?? 1.0; // 0.5x to 2.0x
+    int revealUses = prefs.getInt('game_reveal_uses') ?? 3;
+    int clearUses = prefs.getInt('game_clear_uses') ?? 3;
+    int skipUses = prefs.getInt('game_skip_uses') ?? 3;
 
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1315,10 +1427,11 @@ class SettingsScreen extends StatelessWidget {
                         max: 2.0,
                         divisions: 6,
                         label: '${timerSpeed.toStringAsFixed(1)}x',
-                        onChanged: (value) {
+                        onChanged: (value) async {
                           setState(() {
                             timerSpeed = value;
                           });
+                          await prefs.setDouble('game_timer_speed', value);
                         },
                       ),
                     ),
@@ -1343,10 +1456,11 @@ class SettingsScreen extends StatelessWidget {
                         max: 2.0,
                         divisions: 6,
                         label: '${difficulty.toStringAsFixed(1)}x',
-                        onChanged: (value) {
+                        onChanged: (value) async {
                           setState(() {
                             difficulty = value;
                           });
+                          await prefs.setDouble('game_difficulty', value);
                         },
                       ),
                     ),
@@ -1376,10 +1490,11 @@ class SettingsScreen extends StatelessWidget {
                             max: 10,
                             divisions: 10,
                             label: revealUses.toString(),
-                            onChanged: (value) {
+                            onChanged: (value) async {
                               setState(() {
                                 revealUses = value.toInt();
                               });
+                              await prefs.setInt('game_reveal_uses', value.toInt());
                             },
                           ),
                         ],
@@ -1408,10 +1523,11 @@ class SettingsScreen extends StatelessWidget {
                             max: 10,
                             divisions: 10,
                             label: clearUses.toString(),
-                            onChanged: (value) {
+                            onChanged: (value) async {
                               setState(() {
                                 clearUses = value.toInt();
                               });
+                              await prefs.setInt('game_clear_uses', value.toInt());
                             },
                           ),
                         ],
@@ -1440,10 +1556,11 @@ class SettingsScreen extends StatelessWidget {
                             max: 10,
                             divisions: 10,
                             label: skipUses.toString(),
-                            onChanged: (value) {
+                            onChanged: (value) async {
                               setState(() {
                                 skipUses = value.toInt();
                               });
+                              await prefs.setInt('game_skip_uses', value.toInt());
                             },
                           ),
                         ],
@@ -1498,6 +1615,9 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   );
+                  // Reload game settings in GameService
+                  final gameService = Provider.of<GameService>(context, listen: false);
+                  await gameService.loadGameSettings();
                 }
               },
               child: Text('Save', style: AppTypography.labelLarge),
@@ -1527,19 +1647,38 @@ class SettingsScreen extends StatelessWidget {
       NavigationHelper.safePop(context); // Close loading dialog
 
       if (filePath != null) {
-        await exportService.shareExportedData();
+        // Use Share.shareXFiles directly with the file path
+        final file = File(filePath);
+        if (await file.exists()) {
+          await Share.shareXFiles(
+            [XFile(filePath)],
+            text: 'My N3RD Trivia Data Export',
+          );
 
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Data exported successfully',
-              style: AppTypography.bodyMedium,
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Data exported successfully',
+                style: AppTypography.bodyMedium,
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        } else {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Export file not found',
+                style: AppTypography.bodyMedium,
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (!context.mounted) return;

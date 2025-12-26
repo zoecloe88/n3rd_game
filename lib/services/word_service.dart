@@ -121,20 +121,90 @@ class WordService extends ChangeNotifier {
     }
   }
 
-  // Create fallback word of the day
+  // Create fallback word of the day with better definitions and examples
   WordOfTheDay _createFallbackWord(String word, DateTime date) {
+    // Provide better fallback definitions and examples for common words
+    final fallbackData = _getFallbackWordData(word);
     return WordOfTheDay(
       word: word,
-      definition: 'A fascinating word to explore today.',
-      example: 'Use this word in your daily conversation.',
+      definition: fallbackData['definition'] ?? 'A fascinating word to explore today.',
+      example: fallbackData['example'] ?? 'This word can be used in various contexts to express meaning.',
       date: date,
     );
   }
 
+  // Get fallback data for common words
+  Map<String, String> _getFallbackWordData(String word) {
+    final wordLower = word.toLowerCase();
+    final fallbackMap = {
+      'serendipity': {
+        'definition': 'The occurrence and development of events by chance in a happy or beneficial way.',
+        'example': 'Finding that rare book in the library was pure serendipity.',
+      },
+      'ephemeral': {
+        'definition': 'Lasting for a very short time; transient.',
+        'example': 'The beauty of cherry blossoms is ephemeral, lasting only a few weeks.',
+      },
+      'eloquent': {
+        'definition': 'Fluent or persuasive in speaking or writing.',
+        'example': 'Her eloquent speech moved the entire audience to tears.',
+      },
+      'resilient': {
+        'definition': 'Able to withstand or recover quickly from difficult conditions.',
+        'example': 'Despite the setbacks, she remained resilient and continued pursuing her goals.',
+      },
+      'pragmatic': {
+        'definition': 'Dealing with things in a practical and realistic way.',
+        'example': 'His pragmatic approach to problem-solving helped the team succeed.',
+      },
+    };
+    return fallbackMap[wordLower] ?? {
+      'definition': 'A fascinating word to explore today.',
+      'example': 'This word can be used in various contexts to express meaning.',
+    };
+  }
+
+  // Validate that definition matches the word (not a different word)
+  bool _isDefinitionValid(String word, String definition) {
+    final wordLower = word.toLowerCase();
+    final defLower = definition.toLowerCase();
+    
+    // Check if definition contains the word or a close variant
+    // This helps filter out definitions for compound words or different meanings
+    if (defLower.contains(wordLower)) {
+      return true;
+    }
+    
+    // Check for common word variants (e.g., "vivid" vs "vividly")
+    final wordStem = wordLower.length > 4 ? wordLower.substring(0, wordLower.length - 2) : wordLower;
+    if (defLower.contains(wordStem)) {
+      return true;
+    }
+    
+    // If definition is very short or seems unrelated, it might be wrong
+    // Definitions should typically be at least 20 characters for context
+    if (definition.length < 20) {
+      return false;
+    }
+    
+    // For very short words, be more lenient
+    if (word.length <= 3) {
+      return true;
+    }
+    
+    // If definition doesn't mention the word at all, it's likely wrong
+    // This catches cases like "VIVID" showing "A felt-tipped permanent marker"
+    return false;
+  }
+
   // Extract the best definition from API response
-  String? _extractBestDefinition(List<dynamic> meanings) {
+  // Prioritizes more detailed and comprehensive definitions
+  // Validates that definition actually matches the word
+  String? _extractBestDefinition(List<dynamic> meanings, String word) {
     // Prefer noun or verb definitions first, then others
     final preferredPartsOfSpeech = ['noun', 'verb', 'adjective', 'adverb'];
+    String? bestDefinition;
+    int bestLength = 0;
 
     for (final pos in preferredPartsOfSpeech) {
       for (final meaning in meanings) {
@@ -143,33 +213,66 @@ class WordService extends ChangeNotifier {
           if (partOfSpeech == pos) {
             final definitions = meaning['definitions'] as List?;
             if (definitions != null && definitions.isNotEmpty) {
-              final firstDef = definitions[0] as Map<String, dynamic>;
-              return firstDef['definition'] as String?;
+              // Look for the most detailed definition (longer usually means more comprehensive)
+              for (final def in definitions) {
+                if (def is Map<String, dynamic>) {
+                  final definition = def['definition'] as String?;
+                  if (definition != null && 
+                      definition.length > bestLength &&
+                      _isDefinitionValid(word, definition)) {
+                    bestDefinition = definition;
+                    bestLength = definition.length;
+                  }
+                }
+              }
             }
           }
         }
       }
     }
 
-    // If no preferred part of speech found, use first available
+    // If we found a good definition, return it
+    if (bestDefinition != null && bestDefinition.isNotEmpty) {
+      return bestDefinition;
+    }
+
+    // If no preferred part of speech found, use first available with best detail
     if (meanings.isNotEmpty) {
-      final firstMeaning = meanings[0] as Map<String, dynamic>;
-      final definitions = firstMeaning['definitions'] as List?;
-      if (definitions != null && definitions.isNotEmpty) {
-        final firstDef = definitions[0] as Map<String, dynamic>;
-        return firstDef['definition'] as String?;
+      for (final meaning in meanings) {
+        if (meaning is Map<String, dynamic>) {
+          final definitions = meaning['definitions'] as List?;
+          if (definitions != null && definitions.isNotEmpty) {
+            for (final def in definitions) {
+              if (def is Map<String, dynamic>) {
+                final definition = def['definition'] as String?;
+                if (definition != null && 
+                    definition.length > bestLength &&
+                    _isDefinitionValid(word, definition)) {
+                  bestDefinition = definition;
+                  bestLength = definition.length;
+                }
+              }
+            }
+          }
+        }
       }
     }
 
-    return null;
+    return bestDefinition;
   }
 
   // Extract the best example from API response
+  // Prioritizes complete sentences with proper context
   String? _extractBestExample(List<dynamic> meanings) {
     // CRITICAL: Check if meanings list is empty before iterating to prevent potential errors
     if (meanings.isEmpty) {
       return null;
     }
+    
+    String? bestExample;
+    int bestLength = 0;
+    
+    // Prefer examples that are complete sentences (longer usually means more context)
     for (final meaning in meanings) {
       if (meaning is Map<String, dynamic>) {
         final definitions = meaning['definitions'] as List?;
@@ -178,14 +281,19 @@ class WordService extends ChangeNotifier {
             if (def is Map<String, dynamic>) {
               final example = def['example'] as String?;
               if (example != null && example.isNotEmpty) {
-                return example;
+                // Prefer longer examples as they usually provide better context
+                if (example.length > bestLength) {
+                  bestExample = example;
+                  bestLength = example.length;
+                }
               }
             }
           }
         }
       }
     }
-    return null;
+    
+    return bestExample;
   }
 
   // Extract part of speech
@@ -338,11 +446,11 @@ class WordService extends ChangeNotifier {
               // Extract meanings
               final meanings = wordData['meanings'] as List?;
               if (meanings != null && meanings.isNotEmpty) {
-                // Extract best definition
-                final definition = _extractBestDefinition(meanings);
+                // Extract best definition (pass word for validation)
+                final definition = _extractBestDefinition(meanings, apiWordText);
                 if (definition == null || definition.isEmpty) {
                   throw ValidationException(
-                    'No definition found in API response',
+                    'No valid definition found in API response',
                   );
                 }
 

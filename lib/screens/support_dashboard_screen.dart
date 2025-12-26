@@ -4,6 +4,7 @@ import 'package:n3rd_game/services/ai_support_service.dart';
 import 'package:n3rd_game/services/user_survey_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class SupportDashboardScreen extends StatefulWidget {
   const SupportDashboardScreen({super.key});
@@ -77,16 +78,10 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
-      body: Stack(
-        children: [
-          // Background
-          Container(
-            color: AppColors.of(context).background,
-          ),
-
-          // Content
-          SafeArea(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
             child: Column(
               children: [
                 // Header
@@ -160,7 +155,6 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
               ],
             ),
           ),
-        ],
       ),
     );
   }
@@ -351,11 +345,20 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
               style: AppTypography.titleLarge.copyWith(color: Colors.white),
             ),
             const SizedBox(height: 12),
-            ...(aiData['intentsCount'] as Map<String, dynamic>).entries.map((
-              entry,
-            ) {
-              return _buildStatRow(entry.key, entry.value, AppColors.info);
-            }),
+            // CRITICAL: Safe type casting with proper validation
+            // Check if intentsCount is a Map before casting to prevent type errors
+            ...(() {
+              final intentsCount = aiData['intentsCount'];
+              if (intentsCount is Map) {
+                // Convert to Map<String, dynamic> safely
+                final typedMap = Map<String, dynamic>.from(intentsCount);
+                return typedMap.entries.map((entry) {
+                  return _buildStatRow(entry.key, entry.value, AppColors.info);
+                });
+              }
+              // Return empty list if type is incorrect
+              return <Widget>[];
+            })(),
           ],
         ],
       ),

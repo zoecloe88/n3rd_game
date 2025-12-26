@@ -120,7 +120,7 @@ service cloud.firestore {
     
     // Family groups - Family & Friends plan management
     // Security model: Defense in depth
-    // - Firestore rules provide first layer (owner/member checks)
+    // - Firestore rules provide first layer (owner/member checks using memberIds array)
     // - Application logic (FamilyGroupService) provides second layer (validates membership)
     match /family_groups/{groupId} {
       // Helper functions
@@ -129,40 +129,28 @@ service cloud.firestore {
                resource.data.ownerId == request.auth.uid;
       }
       
-      // Check if user is a member (Firestore rules can check array of maps)
       function isMember() {
-        return request.auth != null && 
-               request.auth.uid in resource.data.members.map(m => m.userId);
-      }
-      
-      // Check if user's email is in pending invites
-      function isInvited() {
         return request.auth != null &&
-               request.auth.token.email != null &&
-               request.auth.token.email in resource.data.pendingInvites.map(i => i.email);
+               request.auth.uid in resource.data.memberIds;
       }
       
-      // Read: Owner, members, or invited users can read
-      allow read: if request.auth != null && (
-        isOwner() || 
-        isMember() || 
-        isInvited()
-      );
+      // Read: Only owner or members can read
+      // Uses memberIds array for efficient Firestore rules checking
+      // This prevents unauthorized users from accessing sensitive family group data
+      allow read: if request.auth != null && (isOwner() || isMember());
       
       // Create: Authenticated users can create, but must set themselves as owner
+      // Also validates that owner is included in memberIds array
       allow create: if request.auth != null &&
         request.resource.data.ownerId == request.auth.uid &&
         request.resource.data.subscriptionTier == 'family_friends' &&
-        request.resource.data.maxMembers == 4;
+        request.resource.data.maxMembers == 4 &&
+        request.auth.uid in request.resource.data.memberIds;
       
-      // Update: Owner can update anything, members can only update their own status
+      // Update: Owner only
       // Note: App logic enforces that only owner can invite/remove members
-      allow update: if request.auth != null && (
-        isOwner() ||
-        (isMember() && 
-         // Members can only update their own entry in members array
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
-      );
+      // Members cannot update group data - only owner can
+      allow update: if request.auth != null && isOwner();
       
       // Delete: Owner only
       allow delete: if request.auth != null && isOwner();

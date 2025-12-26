@@ -4,6 +4,7 @@ import 'package:n3rd_game/screens/leaderboard_screen.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 
 /// Screen that provides menu to choose between Stats and Leaderboard
 class StatsMenuScreen extends StatelessWidget {
@@ -14,11 +15,16 @@ class StatsMenuScreen extends StatelessWidget {
     final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/statscreen.mp4',
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter, // Characters/logos in upper portion
+        loop: true,
+        autoplay: true,
+        child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Back button only (header removed)
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -27,12 +33,6 @@ class StatsMenuScreen extends StatelessWidget {
                       icon: Icon(Icons.arrow_back, color: colors.onDarkText),
                       onPressed: () => NavigationHelper.safePop(context),
                       tooltip: 'Back',
-                    ),
-                    Text(
-                      'Stats & Leaderboard',
-                      style: AppTypography.headlineLarge.copyWith(
-                        color: colors.onDarkText,
-                      ),
                     ),
                   ],
                 ),
@@ -79,6 +79,7 @@ class StatsMenuScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
       ),
     );
   }

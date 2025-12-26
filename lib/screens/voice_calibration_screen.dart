@@ -7,6 +7,7 @@ import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class VoiceCalibrationScreen extends StatefulWidget {
   const VoiceCalibrationScreen({super.key});
@@ -25,8 +26,10 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
     // RouteGuard handles subscription checking at route level
 
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
-      body: SafeArea(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
           child: Consumer3<VoiceCalibrationService, VoiceRecognitionService,
               PronunciationDictionaryService>(
             builder: (context, calibrationService, voiceService,
@@ -71,14 +74,27 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         const SizedBox(height: 24),
                         ElevatedButton(
                           onPressed: () async {
-                            await calibrationService.startCalibration(
-                              pronunciationService: pronunciationService,
-                              recognitionService: voiceService,
-                            );
-                            setState(() {
-                              _currentSample = 0;
-                              _lastRecognizedText = null;
-                            });
+                            try {
+                              await calibrationService.startCalibration(
+                                pronunciationService: pronunciationService,
+                                recognitionService: voiceService,
+                              );
+                              if (mounted) {
+                                setState(() {
+                                  _currentSample = 0;
+                                  _lastRecognizedText = null;
+                                });
+                              }
+                            } catch (e) {
+                              if (mounted && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to start calibration: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.of(
@@ -107,7 +123,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                   calibrationService.getCurrentCalibrationWord();
               final progress = calibrationService.getCalibrationProgress();
 
-              if (currentWord == null) {
+              if (currentWord == null || currentWord.isEmpty) {
                 // Calibration complete
                 return Center(
                   child: Container(
@@ -271,48 +287,125 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         // Recording button
                         GestureDetector(
                           onTapDown: (_) async {
-                            if (!_isRecording && voiceService.isAvailable) {
+                            if (!mounted) return;
+                            
+                            // Check if voice service is available
+                            if (!voiceService.isAvailable) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Voice recognition is not available on this device'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                            
+                            // Double-check currentWord is valid
+                            final word = calibrationService.getCurrentCalibrationWord();
+                            if (word == null || word.isEmpty) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No calibration word available. Please try again.'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                            
+                            if (!_isRecording) {
+                              if (!mounted) return;
                               setState(() {
                                 _isRecording = true;
                                 _lastRecognizedText = null;
                               });
 
-                              await voiceService.startListening(
-                                onResult: (text) {
-                                  if (!mounted) return;
+                              try {
+                                await voiceService.startListening(
+                                  onResult: (text) {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _lastRecognizedText = text;
+                                      _isRecording = false;
+                                    });
+
+                                    try {
+                                      // Record the sample (word is guaranteed non-null here due to check above)
+                                      calibrationService.recordCalibrationSample(
+                                        word: word,
+                                        recognizedText: text,
+                                        recognitionService: voiceService,
+                                      );
+
+                                      // Move to next sample
+                                      if (mounted) {
+                                        setState(() {
+                                          _currentSample++;
+                                          if (_currentSample >= 3) {
+                                            _currentSample = 0;
+                                            calibrationService
+                                                .completeWordCalibration(
+                                              word,
+                                            );
+                                          }
+                                        });
+                                      }
+                                    } catch (e) {
+                                      if (mounted && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error recording sample: ${e.toString()}'),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                );
+                              } catch (e) {
+                                if (mounted) {
                                   setState(() {
-                                    _lastRecognizedText = text;
                                     _isRecording = false;
                                   });
-
-                                  // Record the sample
-                                  calibrationService.recordCalibrationSample(
-                                    word: currentWord,
-                                    recognizedText: text,
-                                    recognitionService: voiceService,
+                                }
+                                if (mounted && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to start listening: ${e.toString()}'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
-
-                                  // Move to next sample
-                                  setState(() {
-                                    _currentSample++;
-                                    if (_currentSample >= 3) {
-                                      _currentSample = 0;
-                                      calibrationService
-                                          .completeWordCalibration(
-                                        currentWord,
-                                      );
-                                    }
-                                  });
-                                },
-                              );
+                                }
+                              }
                             }
                           },
                           onTapUp: (_) async {
                             if (_isRecording) {
-                              await voiceService.stop();
-                              setState(() {
-                                _isRecording = false;
-                              });
+                              try {
+                                await voiceService.stop();
+                                if (mounted) {
+                                  setState(() {
+                                    _isRecording = false;
+                                  });
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() {
+                                    _isRecording = false;
+                                  });
+                                }
+                                if (mounted && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error stopping recording: ${e.toString()}'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
+                              }
                             }
                           },
                           child: Container(
@@ -370,6 +463,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
             },
           ),
         ),
+      ),
       );
   }
 }

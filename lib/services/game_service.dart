@@ -16,6 +16,8 @@ import 'package:n3rd_game/services/analytics_service.dart'; // Added for analyti
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/services/game_history_service.dart';
+import 'package:n3rd_game/models/game_history_entry.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
@@ -159,6 +161,7 @@ class GameService extends ChangeNotifier {
   // Disposal flag to prevent notifyListeners() after dispose
   bool _disposed = false;
   bool _isLoadingState = false; // Mutex to prevent concurrent loadState calls
+  bool _isSettingGameOver = false; // Mutex to prevent concurrent _setGameOver calls
 
   // Safe wrapper for notifyListeners() that checks disposal state
   // Prevents race conditions where timer callbacks try to notify after dispose
@@ -180,6 +183,46 @@ class GameService extends ChangeNotifier {
       );
       // Continue with default 'instant' mode - safe fallback
     });
+    // Load game settings asynchronously (non-blocking)
+    _loadGameSettings().catchError((e) {
+      LoggerService.debug(
+        'Failed to load game settings in constructor',
+        error: e,
+      );
+      // Continue with defaults - safe fallback
+    });
+  }
+
+  // Game settings multipliers (loaded from SharedPreferences)
+  double _timerSpeedMultiplier = 1.0;
+  // ignore: unused_field
+  double _difficultyMultiplier = 1.0; // Reserved for future use in question difficulty adjustment
+
+  /// Load game settings from SharedPreferences
+  Future<void> _loadGameSettings() async {
+    await loadGameSettings();
+  }
+
+  /// Public method to reload game settings from SharedPreferences
+  /// This should be called after settings are changed to apply them immediately
+  Future<void> loadGameSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _timerSpeedMultiplier = prefs.getDouble('game_timer_speed') ?? 1.0;
+      _difficultyMultiplier = prefs.getDouble('game_difficulty') ?? 1.0;
+      _revealAllUses = prefs.getInt('game_reveal_uses') ?? 3;
+      _clearUses = prefs.getInt('game_clear_uses') ?? 3;
+      _skipUses = prefs.getInt('game_skip_uses') ?? 3;
+      notifyListeners(); // Notify listeners that settings have changed
+    } catch (e) {
+      // If loading fails, use defaults
+      LoggerService.debug('Failed to load game settings, using defaults', error: e);
+      _timerSpeedMultiplier = 1.0;
+      _difficultyMultiplier = 1.0;
+      _revealAllUses = 3;
+      _clearUses = 3;
+      _skipUses = 3;
+    }
   }
 
   // Add startTimeAttack stub
@@ -272,8 +315,7 @@ class GameService extends ChangeNotifier {
   Timer? _timeFreezeTimer; // Store time freeze timer for proper cleanup
   Timer? _flipInitialTimer; // Timer for initial flip delay
   Timer? _flipPeriodicTimer; // Timer for periodic tile flipping
-  Future<void>?
-      _pendingNextRoundDelay; // Track pending nextRound auto-advance to prevent leaks and race conditions
+  Timer? _pendingNextRoundTimer; // Track pending nextRound auto-advance timer (replaces Future.delayed for proper cancellation)
   String shuffleDifficulty = 'medium';
 
   GameMode _currentMode = GameMode.classic;
@@ -502,6 +544,7 @@ class GameService extends ChangeNotifier {
   TriviaGamificationService? _gamificationService;
   AnalyticsService? _analyticsService;
   SubscriptionService? _subscriptionService;
+  GameHistoryService? _gameHistoryService;
 
   /// Set personalization service (called from main.dart)
   void setPersonalizationService(TriviaPersonalizationService? service) {
@@ -523,18 +566,105 @@ class GameService extends ChangeNotifier {
     _subscriptionService = service;
   }
 
+  /// Set game history service (called from main.dart)
+  void setGameHistoryService(GameHistoryService? service) {
+    _gameHistoryService = service;
+  }
+
   /// Helper method to set game over state and clear active game session
+  /// CRITICAL: Uses mutex to prevent concurrent calls
   void _setGameOver() {
-    _state = _state.copyWith(isGameOver: true);
-    // Clear active game session for subscription grace period
-    _subscriptionService?.clearGameSession().catchError((e) {
-      LoggerService.error('Failed to clear game session', error: e);
-      // Log to analytics for monitoring (non-critical failure)
-      _analyticsService?.logError(
-        'GameService: Failed to clear game session',
-        e.toString(),
+    // Mutex to prevent concurrent game over calls
+    if (_isSettingGameOver || _disposed) return;
+    _isSettingGameOver = true;
+
+    try {
+      _state = _state.copyWith(isGameOver: true);
+      // Clear active game session for subscription grace period
+      _subscriptionService?.clearGameSession().catchError((e) {
+        LoggerService.error('Failed to clear game session', error: e);
+        // Log to analytics for monitoring (non-critical failure)
+        _analyticsService?.logError(
+          'GameService: Failed to clear game session',
+          e.toString(),
+        );
+      });
+
+      // Record game history (non-blocking, errors handled gracefully)
+      _recordGameHistory().catchError((e) {
+        LoggerService.error('Failed to record game history', error: e);
+        // Non-critical - game completion should not be blocked by history recording
+      }).whenComplete(() {
+        _isSettingGameOver = false;
+      });
+    } catch (e) {
+      _isSettingGameOver = false;
+      rethrow;
+    }
+  }
+
+  /// Record game history entry
+  Future<void> _recordGameHistory() async {
+    if (_gameHistoryService == null) return;
+
+    try {
+      // Calculate game duration
+      int durationSeconds = 0;
+      if (_gameStartTime != null) {
+        durationSeconds = DateTime.now().difference(_gameStartTime!).inSeconds;
+      }
+
+      // Calculate accuracy
+      final totalAnswers = _sessionCorrectAnswers + _sessionWrongAnswers;
+      final accuracy = totalAnswers > 0
+          ? (_sessionCorrectAnswers / totalAnswers) * 100.0
+          : 0.0;
+
+      // Get trivia categories
+      final categories = <String>[];
+      if (_currentTrivia != null && _currentTrivia!.category.isNotEmpty) {
+        categories.add(_currentTrivia!.category);
+      }
+      // Add categories from trivia pool if available
+      for (final trivia in _currentTriviaPool) {
+        if (trivia.category.isNotEmpty && !categories.contains(trivia.category)) {
+          categories.add(trivia.category);
+        }
+      }
+
+      // Create game history entry
+      final gameEntry = GameHistoryEntry(
+        gameId: DateTime.now().millisecondsSinceEpoch.toString(),
+        completedAt: DateTime.now(),
+        mode: _currentMode,
+        score: _state.score,
+        rounds: _state.round,
+        correctAnswers: _sessionCorrectAnswers,
+        wrongAnswers: _sessionWrongAnswers,
+        durationSeconds: durationSeconds,
+        accuracy: accuracy,
+        perfectStreak: _state.perfectStreak,
+        livesRemaining: _state.lives,
+        triviaCategories: categories,
+        isMultiplayer: false, // Multiplayer detection can be added when multiplayer game completion is tracked
+        roomId: null,
+        isWon: null, // Win condition detection can be added for modes with explicit win conditions
+        additionalMetrics: {
+          'shuffleCount': _shuffleCount,
+          'timeAttackSecondsLeft': _timeAttackSecondsLeft,
+        },
       );
-    });
+
+      // Record the game (non-blocking)
+      await _gameHistoryService!.recordGame(gameEntry);
+    } catch (e, stackTrace) {
+      LoggerService.error(
+        'Error recording game history',
+        error: e,
+        stack: stackTrace,
+      );
+      // Don't rethrow - game completion should not be blocked
+    }
   }
 
   List<String> _shuffledWords = [];
@@ -1117,10 +1247,12 @@ class GameService extends ChangeNotifier {
         mode != null && mode != _currentMode || _state.isGameOver;
 
     // Reset power-ups for new game (but keep earned ones)
+    // Reload power-up settings from SharedPreferences for new game
     if (isNewGame) {
-      _revealAllUses = 3;
-      _clearUses = 3;
-      _skipUses = 3;
+      // Reload settings (fire-and-forget, will use cached values if not yet loaded)
+      _loadGameSettings().catchError((e) {
+        LoggerService.debug('Failed to reload game settings', error: e);
+      });
       _streakShieldUses = 0;
       _timeFreezeUses = 0;
       _hintUses = 0;
@@ -2160,10 +2292,12 @@ class GameService extends ChangeNotifier {
         _phase = GamePhase.memorize;
       }
     } else {
-      // Use config timing for other modes
-      _memorizeTimeLeft = config.memorizeTime;
-      _playTimeLeft = config.playTime;
-      _phase = config.memorizeTime > 0 ? GamePhase.memorize : GamePhase.play;
+      // Use config timing for other modes, apply timer speed multiplier
+      final baseMemorizeTime = config.memorizeTime;
+      final basePlayTime = config.playTime;
+      _memorizeTimeLeft = (baseMemorizeTime * _timerSpeedMultiplier).round().clamp(1, 60);
+      _playTimeLeft = (basePlayTime * _timerSpeedMultiplier).round().clamp(1, 60);
+      _phase = _memorizeTimeLeft > 0 ? GamePhase.memorize : GamePhase.play;
     }
 
     _shuffleCount = 0;
@@ -2637,17 +2771,17 @@ class GameService extends ChangeNotifier {
         _phase = GamePhase.result;
         _safeNotifyListeners();
 
-        // Cancel any pending nextRound delay to prevent race conditions
+        // Cancel any pending nextRound timer to prevent race conditions
         _cancelPendingNextRoundDelay();
 
-        // Auto-advance after showing results (use constant for delay)
-        _pendingNextRoundDelay = Future.delayed(
+        // Auto-advance after showing results (use Timer instead of Future.delayed for proper cancellation)
+        _pendingNextRoundTimer = Timer(
           const Duration(
             seconds: GameConstants.nextRoundAutoAdvanceDelaySeconds,
           ),
           () {
-            // Validate that this callback is still the current one (prevents race conditions)
-            if (_disposed || _pendingNextRoundDelay == null) return;
+            // Validate that this timer is still the current one (prevents race conditions)
+            if (_disposed || _pendingNextRoundTimer == null) return;
             // Validate state before calling nextRound() - ensure trivia pool is available
             if (_phase == GamePhase.result &&
                 !_state.isGameOver &&
@@ -2656,17 +2790,17 @@ class GameService extends ChangeNotifier {
                 nextRound();
               } catch (e) {
                 if (kDebugMode) {
-                  debugPrint('Error in delayed nextRound callback: $e');
+                  debugPrint('Error in nextRound timer callback: $e');
                 }
                 // Log to Crashlytics for production monitoring
                 FirebaseCrashlytics.instance.recordError(
                   e,
                   StackTrace.current,
-                  reason: 'Error in Future.delayed nextRound callback',
+                  reason: 'Error in Timer nextRound callback',
                   fatal: false,
                 );
               } finally {
-                _pendingNextRoundDelay =
+                _pendingNextRoundTimer =
                     null; // Clear reference after execution
               }
             }
@@ -2776,17 +2910,17 @@ class GameService extends ChangeNotifier {
         _safeNotifyListeners();
         _saveState();
 
-        // Cancel any pending nextRound delay to prevent race conditions
+        // Cancel any pending nextRound timer to prevent race conditions
         _cancelPendingNextRoundDelay();
 
-        // Auto-advance after showing results (use constant for delay)
-        _pendingNextRoundDelay = Future.delayed(
+        // Auto-advance after showing results (use Timer instead of Future.delayed for proper cancellation)
+        _pendingNextRoundTimer = Timer(
           const Duration(
             seconds: GameConstants.nextRoundAutoAdvanceDelaySeconds,
           ),
           () {
-            // Validate that this callback is still the current one (prevents race conditions)
-            if (_disposed || _pendingNextRoundDelay == null) return;
+            // Validate that this timer is still the current one (prevents race conditions)
+            if (_disposed || _pendingNextRoundTimer == null) return;
             if (_phase == GamePhase.result &&
                 !_state.isGameOver &&
                 _currentTriviaPool.isNotEmpty) {
@@ -2795,7 +2929,7 @@ class GameService extends ChangeNotifier {
               } catch (e) {
                 if (kDebugMode) {
                   debugPrint(
-                    'Error in delayed nextRound callback (Flip Mode perfect): $e',
+                    'Error in nextRound timer callback (Flip Mode perfect): $e',
                   );
                 }
                 // Log to Crashlytics for production monitoring
@@ -2803,11 +2937,11 @@ class GameService extends ChangeNotifier {
                   e,
                   StackTrace.current,
                   reason:
-                      'Error in Future.delayed nextRound callback (Flip Mode perfect)',
+                      'Error in Timer nextRound callback (Flip Mode perfect)',
                   fatal: false,
                 );
               } finally {
-                _pendingNextRoundDelay =
+                _pendingNextRoundTimer =
                     null; // Clear reference after execution
               }
             }
@@ -2855,17 +2989,17 @@ class GameService extends ChangeNotifier {
           _safeNotifyListeners();
           _saveState();
 
-          // Cancel any pending nextRound delay to prevent race conditions
+          // Cancel any pending nextRound timer to prevent race conditions
           _cancelPendingNextRoundDelay();
 
-          // Auto-advance after showing results (use constant for delay)
-          _pendingNextRoundDelay = Future.delayed(
+          // Auto-advance after showing results (use Timer instead of Future.delayed for proper cancellation)
+          _pendingNextRoundTimer = Timer(
             const Duration(
               seconds: GameConstants.nextRoundAutoAdvanceDelaySeconds,
             ),
             () {
-              // Validate that this callback is still the current one (prevents race conditions)
-              if (_disposed || _pendingNextRoundDelay == null) return;
+              // Validate that this timer is still the current one (prevents race conditions)
+              if (_disposed || _pendingNextRoundTimer == null) return;
               if (_phase == GamePhase.result &&
                   !_state.isGameOver &&
                   _currentTriviaPool.isNotEmpty) {
@@ -2874,7 +3008,7 @@ class GameService extends ChangeNotifier {
                 } catch (e) {
                   if (kDebugMode) {
                     debugPrint(
-                      'Error in delayed nextRound callback (Flip Mode non-perfect): $e',
+                      'Error in nextRound timer callback (Flip Mode non-perfect): $e',
                     );
                   }
                   // Log to Crashlytics for production monitoring
@@ -2882,11 +3016,11 @@ class GameService extends ChangeNotifier {
                     e,
                     StackTrace.current,
                     reason:
-                        'Error in Future.delayed nextRound callback (Flip Mode non-perfect)',
+                        'Error in Timer nextRound callback (Flip Mode non-perfect)',
                     fatal: false,
                   );
                 } finally {
-                  _pendingNextRoundDelay =
+                  _pendingNextRoundTimer =
                       null; // Clear reference after execution
                 }
               }
@@ -4832,10 +4966,10 @@ class GameService extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  /// Cancel any pending nextRound delay to prevent memory leaks and race conditions
+  /// Cancel any pending nextRound timer to prevent memory leaks and race conditions
   void _cancelPendingNextRoundDelay() {
-    _pendingNextRoundDelay =
-        null; // Cancel by clearing reference (prevents execution if pending)
+    _pendingNextRoundTimer?.cancel(); // Cancel the timer properly
+    _pendingNextRoundTimer = null; // Clear reference
   }
 
   /// Validate restored state for consistency
@@ -5174,6 +5308,8 @@ class GameService extends ChangeNotifier {
     _flipInitialTimer = null;
     _flipPeriodicTimer?.cancel(); // Cancel flip periodic timer
     _flipPeriodicTimer = null;
+    _pendingNextRoundTimer?.cancel(); // Cancel pending next round timer
+    _pendingNextRoundTimer = null;
 
     // Cancel any pending async operations to prevent memory leaks
     _cancelPendingNextRoundDelay();

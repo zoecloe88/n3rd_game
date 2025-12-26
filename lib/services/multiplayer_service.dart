@@ -216,6 +216,37 @@ class MultiplayerService extends ChangeNotifier {
             '$operationName timeout (attempt ${attempts + 1}/$maxRetries)',
           );
         }
+      } on FirebaseException catch (e) {
+        // CRITICAL: Handle permission-denied errors specifically
+        // Don't retry on permission errors - they won't succeed on retry
+        if (e.code == 'permission-denied') {
+          LoggerService.error(
+            '$operationName: Permission denied. User may not be authenticated or lacks required permissions.',
+            error: e,
+            reason: 'Firestore permission-denied error',
+            fatal: false,
+          );
+          // Check if user is authenticated
+          final userId = _auth.currentUser?.uid;
+          if (userId == null) {
+            throw AuthenticationException(
+              'User not authenticated. Please log in to continue.',
+            );
+          }
+          throw NetworkException(
+            'Permission denied. You may not have access to this feature. Please check your subscription or contact support.',
+          );
+        }
+        // For other Firebase errors, log and rethrow
+        lastError = 'Firebase error (${e.code}): ${e.message}';
+        LoggerService.error(
+          '$operationName: Firebase error ${e.code}',
+          error: e,
+          reason: 'Firestore operation failed',
+          fatal: false,
+        );
+        // Don't retry on other Firebase errors
+        rethrow;
       } catch (e) {
         lastError = e.toString();
         // Don't retry on validation/authentication errors

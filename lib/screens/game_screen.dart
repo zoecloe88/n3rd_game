@@ -108,6 +108,20 @@ class _GameScreenState extends State<GameScreen>
         mode = args['mode'] as GameMode?;
         difficulty = args['difficulty'] as String?;
         customTriviaPool = args['triviaPool'] as List<TriviaItem>?;
+        // Handle edition-specific arguments
+        if (args['edition'] != null && mode == null) {
+          // Editions may not have a specific mode, default to classic
+          mode = GameMode.classic;
+        }
+      }
+
+      // CRITICAL: Ensure mode has a default value if args is null or invalid
+      // This prevents game from failing to start when no arguments are provided
+      mode ??= GameMode.classic;
+
+      // Log initialization for debugging
+      if (kDebugMode) {
+        debugPrint('GameScreen: Initializing with mode=${mode.name}, args=$args');
       }
 
       // Ensure free tier only uses Classic mode
@@ -144,7 +158,7 @@ class _GameScreenState extends State<GameScreen>
           listen: false,
         );
         analyticsService.logGameModeSelected(
-          mode?.name ?? 'unknown',
+          mode.name,
           subscriptionService.tierName,
         );
       }
@@ -185,13 +199,13 @@ class _GameScreenState extends State<GameScreen>
             buildContext,
             generator,
             analyticsService,
-            mode?.name ?? 'unknown',
+            mode.name,
           );
 
           // Validate trivia pool is not empty
           if (triviaPool.isEmpty) {
             await analyticsService.logTriviaGeneration(
-              mode?.name ?? 'unknown',
+              mode.name,
               false,
               error: 'Empty trivia pool after retries',
             );
@@ -208,7 +222,7 @@ class _GameScreenState extends State<GameScreen>
           }
 
           await analyticsService.logTriviaGeneration(
-            mode?.name ?? 'unknown',
+            mode.name,
             true,
           );
         }
@@ -224,7 +238,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.name ?? 'unknown',
+              mode.name,
               false,
               error: e.toString(),
             );
@@ -262,7 +276,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.name ?? 'unknown',
+              mode.name,
               false,
               error: e.toString(),
             );
@@ -292,7 +306,7 @@ class _GameScreenState extends State<GameScreen>
           );
           try {
             await catchAnalyticsService.logTriviaGeneration(
-              mode?.name ?? 'unknown',
+              mode.name,
               false,
               error: e.toString(),
             );
@@ -328,19 +342,30 @@ class _GameScreenState extends State<GameScreen>
       // Flow: Start game → If successful, record slot → Continue
       // If startNewRound() throws, the slot is never recorded, preserving user's daily limit
       try {
-        if (mode == GameMode.timeAttack) {
+        // CRITICAL: Mode is guaranteed to be non-null (set above with ??= GameMode.classic)
+        final gameMode = mode;
+        
+        if (kDebugMode) {
+          debugPrint('GameScreen: Starting game with mode=${gameMode.name}, triviaPool size=${triviaPool.length}');
+        }
+
+        if (gameMode == GameMode.timeAttack) {
           // Pass List<TriviaItem> for timeAttack
           service.startNewRound(
             triviaPool,
-            mode: mode ?? GameMode.classic,
+            mode: gameMode,
             difficulty: difficulty,
           );
         } else {
           service.startNewRound(
             triviaPool,
-            mode: mode ?? GameMode.classic,
+            mode: gameMode,
             difficulty: difficulty,
           );
+        }
+
+        if (kDebugMode) {
+          debugPrint('GameScreen: Game started successfully, phase=${service.phase}');
         }
 
         // Game started successfully (no exception thrown) - now record it for free tier users
@@ -366,12 +391,18 @@ class _GameScreenState extends State<GameScreen>
         }
 
         // Show mode-specific instruction if available (after game starts)
-        if (mode != null && buildContext.mounted) {
-          _checkAndShowModeInstruction(buildContext, mode);
+        if (buildContext.mounted) {
+          _checkAndShowModeInstruction(buildContext, gameMode);
         }
-      } on GameException catch (e) {
+      } on GameException catch (e, stackTrace) {
         // Game failed to start (startNewRound() threw GameException) - slot is NOT recorded
         // Show user-friendly error dialog directly
+        LoggerService.error(
+          'GameScreen: Game failed to start (GameException) - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
         if (kDebugMode) {
           debugPrint(
             'Game failed to start: $e - Game slot NOT recorded (preserving user\'s daily limit)',
@@ -380,8 +411,14 @@ class _GameScreenState extends State<GameScreen>
         if (buildContext.mounted) {
           _showTriviaErrorDialog(buildContext, e.message);
         }
-      } on ValidationException catch (e) {
+      } on ValidationException catch (e, stackTrace) {
         // Game failed due to validation error - slot is NOT recorded
+        LoggerService.error(
+          'GameScreen: Validation error in game start - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
         if (kDebugMode) {
           debugPrint(
             'Validation error in game start: $e - Game slot NOT recorded',
@@ -393,16 +430,27 @@ class _GameScreenState extends State<GameScreen>
             'Trivia content validation failed. Please restart the app.',
           );
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Game failed to start (unexpected exception) - slot is NOT recorded
-        // Re-throw the error to be handled by outer catch block which shows error dialog
-        // This ensures user doesn't lose a game slot when trivia validation fails
+        // Log the error and show user-friendly message
+        LoggerService.error(
+          'GameScreen: Unexpected error starting game - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
         if (kDebugMode) {
           debugPrint(
-            'Game failed to start: $e - Game slot NOT recorded (preserving user\'s daily limit)',
+            'Game failed to start (unexpected): $e - Game slot NOT recorded',
+          );
+          debugPrint('Stack trace: $stackTrace');
+        }
+        if (buildContext.mounted) {
+          _showTriviaErrorDialog(
+            buildContext,
+            'Failed to start game. Please try again or restart the app.',
           );
         }
-        rethrow;
       }
     });
   }

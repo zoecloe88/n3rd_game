@@ -10,6 +10,7 @@ import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -137,81 +138,90 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.primaryText),
-          onPressed: () {
-            HapticService().lightImpact();
-            NavigationHelper.safePop(context);
-          },
-          tooltip: 'Back',
-        ),
-        title: Text(
-          'Messages',
-          style: AppTypography.headlineLarge.copyWith(
-            color: colors.primaryText,
-          ),
-        ),
-      ),
-      body: SafeArea(
-          child: Consumer<DirectMessageService>(
-            builder: (context, messageService, _) {
-              final conversations = messageService.conversations;
-
-              if (conversations.isEmpty) {
-                return RefreshIndicator(
-                  onRefresh: _refreshConversations,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.6,
-                      child: EmptyStateWidget(
-                        icon: Icons.message_outlined,
-                        title: AppLocalizations.of(context)?.noChatMessages ??
-                            'No messages yet',
-                        description: AppLocalizations.of(context)
-                                ?.noChatMessagesDescription ??
-                            'Start a conversation!',
-                      ),
-                    ),
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
+          child: Column(
+            children: [
+              AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () {
+                    HapticService().lightImpact();
+                    NavigationHelper.safePop(context);
+                  },
+                  tooltip: 'Back',
+                ),
+                title: Text(
+                  'Messages',
+                  style: AppTypography.headlineLarge.copyWith(
+                    color: Colors.white,
                   ),
-                );
-              }
+                ),
+              ),
+              Expanded(
+                child: Consumer<DirectMessageService>(
+                  builder: (context, messageService, _) {
+                    final conversations = messageService.conversations;
 
-              return RefreshIndicator(
-                onRefresh: _refreshConversations,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final conversation = conversations[index];
-                    final authService = Provider.of<AuthService>(
-                      context,
-                      listen: false,
-                    );
-                    final currentUserId = authService.currentUser?.uid ?? '';
-                    final otherUserId = conversation.getOtherUserId(
-                      currentUserId,
-                    );
-                    final otherDisplayName =
-                        conversation.getOtherDisplayName(currentUserId) ??
-                            'User';
+                    if (conversations.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: _refreshConversations,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: EmptyStateWidget(
+                              icon: Icons.message_outlined,
+                              title: AppLocalizations.of(context)?.noChatMessages ??
+                                  'No messages yet',
+                              description: AppLocalizations.of(context)
+                                      ?.noChatMessagesDescription ??
+                                  'Start a conversation!',
+                            ),
+                          ),
+                        ),
+                      );
+                    }
 
-                    return _buildConversationItem(
-                      context,
-                      conversation,
-                      otherUserId,
-                      otherDisplayName,
-                      messageService,
+                    return RefreshIndicator(
+                      onRefresh: _refreshConversations,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: conversations.length,
+                        itemBuilder: (context, index) {
+                          final conversation = conversations[index];
+                          final authService = Provider.of<AuthService>(
+                            context,
+                            listen: false,
+                          );
+                          final currentUserId = authService.currentUser?.uid ?? '';
+                          final otherUserId = conversation.getOtherUserId(
+                            currentUserId,
+                          );
+                          final otherDisplayName =
+                              conversation.getOtherDisplayName(currentUserId) ??
+                                  'User';
+
+                          return _buildConversationItem(
+                            context,
+                            conversation,
+                            otherUserId,
+                            otherDisplayName,
+                            messageService,
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
-              );
-            },
+              ),
+            ],
           ),
+        ),
         ),
       );
   }

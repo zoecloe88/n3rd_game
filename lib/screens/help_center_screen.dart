@@ -6,6 +6,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -39,11 +40,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
           child: Column(
             children: [
               // Header
@@ -158,6 +159,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             ],
           ),
         ),
+      ),
       );
   }
 
@@ -247,7 +249,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.black, // Black buttons with white text
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
@@ -350,7 +352,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Card(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.black, // Black buttons with white text
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           onTap: () => _showArticleDetail(article),
@@ -363,7 +365,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 Text(
                   article.title,
                   style: AppTypography.titleLarge.copyWith(
-                    color: Colors.white,
+                    color: Colors.white, // White text on black background
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -371,7 +373,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 Text(
                   '${article.content.substring(0, article.content.length > 150 ? 150 : article.content.length)}...',
                   style: AppTypography.bodyMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withValues(alpha: 0.8), // White text
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -380,14 +382,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 Wrap(
                   spacing: 8,
                   children: article.tags.take(3).map((tag) {
-                    final chipColors = AppColors.of(context);
                     return Chip(
                       label: Text(tag, style: AppTypography.labelSmall),
-                      backgroundColor: chipColors.cardBackground.withValues(
-                        alpha: 0.2,
-                      ),
+                      backgroundColor: Colors.black, // Black chip background
                       labelStyle: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.white, // White text
                         fontSize: 10,
                       ),
                     );

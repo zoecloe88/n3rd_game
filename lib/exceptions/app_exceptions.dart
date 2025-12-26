@@ -43,3 +43,12 @@ class StorageException implements Exception {
   @override
   String toString() => message;
 }
+
+/// Exception thrown when permission is denied
+class PermissionException implements Exception {
+  final String message;
+  PermissionException(this.message);
+
+  @override
+  String toString() => message;
+}

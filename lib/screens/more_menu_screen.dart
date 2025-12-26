@@ -5,37 +5,24 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/services/auth_service.dart';
 
 class MoreMenuScreen extends StatelessWidget {
   const MoreMenuScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-          child: Column(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
+            child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Text(
-                      'More',
-                      style: AppTypography.headlineLarge.copyWith(
-                        color: colors.onDarkText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Menu items
+              // Menu items (header removed - redundant since bottom nav shows "More")
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -178,6 +165,15 @@ class MoreMenuScreen extends StatelessWidget {
                       subtitle: 'Version 1.0.0',
                       onTap: () => _showAboutDialog(context),
                     ),
+                    const SizedBox(height: 8),
+                    const Divider(color: Colors.white24),
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.logout,
+                      title: 'Sign Out',
+                      subtitle: 'Sign out of your account',
+                      onTap: () => _showSignOutDialog(context),
+                    ),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -185,6 +181,7 @@ class MoreMenuScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
     );
   }
 
@@ -210,37 +207,85 @@ class MoreMenuScreen extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final itemColors = AppColors.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: itemColors.cardBackground.withValues(alpha: 0.15),
+        color: Colors.transparent, // Transparent background to match Stats tab
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: itemColors.borderLight.withValues(alpha: 0.2),
+          color: Colors.white.withValues(alpha: 0.2), // White border to match Stats tab
+          width: 1,
         ),
       ),
       child: ListTile(
-        leading: Icon(icon, color: itemColors.onDarkText, size: 24),
+        leading: Icon(icon, color: Colors.white, size: 24), // White icons
         title: Text(
           title,
           style: AppTypography.titleLarge.copyWith(
-            color: itemColors.onDarkText,
+            color: Colors.white, // White text
             fontWeight: FontWeight.w600,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: AppTypography.bodyMedium.copyWith(
-            color: itemColors.onDarkText.withValues(alpha: 0.8),
+            color: Colors.white.withValues(alpha: 0.8), // White text with opacity
           ),
         ),
         trailing: Icon(
           Icons.chevron_right,
-          color: itemColors.onDarkText.withValues(alpha: 0.6),
+          color: Colors.white.withValues(alpha: 0.8), // White chevron
         ),
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context) {
+    final dialogColors = AppColors.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: dialogColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text('Sign Out?', style: AppTypography.headlineLarge),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: AppTypography.bodyLarge,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: AppTypography.labelLarge),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final authService = Provider.of<AuthService>(context, listen: false);
+                await authService.signOut();
+                if (context.mounted) {
+                  NavigationHelper.safeNavigate(context, '/login', replace: true);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error signing out: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              'Sign Out',
+              style: AppTypography.labelLarge.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -270,7 +315,7 @@ class MoreMenuScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Created by Gerard',
+              'Created by Girard Clairsaint',
               style: AppTypography.bodyMedium.copyWith(
                 color: dialogColors.secondaryText,
               ),

@@ -42,10 +42,7 @@ class _EditionsScreenState extends State<EditionsScreen> {
   @override
   Widget build(BuildContext context) {
     // RouteGuard handles subscription checking at route level
-    final colors = AppColors.of(context);
-
     return Scaffold(
-      backgroundColor: colors.background,
       body: VideoBackgroundWidget(
         videoPath: 'assets/edition.mp4',
         fit: BoxFit.cover,
@@ -58,7 +55,16 @@ class _EditionsScreenState extends State<EditionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(context),
+                // Header removed per user request - only show back button if needed
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => NavigationHelper.safePop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.md),
                 _buildCategoryFilter(),
                 const SizedBox(height: AppSpacing.md),
@@ -84,48 +90,6 @@ class _EditionsScreenState extends State<EditionsScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            IconButton(
-              onPressed: () => NavigationHelper.safePop(context),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-            ),
-            const Spacer(),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'EDITIONS',
-          style: AppTypography.playfairDisplay(
-            fontSize: 46,
-            fontWeight: FontWeight.w900,
-            color: const Color(0xFF5F3ABB),
-            letterSpacing: 6,
-          ).copyWith(
-            shadows: [
-              Shadow(
-                offset: const Offset(3, 3),
-                color: Colors.black.withValues(alpha: 0.25),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Choose your specialized trivia collection',
-          style: AppTypography.inter(
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: 0.9),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildCategoryFilter() {
     final filterColors = AppColors.of(context);
     return SizedBox(
@@ -143,8 +107,10 @@ class _EditionsScreenState extends State<EditionsScreen> {
               label: Text(
                 category,
                 style: AppTypography.labelSmall.copyWith(
-                  color: isSelected ? filterColors.onDarkText : Colors.white,
+                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
                 ),
+                softWrap: true,
+                overflow: TextOverflow.visible,
               ),
               selected: isSelected,
               onSelected: (_) {
@@ -152,12 +118,15 @@ class _EditionsScreenState extends State<EditionsScreen> {
                   _selectedCategory = category;
                 });
               },
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              backgroundColor: isSelected 
+                  ? filterColors.primaryButton 
+                  : Colors.black.withValues(alpha: 0.3), // Darker background for unselected
               selectedColor: filterColors.primaryButton,
               side: BorderSide(
                 color: isSelected
                     ? filterColors.primaryButton
-                    : Colors.white.withValues(alpha: 0.2),
+                    : Colors.white.withValues(alpha: 0.3), // More visible border for unselected
+                width: isSelected ? 2 : 1,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -208,9 +177,16 @@ class _EditionsScreenState extends State<EditionsScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: cardColors.cardBackground.withValues(alpha: 0.9),
+              color: hasAccess 
+                  ? cardColors.cardBackground.withValues(alpha: 0.9)
+                  : Colors.white, // White background for unselected
               borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: const Color(0xFF6B4FC9), width: 2),
+              border: Border.all(
+                color: hasAccess 
+                    ? const Color(0xFF6B4FC9) 
+                    : Colors.white.withValues(alpha: 0.3),
+                width: hasAccess ? 2 : 1,
+              ),
               boxShadow: AppShadows.medium,
             ),
             child: Column(
@@ -248,29 +224,44 @@ class _EditionsScreenState extends State<EditionsScreen> {
                         Text(
                           edition.name,
                           maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: TextOverflow.visible, // Allow text to wrap
+                          softWrap: true,
                           style: AppTypography.titleLarge.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: cardColors.primaryText,
+                            color: hasAccess 
+                                ? cardColors.primaryText 
+                                : Colors.black, // Black text for unselected white buttons
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Row(
                           children: [
-                            Text(
-                              edition.category,
-                              style: AppTypography.labelSmall.copyWith(
-                                fontSize: 11,
-                                color: cardColors.secondaryText,
+                            Flexible(
+                              child: Text(
+                                edition.category,
+                                style: AppTypography.labelSmall.copyWith(
+                                  fontSize: 11,
+                                  color: hasAccess 
+                                      ? cardColors.secondaryText 
+                                      : Colors.black.withValues(alpha: 0.7), // Black text for unselected
+                                ),
+                                softWrap: true,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                             const Spacer(),
-                            Text(
-                              edition.categoryCount,
-                              style: AppTypography.bodyMedium.copyWith(
-                                fontSize: 12,
-                                color: cardColors.secondaryText,
+                            Flexible(
+                              child: Text(
+                                edition.categoryCount,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontSize: 12,
+                                  color: hasAccess 
+                                      ? cardColors.secondaryText 
+                                      : Colors.black.withValues(alpha: 0.7), // Black text for unselected
+                                ),
+                                softWrap: true,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -441,8 +432,8 @@ class _EditionsScreenState extends State<EditionsScreen> {
                           label: const Text('Premium Tier (\$4.99 / month)'),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(double.infinity, 52),
-                            backgroundColor: sheetColors.primaryButton,
-                            foregroundColor: sheetColors.onDarkText,
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
                           ),
                         );
                       }
@@ -606,8 +597,8 @@ class _EditionsScreenState extends State<EditionsScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
-                          backgroundColor: sheetColors.primaryButton,
-                          foregroundColor: sheetColors.onDarkText,
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
                         ),
                       );
                     },
