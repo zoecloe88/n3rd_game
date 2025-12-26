@@ -10,6 +10,7 @@ class FamilyGroup {
   final DateTime? subscriptionExpiresAt;
   final List<FamilyMember> members;
   final List<PendingInvite> pendingInvites;
+  final List<String> memberIds; // Array of user IDs for Firestore rules checking
 
   FamilyGroup({
     required this.id,
@@ -20,7 +21,8 @@ class FamilyGroup {
     this.subscriptionExpiresAt,
     required this.members,
     required this.pendingInvites,
-  });
+    List<String>? memberIds,
+  }) : memberIds = memberIds ?? members.map((m) => m.userId).toList();
 
   /// Check if group has reached max members
   bool get isFull => members.length >= maxMembers;
@@ -63,6 +65,17 @@ class FamilyGroup {
   /// Create from Firestore document
   factory FamilyGroup.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final members = (data['members'] as List<dynamic>?)
+            ?.map((m) => FamilyMember.fromMap(m as Map<String, dynamic>))
+            .toList() ??
+        [];
+    
+    // Extract memberIds from members array, or use stored memberIds if available
+    final memberIds = (data['memberIds'] as List<dynamic>?)
+            ?.map((id) => id as String)
+            .toList() ??
+        members.map((m) => m.userId).toList();
+    
     return FamilyGroup(
       id: doc.id,
       ownerId: data['ownerId'] as String,
@@ -71,19 +84,20 @@ class FamilyGroup {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       subscriptionExpiresAt:
           (data['subscriptionExpiresAt'] as Timestamp?)?.toDate(),
-      members: (data['members'] as List<dynamic>?)
-              ?.map((m) => FamilyMember.fromMap(m as Map<String, dynamic>))
-              .toList() ??
-          [],
+      members: members,
       pendingInvites: (data['pendingInvites'] as List<dynamic>?)
               ?.map((i) => PendingInvite.fromMap(i as Map<String, dynamic>))
               .toList() ??
           [],
+      memberIds: memberIds,
     );
   }
 
   /// Convert to Firestore map
   Map<String, dynamic> toFirestore() {
+    // Ensure memberIds is always in sync with members
+    final syncMemberIds = members.map((m) => m.userId).toList();
+    
     return {
       'ownerId': ownerId,
       'subscriptionTier': subscriptionTier,
@@ -94,6 +108,7 @@ class FamilyGroup {
           : null,
       'members': members.map((m) => m.toMap()).toList(),
       'pendingInvites': pendingInvites.map((i) => i.toMap()).toList(),
+      'memberIds': syncMemberIds, // Always sync with members array
     };
   }
 }

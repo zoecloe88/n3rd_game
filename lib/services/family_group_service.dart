@@ -62,9 +62,10 @@ class FamilyGroupService extends ChangeNotifier {
   Future<void> _loadUserGroup(String userId) async {
     try {
       // Check if user is a member of any group
+      // Use memberIds array for efficient querying (Firestore rules compatible)
       final groupsQuery = await _firestore
           .collection('family_groups')
-          .where('members', arrayContains: userId)
+          .where('memberIds', arrayContains: userId)
           .limit(1)
           .get()
           .timeout(
@@ -158,6 +159,7 @@ class FamilyGroupService extends ChangeNotifier {
             'role': 'owner',
           }
         ],
+        'memberIds': [userId], // Array of user IDs for Firestore rules
         'pendingInvites': [],
       };
 
@@ -330,6 +332,7 @@ class FamilyGroupService extends ChangeNotifier {
         }
 
         // Remove invite and add member atomically
+        // Also update memberIds array for Firestore rules
         transaction.update(groupRef, {
           'pendingInvites': FieldValue.arrayRemove([
             {
@@ -346,6 +349,7 @@ class FamilyGroupService extends ChangeNotifier {
               'role': 'member',
             }
           ]),
+          'memberIds': FieldValue.arrayUnion([userId]), // Add to memberIds array
         });
       }).timeout(const Duration(seconds: 15));
 
@@ -406,6 +410,7 @@ class FamilyGroupService extends ChangeNotifier {
           _firestore.collection('family_groups').doc(_currentGroup!.id);
 
       // Remove member from group
+      // Also remove from memberIds array for Firestore rules
       await groupRef.update({
         'members': FieldValue.arrayRemove([
           {
@@ -415,6 +420,7 @@ class FamilyGroupService extends ChangeNotifier {
             'role': member.role,
           }
         ]),
+        'memberIds': FieldValue.arrayRemove([member.userId]), // Remove from memberIds array
       }).timeout(const Duration(seconds: 10));
 
       // Update membership record
@@ -469,6 +475,7 @@ class FamilyGroupService extends ChangeNotifier {
           _firestore.collection('family_groups').doc(_currentGroup!.id);
 
       // Remove member from group
+      // Also remove from memberIds array for Firestore rules
       await groupRef.update({
         'members': FieldValue.arrayRemove([
           {
@@ -478,6 +485,7 @@ class FamilyGroupService extends ChangeNotifier {
             'role': member.role,
           }
         ]),
+        'memberIds': FieldValue.arrayRemove([member.userId]), // Remove from memberIds array
       }).timeout(const Duration(seconds: 10));
 
       // Update membership record

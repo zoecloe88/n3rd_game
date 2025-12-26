@@ -120,7 +120,7 @@ service cloud.firestore {
     
     // Family groups - Family & Friends plan management
     // Security model: Defense in depth
-    // - Firestore rules provide first layer (owner/member checks)
+    // - Firestore rules provide first layer (owner/member checks using memberIds array)
     // - Application logic (FamilyGroupService) provides second layer (validates membership)
     match /family_groups/{groupId} {
       // Helper functions
@@ -129,23 +129,25 @@ service cloud.firestore {
                resource.data.ownerId == request.auth.uid;
       }
       
-      // Note: Firestore rules v2 cannot easily check nested objects in arrays
-      // (e.g., checking if userId exists in members array of objects)
-      // Therefore, we rely on application-level validation in FamilyGroupService
-      // for membership checks. These rules provide basic authentication checks.
-      // The app logic provides defense in depth by validating membership before operations.
+      function isMember() {
+        return request.auth != null &&
+               request.auth.uid in resource.data.memberIds;
+      }
       
-      // Read: Authenticated users can read (app validates membership)
-      // This allows the app to check membership and display appropriate UI
-      allow read: if request.auth != null;
+      // Read: Only owner or members can read
+      // Uses memberIds array for efficient Firestore rules checking
+      // This prevents unauthorized users from accessing sensitive family group data
+      allow read: if request.auth != null && (isOwner() || isMember());
       
       // Create: Authenticated users can create, but must set themselves as owner
+      // Also validates that owner is included in memberIds array
       allow create: if request.auth != null &&
         request.resource.data.ownerId == request.auth.uid &&
         request.resource.data.subscriptionTier == 'family_friends' &&
-        request.resource.data.maxMembers == 4;
+        request.resource.data.maxMembers == 4 &&
+        request.auth.uid in request.resource.data.memberIds;
       
-      // Update: Owner can update anything
+      // Update: Owner only
       // Note: App logic enforces that only owner can invite/remove members
       // Members cannot update group data - only owner can
       allow update: if request.auth != null && isOwner();

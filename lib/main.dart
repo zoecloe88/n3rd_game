@@ -618,41 +618,54 @@ void main() async {
             return service;
           },
         ),
-        // Wire GameService to personalization, gamification, and analytics services
+        // Create GameService once - single instance for all dependencies
+        ChangeNotifierProvider<GameService>(
+          create: (_) => GameService(),
+        ),
+        // Wire GameService to personalization, gamification services
+        // Uses ProxyProvider to reuse existing GameService instance
         ProxyProvider2<TriviaPersonalizationService, TriviaGamificationService,
             GameService>(
-          update: (_, personalization, gamification, previous) {
-            previous ??= GameService();
-            previous.setPersonalizationService(personalization);
-            previous.setGamificationService(gamification);
-            return previous;
+          update: (_, personalization, gamification, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setPersonalizationService(personalization);
+            service.setGamificationService(gamification);
+            return service;
           },
         ),
         // Wire AnalyticsService to GameService
-        ChangeNotifierProxyProvider<AnalyticsService, GameService>(
-          create: (_) => GameService(),
-          update: (_, analytics, previous) {
-            previous ??= GameService();
-            previous.setAnalyticsService(analytics);
-            return previous;
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<AnalyticsService, GameService>(
+          update: (_, analytics, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setAnalyticsService(analytics);
+            return service;
           },
         ),
         // Wire SubscriptionService to GameService
-        ChangeNotifierProxyProvider<SubscriptionService, GameService>(
-          create: (_) => GameService(),
-          update: (_, subscription, previous) {
-            previous ??= GameService();
-            previous.setSubscriptionService(subscription);
-            return previous;
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<SubscriptionService, GameService>(
+          update: (_, subscription, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setSubscriptionService(subscription);
+            return service;
           },
         ),
         // Wire GameHistoryService to GameService
-        ChangeNotifierProxyProvider<GameHistoryService, GameService>(
-          create: (_) => GameService(),
-          update: (_, gameHistory, previous) {
-            previous ??= GameService();
-            previous.setGameHistoryService(gameHistory);
-            return previous;
+        // Uses ProxyProvider to reuse existing GameService instance
+        ProxyProvider<GameHistoryService, GameService>(
+          update: (_, gameHistory, gameService) {
+            // gameService should never be null since it's created above,
+            // but handle null case for type safety
+            final service = gameService ?? GameService();
+            service.setGameHistoryService(gameHistory);
+            return service;
           },
         ),
         // Wire AnalyticsService to NetworkService for performance tracking
