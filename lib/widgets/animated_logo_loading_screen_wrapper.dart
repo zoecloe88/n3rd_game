@@ -15,17 +15,6 @@ class AnimatedLogoLoadingScreenWrapper extends StatefulWidget {
 
 class _AnimatedLogoLoadingScreenWrapperState
     extends State<AnimatedLogoLoadingScreenWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    // Show logo for at least 3 seconds, then check routing
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _checkAndRoute();
-      }
-    });
-  }
-
   Future<void> _checkAndRoute() async {
     if (!mounted) return;
 
@@ -33,7 +22,15 @@ class _AnimatedLogoLoadingScreenWrapperState
       final authService = Provider.of<AuthService>(context, listen: false);
       final onboardingService = OnboardingService();
 
-      // Check onboarding first
+      // Check auth first - if not authenticated, go to login
+      if (!authService.isAuthenticated) {
+        if (mounted && context.mounted) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+        return;
+      }
+
+      // Check onboarding - if not completed, go to onboarding
       final hasCompletedOnboarding =
           await onboardingService.hasCompletedOnboarding();
 
@@ -44,17 +41,9 @@ class _AnimatedLogoLoadingScreenWrapperState
         return;
       }
 
-      // Check auth
-      if (!authService.isAuthenticated) {
-        if (mounted && context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/login');
-        }
-        return;
-      }
-
-      // Both onboarding and auth complete - go to main app
+      // Both onboarding and auth complete - go to word of day, then title
       if (mounted && context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/title');
+        Navigator.of(context).pushReplacementNamed('/word-of-day');
       }
     } catch (e) {
       // On error, go to login
@@ -66,6 +55,8 @@ class _AnimatedLogoLoadingScreenWrapperState
 
   @override
   Widget build(BuildContext context) {
-    return const AnimatedLogoLoadingScreen();
+    return AnimatedLogoLoadingScreen(
+      onVideoCompleted: _checkAndRoute,
+    );
   }
 }

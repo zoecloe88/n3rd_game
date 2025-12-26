@@ -6,8 +6,8 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/widgets/performance_chart_widget.dart';
 import 'package:n3rd_game/widgets/heat_map_widget.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class AnalyticsDashboardScreen extends StatelessWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -16,11 +16,12 @@ class AnalyticsDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
-    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+      backgroundColor: Colors.black, // Black fallback
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
           child: Column(
             children: [
               // Header
@@ -116,6 +117,7 @@ class AnalyticsDashboardScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
       ),
     );
   }

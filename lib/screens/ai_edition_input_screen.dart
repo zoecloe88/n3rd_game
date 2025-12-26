@@ -6,8 +6,8 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 /// Screen for users to input their desired topic/theme for AI Edition
 class AIEditionInputScreen extends StatefulWidget {
@@ -200,29 +200,38 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => NavigationHelper.safePop(context),
-        ),
-        title: Text(
-          widget.isYouthEdition ? 'AI Edition - Youth' : 'AI Edition',
-          style: AppTypography.headlineLarge.copyWith(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Form(
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header with back button
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => NavigationHelper.safePop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.isYouthEdition ? 'AI Edition - Youth' : 'AI Edition',
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -573,6 +582,10 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
                 ],
               ],
             ),
+          ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

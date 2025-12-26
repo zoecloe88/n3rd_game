@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/direct_message.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class DirectMessageService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
@@ -81,48 +82,71 @@ class DirectMessageService extends ChangeNotifier {
         .where('participants', arrayContains: userId)
         .orderBy('lastActivity', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      _conversations.clear();
-      for (final doc in snapshot.docs) {
-        try {
-          final data = doc.data();
-          final participants = List<String>.from(
-            data['participants'] as List,
-          );
-
-          // CRITICAL: Check participants array has exactly 2 elements before accessing indices
-          // Direct messages require exactly 2 participants (userId1 and userId2)
-          if (participants.length != 2) {
-            debugPrint(
-              'Invalid conversation: participants array must have exactly 2 elements, got ${participants.length}',
+        .listen(
+      (snapshot) {
+        _conversations.clear();
+        for (final doc in snapshot.docs) {
+          try {
+            final data = doc.data();
+            final participants = List<String>.from(
+              data['participants'] as List,
             );
-            continue; // Skip this conversation
-          }
 
-          _conversations.add(
-            Conversation(
-              id: doc.id,
-              userId1: participants[0],
-              userId2: participants[1],
-              user1DisplayName: data['user1DisplayName'] as String?,
-              user2DisplayName: data['user2DisplayName'] as String?,
-              lastMessage: data['lastMessage'] != null
-                  ? DirectMessage.fromJson(
-                      data['lastMessage'] as Map<String, dynamic>,
-                    )
-                  : null,
-              unreadCount: data['unreadCount_$userId'] as int? ?? 0,
-              lastActivity: data['lastActivity'] != null
-                  ? (data['lastActivity'] as Timestamp).toDate()
-                  : null,
-            ),
-          );
-        } catch (e) {
-          debugPrint('Error parsing conversation: $e');
+            // CRITICAL: Check participants array has exactly 2 elements before accessing indices
+            // Direct messages require exactly 2 participants (userId1 and userId2)
+            if (participants.length != 2) {
+              debugPrint(
+                'Invalid conversation: participants array must have exactly 2 elements, got ${participants.length}',
+              );
+              continue; // Skip this conversation
+            }
+
+            _conversations.add(
+              Conversation(
+                id: doc.id,
+                userId1: participants[0],
+                userId2: participants[1],
+                user1DisplayName: data['user1DisplayName'] as String?,
+                user2DisplayName: data['user2DisplayName'] as String?,
+                lastMessage: data['lastMessage'] != null
+                    ? DirectMessage.fromJson(
+                        data['lastMessage'] as Map<String, dynamic>,
+                      )
+                    : null,
+                unreadCount: data['unreadCount_$userId'] as int? ?? 0,
+                lastActivity: data['lastActivity'] != null
+                    ? (data['lastActivity'] as Timestamp).toDate()
+                    : null,
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error parsing conversation: $e');
+          }
         }
-      }
-      notifyListeners();
-    });
+        notifyListeners();
+      },
+      onError: (error) {
+        // CRITICAL: Handle Firestore permission errors gracefully
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          LoggerService.error(
+            'DirectMessageService: Permission denied loading conversations. User may not be authenticated or lacks premium access.',
+            error: error,
+            reason: 'Firestore permission-denied error',
+            fatal: false,
+          );
+          // Clear conversations and notify listeners
+          _conversations.clear();
+          notifyListeners();
+        } else {
+          LoggerService.error(
+            'DirectMessageService: Error loading conversations',
+            error: error,
+            reason: 'Firestore stream error',
+            fatal: false,
+          );
+        }
+      },
+    );
   }
 
   /// Start listening to messages in a conversation
@@ -153,26 +177,49 @@ class DirectMessageService extends ChangeNotifier {
         .orderBy('timestamp', descending: false)
         .limitToLast(50)
         .snapshots()
-        .listen((snapshot) {
-      _messages.clear();
-      for (final doc in snapshot.docs) {
-        try {
-          _messages.add(
-            DirectMessage.fromJson({
-              'id': doc.id,
-              'conversationId': conversationId,
-              ...doc.data(),
-            }),
-          );
-        } catch (e) {
-          debugPrint('Error parsing message: $e');
+        .listen(
+      (snapshot) {
+        _messages.clear();
+        for (final doc in snapshot.docs) {
+          try {
+            _messages.add(
+              DirectMessage.fromJson({
+                'id': doc.id,
+                'conversationId': conversationId,
+                ...doc.data(),
+              }),
+            );
+          } catch (e) {
+            debugPrint('Error parsing message: $e');
+          }
         }
-      }
-      notifyListeners();
-
-      // Mark messages as read
-      _markMessagesAsRead(conversationId);
-    });
+        notifyListeners();
+        
+        // Mark messages as read after loading
+        _markMessagesAsRead(conversationId);
+      },
+      onError: (error) {
+        // CRITICAL: Handle Firestore permission errors gracefully
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          LoggerService.error(
+            'DirectMessageService: Permission denied loading messages. User may not be authenticated or lacks premium access.',
+            error: error,
+            reason: 'Firestore permission-denied error',
+            fatal: false,
+          );
+          // Clear messages and notify listeners
+          _messages.clear();
+          notifyListeners();
+        } else {
+          LoggerService.error(
+            'DirectMessageService: Error loading messages',
+            error: error,
+            reason: 'Firestore stream error',
+            fatal: false,
+          );
+        }
+      },
+    );
   }
 
   /// Ensure conversation exists

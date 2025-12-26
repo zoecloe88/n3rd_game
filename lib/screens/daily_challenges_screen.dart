@@ -10,8 +10,11 @@ import 'package:n3rd_game/models/daily_challenge.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/responsive_helper.dart';
 
 class DailyChallengesScreen extends StatefulWidget {
   const DailyChallengesScreen({super.key});
@@ -64,8 +67,10 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
         // Check if user has online access (Base or Premium)
         if (!subscriptionService.hasOnlineAccess) {
           return Scaffold(
-            backgroundColor: colors.background,
-            body: SafeArea(
+            backgroundColor: Colors.black, // Black fallback - static background will cover
+            body: BackgroundImageWidget(
+              imagePath: 'assets/background n3rd.png',
+              child: SafeArea(
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
@@ -128,16 +133,22 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     ),
                   ),
                 ),
+              ),
             ),
           );
         }
 
         return Scaffold(
-          backgroundColor: colors.background,
-          body: SafeArea(
-              child: Column(
+          body: VideoBackgroundWidget(
+            videoPath: 'assets/modeselectionscreen.mp4',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            loop: true,
+            autoplay: true,
+            child: SafeArea(
+                child: Column(
                 children: [
-                  // Header
+                  // Back button only (header moved to bottom)
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -149,15 +160,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                           tooltip: AppLocalizations.of(context)?.backButton ??
                               'Back',
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Daily Challenges',
-                          style: AppTypography.headlineLarge.copyWith(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        const Spacer(),
                       ],
                     ),
                   ),
@@ -188,7 +191,13 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                             .firstOrNull;
 
                         return ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            ResponsiveHelper.responsiveHeight(context, 0.10)
+                                .clamp(60.0, 100.0), // Add top padding to move content down and avoid blocking animation
+                            16,
+                            80,
+                          ),
                           children: [
                             // Top 5 Leaderboard (only for competitive challenge)
                             if (competitiveChallenge != null)
@@ -196,7 +205,8 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                                 competitiveChallenge.id,
                                 _leaderboardRefreshKey,
                               ),
-                            const SizedBox(height: 16),
+                            if (competitiveChallenge != null)
+                              const SizedBox(height: 16),
                             Text(
                               'Complete challenges to earn rewards!',
                               style: AppTypography.bodyMedium.copyWith(
@@ -208,16 +218,28 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                             ...todayChallenges.map(
                               (challenge) => _buildChallengeCard(challenge),
                             ),
-                            const SizedBox(height: 32),
                           ],
                         );
                       },
                     ),
                   ),
+                  // Header at bottom
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Daily Challenges',
+                      style: AppTypography.headlineLarge.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          );
+          ),
+        );
       },
     );
   }
@@ -519,15 +541,29 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
       if (!mounted) return;
       final navigatorContext = context;
       if (!navigatorContext.mounted) return;
-      await NavigationHelper.safeNavigate(
-        navigatorContext,
-        '/game',
-        arguments: {
-          'mode': gameMode,
-          'competitiveChallengeId': challenge.id,
-          'targetRounds': targetRounds,
-        },
-      );
+      
+      try {
+        await NavigationHelper.safeNavigate(
+          navigatorContext,
+          '/game',
+          arguments: {
+            'mode': gameMode,
+            'competitiveChallengeId': challenge.id,
+            'targetRounds': targetRounds,
+          },
+        );
+      } catch (e) {
+        // Handle navigation error gracefully
+        if (mounted && context.mounted) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Error navigating to game: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
       // Refresh leaderboard when returning from game
       if (mounted) {

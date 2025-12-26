@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OnboardingService {
   static const String _onboardingKey = 'onboarding_completed';
   static const String _tutorialShownKey = 'tutorial_shown';
+  static const String _dontShowAgainKey = 'onboarding_dont_show_again';
 
   SharedPreferences? _prefs;
 
@@ -17,10 +18,28 @@ class OnboardingService {
   Future<bool> hasCompletedOnboarding() async {
     try {
       final prefs = await _getPrefs();
+      // If "don't show again" is set, consider onboarding completed
+      if (prefs.getBool(_dontShowAgainKey) ?? false) {
+        return true;
+      }
       return prefs.getBool(_onboardingKey) ?? false;
     } catch (e) {
       debugPrint('Error checking onboarding status: $e');
       return false;
+    }
+  }
+
+  /// Set "don't show again" preference
+  Future<void> setDontShowAgain(bool value) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setBool(_dontShowAgainKey, value);
+      if (value) {
+        // Also mark onboarding as completed
+        await prefs.setBool(_onboardingKey, true);
+      }
+    } catch (e) {
+      debugPrint('Error setting dont show again: $e');
     }
   }
 

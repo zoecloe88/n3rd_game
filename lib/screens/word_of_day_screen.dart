@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:n3rd_game/services/word_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
@@ -79,11 +79,11 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
       }
     } catch (e) {
       // Provider not available yet - this shouldn't happen after addPostFrameCallback
-      // but handle gracefully
-      if (mounted && context.mounted) {
-        NavigationHelper.safeNavigate(context, '/login', replace: true);
+      // but handle gracefully - allow access to show content (fail-open)
+      if (kDebugMode) {
+        debugPrint('⚠️ Auth check failed in WordOfDayScreen: $e');
       }
-      return;
+      // Continue to show content instead of redirecting
     }
 
     if (mounted) {
@@ -123,9 +123,8 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
       body: VideoBackgroundWidget(
-        videoPath: 'assets/word of the day.mp4',
+        videoPath: 'assets/wordoftheday.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent
         alignment: Alignment.topCenter, // Characters/logos in upper portion
         loop: true,
@@ -168,16 +167,16 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
 
     return Stack(
       children: [
-        // Continue button - top right
+        // Continue button - bottom right
         Positioned(
-          top: 0,
+          bottom: 0,
           right: 0,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
               onPressed: () => NavigationHelper.safeNavigate(context, '/title'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).background,
+                backgroundColor: Colors.black, // Black button with white text
                 foregroundColor: Colors.white,
               ),
               child: Text(
@@ -187,48 +186,48 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
             ),
           ),
         ),
-        // Content positioned in lower portion to avoid overlapping animated logos
-        Align(
-          alignment: Alignment.bottomCenter,
+        // Content positioned higher up and centered
+        Center(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
-              ResponsiveHelper.responsiveHeight(context, 0.25)
-                  .clamp(100.0, 200.0), // Top padding to push content down
+              ResponsiveHelper.responsiveHeight(context, 0.15)
+                  .clamp(60.0, 120.0), // Reduced top padding to move content up ~1 inch
               horizontalPadding,
-              verticalPadding + 100,
+              verticalPadding + 80, // Space for continue button
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxContentWidth),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                crossAxisAlignment: CrossAxisAlignment.center, // Center text
+                  children: [
                   Text(
                     'Word of the Day',
+                    textAlign: TextAlign.center, // Center text
                     style: AppTypography.displayMedium.copyWith(
                       fontSize: isTablet ? 30 : 24,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _word!.word.toUpperCase(),
-                        maxLines: 1,
-                        style: AppTypography.displayLarge.copyWith(
-                          fontSize: isTablet ? 56 : 40,
-                          color: Colors.white,
-                          letterSpacing: 2.0,
-                        ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _word!.word.toUpperCase(),
+                      maxLines: 1,
+                      textAlign: TextAlign.center, // Center text
+                      style: AppTypography.displayLarge.copyWith(
+                        fontSize: isTablet ? 56 : 40,
+                        color: Colors.white,
+                        letterSpacing: 2.0,
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Definition',
+                    textAlign: TextAlign.center, // Center text
                     style: AppTypography.labelSmall.copyWith(
                       color: Colors.white.withValues(alpha: 0.8),
                       letterSpacing: 1.0,
@@ -237,6 +236,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _word!.definition,
+                    textAlign: TextAlign.center, // Center text
                     style: AppTypography.bodyLarge.copyWith(
                       fontSize: isTablet ? 18 : 16,
                       color: Colors.white,
@@ -246,6 +246,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Example',
+                      textAlign: TextAlign.center, // Center text
                       style: AppTypography.labelSmall.copyWith(
                         color: Colors.white.withValues(alpha: 0.8),
                         letterSpacing: 1.0,
@@ -254,6 +255,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '"${_word!.example}"',
+                      textAlign: TextAlign.center, // Center text
                       style: AppTypography.bodyLarge.copyWith(
                         fontSize: isTablet ? 17 : 15,
                         color: Colors.white.withValues(alpha: 0.9),
@@ -261,6 +263,29 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                       ),
                     ),
                   ],
+                  // Date display with same styling as Youth Edition header
+                  const SizedBox(height: 24),
+                  Text(
+                    DateFormat('EEEE, MMMM d yyyy').format(_word!.date),
+                    textAlign: TextAlign.center,
+                    style: AppTypography.orbitron(
+                      fontSize: isTablet ? 20 : 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ).copyWith(
+                      letterSpacing: 2,
+                      shadows: const [
+                        Shadow(
+                          color: Color(0xFF70F3FF),
+                          offset: Offset(-1, 0),
+                        ),
+                        Shadow(
+                          color: Color(0xFFB000E8),
+                          offset: Offset(1, 0),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

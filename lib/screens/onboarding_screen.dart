@@ -9,7 +9,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
-import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 
@@ -25,6 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _pageController = PageController();
   final OnboardingService _onboardingService = OnboardingService();
   int _currentPage = 0;
+  bool _dontShowAgain = false;
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -55,7 +55,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    // Videos and animations will initialize when pages are built via VideoBackgroundWidget
   }
 
   @override
@@ -122,11 +121,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
 
     if (mounted && context.mounted) {
+      // Navigate to word of day after onboarding
       NavigationHelper.safeNavigate(
         context,
-        '/general-transition',
+        '/word-of-day',
         replace: true,
-        arguments: {'routeAfter': '/title', 'routeArgs': null},
       );
     }
   }
@@ -134,8 +133,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
+      backgroundColor: Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
         child: SafeArea(
           child: Column(
             children: [
@@ -167,20 +167,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         _currentPage = index;
                       });
                     }
-                    // Auto-advance video pages after their duration
-                    if (mounted &&
-                        _pages[index].videoPath != null &&
-                        _pages[index].videoDuration != null) {
-                      registerTimer(
-                        Timer(_pages[index].videoDuration!, () {
-                          if (mounted &&
-                              _currentPage == index &&
-                              index < _pages.length - 1) {
-                            _nextPage();
-                          }
-                        }),
-                      );
-                    }
                   },
                   itemCount: _pages.length,
                   itemBuilder: (context, index) {
@@ -199,6 +185,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
 
               const SizedBox(height: AppSpacing.lg),
+
+              // "Don't show again" checkbox (only on last page)
+              if (_currentPage == _pages.length - 1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: _dontShowAgain,
+                        onChanged: (value) {
+                          setState(() {
+                            _dontShowAgain = value ?? false;
+                          });
+                          // Store preference to not show onboarding again
+                          _onboardingService.setDontShowAgain(_dontShowAgain);
+                        },
+                        activeColor: const Color(0xFF00D9FF),
+                        checkColor: Colors.white,
+                      ),
+                      Expanded(
+                        child: Text(
+                          "Don't show again",
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.of(context).secondaryText,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // Next/Get Started button
               Padding(
@@ -242,94 +259,58 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildPage(OnboardingPage page, int pageIndex) {
     final pageColors = AppColors.of(context);
 
-    // Content widget that can be used both for video overlay and regular display
-    Widget buildContent() {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Animated graphic (250px) or animation icon (only show if no video)
-            if (page.videoPath == null)
-              if (page.icon == null)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 24),
-                  child: AnimatedGraphicsWidget(
-                    category: 'shared',
-                    width: 250,
-                    height: 250,
-                    loop: true,
-                    autoplay: true,
-                  ),
-                )
-              else
-                // Icon for onboarding page
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Icon(
-                    page.icon!,
-                    size: 80,
-                    color: pageColors.primaryButton,
-                  ),
-                ),
-            const SizedBox(height: AppSpacing.xl),
-            // Title with text shadow for visibility over video
-            Text(
-              page.title,
-              textAlign: TextAlign.center,
-              style: AppTypography.headlineLarge.copyWith(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: pageColors.primaryText,
-                shadows: page.videoPath != null
-                    ? [
-                        Shadow(
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                          color: Colors.black.withValues(alpha: 0.8),
-                        ),
-                      ]
-                    : null,
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Animated graphic or icon for onboarding page
+          if (page.icon == null)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 24),
+              child: AnimatedGraphicsWidget(
+                category: 'shared',
+                width: 250,
+                height: 250,
+                loop: true,
+                autoplay: true,
+              ),
+            )
+          else
+            // Icon for onboarding page
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Icon(
+                page.icon!,
+                size: 80,
+                color: pageColors.primaryButton,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            // Description with text shadow for visibility over video
-            Text(
-              page.description,
-              textAlign: TextAlign.center,
-              style: AppTypography.bodyMedium.copyWith(
-                fontSize: 16,
-                color: pageColors.secondaryText,
-                height: 1.5,
-                shadows: page.videoPath != null
-                    ? [
-                        Shadow(
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                          color: Colors.black.withValues(alpha: 0.8),
-                        ),
-                      ]
-                    : null,
-              ),
+          const SizedBox(height: AppSpacing.xl),
+          // Title
+          Text(
+            page.title,
+            textAlign: TextAlign.center,
+            style: AppTypography.headlineLarge.copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: pageColors.primaryText,
             ),
-          ],
-        ),
-      );
-    }
-
-    // If page has video, show video player with content overlay
-    if (page.videoPath != null) {
-      return VideoBackgroundWidget(
-        videoPath: page.videoPath!,
-        loop: page.videoDuration == null, // Loop only if no duration specified
-        autoplay: true,
-        alignment: Alignment.center,
-        child: buildContent(),
-      );
-    }
-
-    // Otherwise show animated graphic or icon/text layout
-    return buildContent();
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Description
+          Text(
+            page.description,
+            textAlign: TextAlign.center,
+            style: AppTypography.bodyMedium.copyWith(
+              fontSize: 16,
+              color: pageColors.secondaryText,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildIndicator(BuildContext context, bool isActive) {
@@ -352,17 +333,10 @@ class OnboardingPage {
   final String title;
   final String description;
   final IconData? icon;
-  final String? videoPath;
-  final Duration? videoDuration;
 
   OnboardingPage({
     required this.title,
     required this.description,
     this.icon,
-    this.videoPath,
-    this.videoDuration,
-  }) : assert(
-          icon != null || videoPath != null,
-          'Either icon or videoPath must be provided',
-        );
+  });
 }

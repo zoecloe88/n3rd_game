@@ -9,6 +9,7 @@ import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/skeleton_loader.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -54,15 +55,14 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   @override
   Widget build(BuildContext context) {
     final allAchievements = _achievementService.getAllAchievements();
-    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: Colors.black, // Black fallback - static background will cover
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.primaryText),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             HapticService().lightImpact();
             NavigationHelper.safePop(context);
@@ -74,11 +74,13 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           style: AppTypography.headlineLarge.copyWith(
             fontSize: 24,
             fontWeight: FontWeight.w600,
-            color: colors.primaryText,
+            color: Colors.white,
           ),
         ),
       ),
-      body: SafeArea(
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
         child: _loading
             ? const SkeletonLoader(
                 itemCount: 5,
@@ -124,6 +126,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       },
                     ),
                   ),
+        ),
       ),
     );
   }

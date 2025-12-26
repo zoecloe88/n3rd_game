@@ -8,6 +8,8 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -113,11 +115,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+      backgroundColor: Colors.black, // Black fallback - static background will cover
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
           child: Column(
             children: [
               // Header with filters
@@ -127,8 +129,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      // Back button removed - using bottom navigation instead
-                      onPressed: null,
+                      onPressed: () => NavigationHelper.safePop(context),
                       tooltip:
                           AppLocalizations.of(context)?.backButton ?? 'Back',
                     ),
@@ -281,6 +282,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             ],
           ),
         ),
+      ),
     );
   }
 
@@ -380,86 +382,111 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Category filter
-                ListTile(
-                  title: Text(
-                    'Category',
-                    style: AppTypography.labelLarge.copyWith(
-                      fontWeight: FontWeight.w600,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Category filter
+                  ListTile(
+                    title: Text(
+                      'Category',
+                      style: AppTypography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: DropdownButton<String>(
+                        value: _selectedCategory,
+                        isExpanded: true, // Allow dropdown to expand
+                        items: const [
+                          DropdownMenuItem(value: 'All', child: Text('All')),
+                          DropdownMenuItem(
+                            value: 'History',
+                            child: Text('History', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Science',
+                            child: Text('Science', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Geography',
+                            child: Text('Geography', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Sports', 
+                            child: Text('Sports', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Entertainment',
+                            child: Text('Entertainment', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategory = value ?? 'All';
+                          });
+                        },
+                      ),
                     ),
                   ),
-                  trailing: DropdownButton<String>(
-                    value: _selectedCategory,
-                    items: const [
-                      DropdownMenuItem(value: 'All', child: Text('All')),
-                      DropdownMenuItem(
-                        value: 'History',
-                        child: Text('History'),
+
+                  // Region filter
+                  ListTile(
+                    title: Text(
+                      'Region',
+                      style: AppTypography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      DropdownMenuItem(
-                        value: 'Science',
-                        child: Text('Science'),
+                    ),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: DropdownButton<String>(
+                        value: _selectedRegion,
+                        isExpanded: true, // Allow dropdown to expand
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Global', 
+                            child: Text('Global', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'North America',
+                            child: Text('North America', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Europe', 
+                            child: Text('Europe', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Asia', 
+                            child: Text('Asia', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Other', 
+                            child: Text('Other', overflow: TextOverflow.visible, softWrap: true),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRegion = value ?? 'Global';
+                          });
+                        },
                       ),
-                      DropdownMenuItem(
-                        value: 'Geography',
-                        child: Text('Geography'),
-                      ),
-                      DropdownMenuItem(value: 'Sports', child: Text('Sports')),
-                      DropdownMenuItem(
-                        value: 'Entertainment',
-                        child: Text('Entertainment'),
-                      ),
-                    ],
+                    ),
+                  ),
+
+                  // Friends only
+                  SwitchListTile(
+                    title: Text('Friends Only', style: AppTypography.bodyMedium),
+                    value: _friendsOnly,
                     onChanged: (value) {
                       setState(() {
-                        _selectedCategory = value ?? 'All';
+                        _friendsOnly = value;
                       });
                     },
                   ),
-                ),
-
-                // Region filter
-                ListTile(
-                  title: Text(
-                    'Region',
-                    style: AppTypography.labelLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  trailing: DropdownButton<String>(
-                    value: _selectedRegion,
-                    items: const [
-                      DropdownMenuItem(value: 'Global', child: Text('Global')),
-                      DropdownMenuItem(
-                        value: 'North America',
-                        child: Text('North America'),
-                      ),
-                      DropdownMenuItem(value: 'Europe', child: Text('Europe')),
-                      DropdownMenuItem(value: 'Asia', child: Text('Asia')),
-                      DropdownMenuItem(value: 'Other', child: Text('Other')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRegion = value ?? 'Global';
-                      });
-                    },
-                  ),
-                ),
-
-                // Friends only
-                SwitchListTile(
-                  title: Text('Friends Only', style: AppTypography.bodyMedium),
-                  value: _friendsOnly,
-                  onChanged: (value) {
-                    setState(() {
-                      _friendsOnly = value;
-                    });
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(

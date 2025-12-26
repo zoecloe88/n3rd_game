@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class PerformanceInsightsScreen extends StatelessWidget {
   const PerformanceInsightsScreen({super.key});
@@ -14,18 +14,10 @@ class PerformanceInsightsScreen extends StatelessWidget {
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
-      body: Stack(
-        children: [
-          // Background
-          Positioned.fill(
-            child: Container(
-              color: AppColors.of(context).background,
-            ),
-          ),
-
-          // Content
-          SafeArea(
+      backgroundColor: Colors.black, // Black fallback
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
             child: Column(
               children: [
                 // Header
@@ -67,12 +59,16 @@ class PerformanceInsightsScreen extends StatelessWidget {
                                 .sublist(categoryBreakdown.length - 3)
                                 .reversed
                                 .toList()
-                            : [];
+                            : categoryBreakdown.isNotEmpty
+                                ? categoryBreakdown.reversed.toList()
+                                : [];
 
                         // Identify strengths (categories with highest accuracy)
                         final strengths = categoryBreakdown.length >= 3
                             ? categoryBreakdown.take(3).toList()
-                            : [];
+                            : categoryBreakdown.isNotEmpty
+                                ? categoryBreakdown.take(categoryBreakdown.length).toList()
+                                : [];
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -333,7 +329,6 @@ class PerformanceInsightsScreen extends StatelessWidget {
               ],
             ),
           ),
-        ],
       ),
     );
   }
@@ -413,10 +408,14 @@ class PerformanceInsightsScreen extends StatelessWidget {
     );
   }
 
-  void _showGoalSettingDialog(BuildContext context) {
-    int targetScore = 0;
-    double targetAccuracy = 0.0;
-    int targetStreak = 0;
+  void _showGoalSettingDialog(BuildContext context) async {
+    // Load saved goals first
+    final prefs = await SharedPreferences.getInstance();
+    int targetScore = prefs.getInt('goal_target_score') ?? 0;
+    double targetAccuracy = prefs.getDouble('goal_target_accuracy') ?? 0.0;
+    int targetStreak = prefs.getInt('goal_target_streak') ?? 0;
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -504,15 +503,39 @@ class PerformanceInsightsScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setInt('goal_target_score', targetScore);
-                await prefs.setDouble('goal_target_accuracy', targetAccuracy);
-                await prefs.setInt('goal_target_streak', targetStreak);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Goals saved successfully!')),
-                  );
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  final scoreSaved = await prefs.setInt('goal_target_score', targetScore);
+                  final accuracySaved = await prefs.setDouble('goal_target_accuracy', targetAccuracy);
+                  final streakSaved = await prefs.setInt('goal_target_streak', targetStreak);
+                  
+                  if (context.mounted) {
+                    if (scoreSaved && accuracySaved && streakSaved) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Goals saved successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to save some goals. Please try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error saving goals: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),

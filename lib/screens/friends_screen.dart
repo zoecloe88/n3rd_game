@@ -22,12 +22,34 @@ class _FriendsScreenState extends State<FriendsScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
   bool _searching = false;
-  int _selectedTab = 0; // 0 = Friends, 1 = Requests
 
   @override
   void initState() {
     super.initState();
-    _friendsService.init();
+    _initializeFriends();
+  }
+
+  Future<void> _initializeFriends() async {
+    try {
+      await _friendsService.init();
+    } catch (e) {
+      if (mounted) {
+        // Log error but don't show error screen immediately
+        debugPrint('FriendsService init error: $e');
+        // Show user-friendly message
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Unable to load friends. Please check your connection.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        });
+      }
+    }
   }
 
   Future<void> _refreshFriends() async {
@@ -77,7 +99,24 @@ class _FriendsScreenState extends State<FriendsScreen> {
     HapticService().lightImpact();
 
     try {
-      final results = await _friendsService.searchUsers(query);
+      // Try to search contacts and users first
+      List<Map<String, dynamic>> results;
+      try {
+        results = await _friendsService.searchContactsAndUsers(query);
+      } catch (e) {
+        // Fallback to regular user search if contact access fails
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Contact access unavailable, searching users only: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        results = await _friendsService.searchUsers(query);
+      }
+      
       if (mounted) {
         setState(() {
           _searchResults = results;
@@ -128,46 +167,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _acceptRequest(String requestId) async {
-    HapticService().lightImpact();
-    try {
-      await _friendsService.acceptFriendRequest(requestId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Friend request accepted!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _rejectRequest(String requestId) async {
-    HapticService().lightImpact();
-    try {
-      await _friendsService.rejectFriendRequest(requestId);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -395,110 +394,56 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.primaryText),
-          onPressed: () {
-            HapticService().lightImpact();
-            NavigationHelper.safePop(context);
-          },
-          tooltip: 'Back',
-        ),
-        title: Text(
-          'Friends',
-          style: AppTypography.headlineLarge.copyWith(
-            color: colors.primaryText,
-          ),
-        ),
-        actions: [
-          Semantics(
-            label: 'Friend Suggestions',
-            button: true,
-            child: IconButton(
-              icon: Icon(Icons.people_outline, color: colors.primaryText),
-              tooltip: 'Friend Suggestions',
-              onPressed: () {
-                HapticService().lightImpact();
-                _showFriendSuggestions();
-              },
+    // FriendsScreen is used inside FriendsAndMessagesScreen which already has tabs
+    // So we only show the Friends list and action buttons here
+    return Container(
+      color: Colors.black, // Black background
+      child: Column(
+        children: [
+          // Action buttons at top
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Semantics(
+                  label: 'Friend Suggestions',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.people_outline, color: Colors.white),
+                    tooltip: 'Friend Suggestions',
+                    onPressed: () {
+                      HapticService().lightImpact();
+                      _showFriendSuggestions();
+                    },
+                  ),
+                ),
+                Semantics(
+                  label: AppLocalizations.of(context)?.addFriend ?? 'Add Friend',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.person_add, color: Colors.white),
+                    tooltip: AppLocalizations.of(context)?.addFriend ?? 'Add Friend',
+                    onPressed: () {
+                      HapticService().lightImpact();
+                      _showAddFriendDialog();
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-          Semantics(
-            label: AppLocalizations.of(context)?.addFriend ?? 'Add Friend',
-            button: true,
-            child: IconButton(
-              icon: Icon(Icons.person_add, color: colors.primaryText),
-              tooltip: AppLocalizations.of(context)?.addFriend ?? 'Add Friend',
-              onPressed: () {
-                HapticService().lightImpact();
-                _showAddFriendDialog();
-              },
+          // Content - Friends list only (no tabs, as parent handles Friends/Messages tabs)
+          Expanded(
+            child: Container(
+              color: Colors.black, // Black content area
+              child: _buildFriendsList(),
             ),
           ),
         ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Tabs - in cyan section
-            Container(
-              color: const Color(0xFF00D9FF), // Cyan background for tabs
-              child: Row(
-                children: [
-                  Expanded(child: _buildTab(0, 'Friends')),
-                  Expanded(child: _buildTab(1, 'Requests')),
-                ],
-              ),
-            ),
-
-            // Content - black background
-            Expanded(
-              child: Container(
-                color: Colors.black, // Black content area
-                child: _selectedTab == 0
-                    ? _buildFriendsList()
-                    : _buildRequestsList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTab(int index, String label) {
-    final isSelected = _selectedTab == index;
-    return InkWell(
-      onTap: () {
-        HapticService().lightImpact();
-        if (mounted) {
-          setState(() => _selectedTab = index);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? Colors.black : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: AppTypography.labelLarge.copyWith(
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color:
-                isSelected ? Colors.black : Colors.black.withValues(alpha: 0.6),
-          ),
-        ),
       ),
     );
   }
@@ -710,115 +655,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 ],
               );
             },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRequestsList() {
-    return Consumer<FriendsService>(
-      builder: (context, friendsService, _) {
-        final requests = friendsService.pendingRequests;
-
-        if (requests.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: _refreshFriends,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: const Center(
-                  child: EmptyStateWidget(
-                    icon: Icons.mark_email_read_outlined,
-                    title: 'No pending requests',
-                    description: 'Friend requests will appear here',
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _refreshFriends,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: requests.length,
-            itemBuilder: (context, index) {
-              final request = requests[index];
-              return _buildRequestItem(context, request);
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRequestItem(BuildContext context, dynamic request) {
-    final itemColors = AppColors.of(context);
-    final displayName = request.fromDisplayName ??
-        request.fromEmail?.split('@').first ??
-        'Unknown';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: itemColors.cardBackground.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: itemColors.primaryButton,
-            child: Text(
-              displayName.substring(0, 1).toUpperCase(),
-              style: AppTypography.titleLarge.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: itemColors.buttonText,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: AppTypography.labelLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: itemColors.primaryText,
-                  ),
-                ),
-                if (request.fromEmail != null)
-                  Text(
-                    request.fromEmail!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: itemColors.secondaryText,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.check, color: AppColors.success),
-                onPressed: () => _acceptRequest(request.id),
-                tooltip:
-                    AppLocalizations.of(context)?.confirmButton ?? 'Accept',
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: AppColors.error),
-                onPressed: () => _rejectRequest(request.id),
-                tooltip: AppLocalizations.of(context)?.cancelButton ?? 'Reject',
-              ),
-            ],
           ),
         ],
       ),

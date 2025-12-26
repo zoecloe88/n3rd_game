@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-
     return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+      backgroundColor: Colors.black,
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
           child: Column(
             children: [
               // App bar
@@ -21,7 +21,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back, color: colors.onDarkText),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () => NavigationHelper.safePop(context),
                       tooltip: 'Back',
                     ),
@@ -30,7 +30,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                       'Terms of Service',
                       style: AppTypography.displayMedium.copyWith(
                         fontSize: 24,
-                        color: colors.onDarkText,
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -43,7 +43,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: SingleChildScrollView(
@@ -55,7 +55,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                           style: AppTypography.headlineLarge.copyWith(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: colors.primaryText,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -63,7 +63,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                           'Last Updated: December 18, 2024',
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 12,
-                            color: colors.secondaryText,
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -267,7 +267,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 12,
                             fontStyle: FontStyle.italic,
-                            color: colors.secondaryText,
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -278,12 +278,12 @@ class TermsOfServiceScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
       ),
     );
   }
 
   Widget _buildSection(BuildContext context, String title, String content) {
-    final sectionColors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -294,7 +294,7 @@ class TermsOfServiceScreen extends StatelessWidget {
             style: AppTypography.headlineLarge.copyWith(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: sectionColors.primaryText,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
@@ -302,7 +302,7 @@ class TermsOfServiceScreen extends StatelessWidget {
             content,
             style: AppTypography.bodyMedium.copyWith(
               fontSize: 14,
-              color: sectionColors.secondaryText,
+              color: Colors.white.withValues(alpha: 0.9),
               height: 1.6,
             ),
           ),

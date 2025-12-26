@@ -1,18 +1,64 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 
 /// Integration tests for critical game flows
 /// These tests verify end-to-end game functionality
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Game Flow Integration Tests', () {
     late GameService gameService;
 
     setUp(() {
+      // Mock SharedPreferences for testing
+      SharedPreferences.setMockInitialValues({});
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/shared_preferences'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'getAll') {
+            return <String, dynamic>{}; // Return empty map
+          }
+          if (methodCall.method == 'getString') {
+            return null; // Return null for getString calls
+          }
+          if (methodCall.method == 'setString') {
+            return true; // Return success for setString calls
+          }
+          if (methodCall.method == 'getDouble') {
+            return null; // Return null for getDouble calls
+          }
+          if (methodCall.method == 'setDouble') {
+            return true; // Return success for setDouble calls
+          }
+          if (methodCall.method == 'getInt') {
+            return null; // Return null for getInt calls
+          }
+          if (methodCall.method == 'setInt') {
+            return true; // Return success for setInt calls
+          }
+          if (methodCall.method == 'remove') {
+            return true; // Return success for remove calls
+          }
+          if (methodCall.method == 'clear') {
+            return true; // Return success for clear calls
+          }
+          return null;
+        },
+      );
       gameService = GameService();
     });
 
     tearDown(() {
+      // Clear mock handler
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/shared_preferences'),
+        null,
+      );
       gameService.dispose();
     });
 

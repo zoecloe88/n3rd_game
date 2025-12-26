@@ -12,6 +12,7 @@ import 'package:n3rd_game/widgets/network_status_indicator.dart';
 import 'package:n3rd_game/widgets/tier_progress_indicator.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
+import 'package:n3rd_game/services/auth_service.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -98,14 +99,13 @@ class _TitleScreenState extends State<TitleScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true, // Allow full expansion
       builder: (context) {
-        final colors = AppColors.of(context);
         return Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height *
                 0.9, // Allow up to 90% of screen
           ),
           decoration: BoxDecoration(
-            color: colors.cardBackground,
+            color: Colors.black.withValues(alpha: 0.7), // Match privacy screen tile color
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: ConstrainedBox(
@@ -157,7 +157,9 @@ class _TitleScreenState extends State<TitleScreen> {
                           title: Text(
                             AppLocalizations.of(context)?.wordOfTheDay ??
                                 'Word of the Day',
-                            style: AppTypography.labelLarge,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           onTap: () {
                             HapticService().lightImpact();
@@ -182,7 +184,9 @@ class _TitleScreenState extends State<TitleScreen> {
                                   title: Text(
                                     AppLocalizations.of(context)?.editions ??
                                         'Editions',
-                                    style: AppTypography.labelLarge,
+                                    style: AppTypography.labelLarge.copyWith(
+                                      color: Colors.white,
+                                    ),
                                   ),
                                   trailing:
                                       const Icon(Icons.lock_outline, size: 16),
@@ -208,7 +212,9 @@ class _TitleScreenState extends State<TitleScreen> {
                               title: Text(
                                 AppLocalizations.of(context)?.editions ??
                                     'Editions',
-                                style: AppTypography.labelLarge,
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: Colors.white,
+                                ),
                               ),
                               onTap: () {
                                 HapticService().lightImpact();
@@ -235,15 +241,17 @@ class _TitleScreenState extends State<TitleScreen> {
                           title: Text(
                             AppLocalizations.of(context)?.leaderboard ??
                                 'Leaderboard',
-                            style: AppTypography.labelLarge,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           onTap: () {
                             HapticService().lightImpact();
                             if (context.mounted) {
                               Navigator.pop(context);
                               if (context.mounted) {
-                                // Leaderboard is accessed from StatsMenuScreen (tab 2)
-                                NavigationHelper.switchToTab(context, 2);
+                                // Navigate to leaderboard screen
+                                NavigationHelper.safeNavigate(context, '/leaderboard');
                               }
                             }
                           },
@@ -253,14 +261,17 @@ class _TitleScreenState extends State<TitleScreen> {
                           title: Text(
                             AppLocalizations.of(context)?.gameHistory ??
                                 'Game History',
-                            style: AppTypography.labelLarge,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           onTap: () {
                             HapticService().lightImpact();
                             if (context.mounted) {
                               Navigator.pop(context);
                               if (context.mounted) {
-                                NavigationHelper.switchToTab(context, 2);
+                                // Navigate to game history screen
+                                NavigationHelper.safeNavigate(context, '/game-history');
                               }
                             }
                           },
@@ -275,7 +286,9 @@ class _TitleScreenState extends State<TitleScreen> {
                               title: Text(
                                 AppLocalizations.of(context)?.learningMode ??
                                     'Learning Mode',
-                                style: AppTypography.labelLarge,
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: Colors.white,
+                                ),
                               ),
                               onTap: () {
                                 HapticService().lightImpact();
@@ -301,7 +314,9 @@ class _TitleScreenState extends State<TitleScreen> {
                                       Icons.event_available_outlined,),
                                   title: Text(
                                     'Daily Challenges',
-                                    style: AppTypography.labelLarge,
+                                    style: AppTypography.labelLarge.copyWith(
+                                      color: Colors.white,
+                                    ),
                                   ),
                                   trailing:
                                       const Icon(Icons.lock_outline, size: 16),
@@ -326,7 +341,9 @@ class _TitleScreenState extends State<TitleScreen> {
                                   Icons.event_available_outlined,),
                               title: Text(
                                 'Daily Challenges',
-                                style: AppTypography.labelLarge,
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: Colors.white,
+                                ),
                               ),
                               onTap: () {
                                 HapticService().lightImpact();
@@ -348,7 +365,9 @@ class _TitleScreenState extends State<TitleScreen> {
                               _buildLeadingIcon(Icons.card_membership_outlined),
                           title: Text(
                             'Manage Subscriptions',
-                            style: AppTypography.labelLarge,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           onTap: () {
                             HapticService().lightImpact();
@@ -367,7 +386,9 @@ class _TitleScreenState extends State<TitleScreen> {
                           leading: _buildLeadingIcon(Icons.info_outline),
                           title: Text(
                             AppLocalizations.of(context)?.about ?? 'About',
-                            style: AppTypography.labelLarge,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           onTap: () {
                             HapticService().lightImpact();
@@ -375,6 +396,25 @@ class _TitleScreenState extends State<TitleScreen> {
                               Navigator.pop(context);
                               if (context.mounted) {
                                 _showAboutDialog(context);
+                              }
+                            }
+                          },
+                        ),
+                        const Divider(color: Colors.white24),
+                        ListTile(
+                          leading: _buildLeadingIcon(Icons.logout),
+                          title: Text(
+                            'Sign Out',
+                            style: AppTypography.labelLarge.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                          onTap: () {
+                            HapticService().lightImpact();
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              if (context.mounted) {
+                                _showSignOutDialog(context);
                               }
                             }
                           },
@@ -390,7 +430,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     'Copyright N3RD Trivia ${DateTime.now().year}',
                     style: AppTypography.labelSmall.copyWith(
                       fontSize: 11,
-                      color: colors.onDarkText.withValues(alpha: 0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                     ),
                   ),
                 ),
@@ -448,6 +488,63 @@ class _TitleScreenState extends State<TitleScreen> {
     );
   }
 
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Sign Out?',
+          style: AppTypography.displayMedium.copyWith(fontSize: 20),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: AppTypography.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              HapticService().lightImpact();
+              NavigationHelper.safePop(context);
+            },
+            child: Text(
+              AppLocalizations.of(context)?.cancel ?? 'Cancel',
+              style: AppTypography.labelLarge,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              HapticService().lightImpact();
+              NavigationHelper.safePop(context);
+              try {
+                final authService = Provider.of<AuthService>(context, listen: false);
+                await authService.signOut();
+                if (context.mounted) {
+                  NavigationHelper.safeNavigate(context, '/login', replace: true);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error signing out: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              'Sign Out',
+              style: AppTypography.labelLarge.copyWith(
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -474,7 +571,7 @@ class _TitleScreenState extends State<TitleScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Created by Gerard',
+                'Created by Girard Clairsaint',
                 style: AppTypography.bodyMedium.copyWith(
                   color: Colors.grey[600],
                 ),
@@ -507,17 +604,6 @@ class _TitleScreenState extends State<TitleScreen> {
     NavigationHelper.switchToTab(context, 1);
   }
 
-  void _switchToStatsTab(BuildContext context) {
-    // FIXED: Use switchToTab to properly navigate to stats tab (index 2)
-    NavigationHelper.switchToTab(context, 2);
-  }
-
-  void _switchToLeaderboardTab(BuildContext context) {
-    // FIXED: Leaderboard is accessed from StatsMenuScreen (tab 2), not a separate tab
-    // Navigate to StatsMenuScreen, user can then navigate to LeaderboardScreen from there
-    NavigationHelper.switchToTab(context, 2);
-  }
-
   void _switchToMoreTab(BuildContext context) {
     // FIXED: Use switchToTab to properly navigate to more tab (index 4)
     NavigationHelper.switchToTab(context, 4);
@@ -534,9 +620,8 @@ class _TitleScreenState extends State<TitleScreen> {
     final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: colors.background,
       body: VideoBackgroundWidget(
-        videoPath: 'assets/title screen.mp4',
+        videoPath: 'assets/titlescreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent
         alignment: Alignment.topCenter, // Characters/logos in upper portion
         loop: true,
@@ -606,11 +691,11 @@ class _TitleScreenState extends State<TitleScreen> {
                             mainAxisAlignment: MainAxisAlignment.end,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Spacer to push content to lower portion (logos are in upper portion)
+                              // Spacer reduced to move content up ~1/4 inch (logos are in upper portion)
                               SizedBox(
                                   height: ResponsiveHelper.responsiveHeight(
-                                          context, 0.35,)
-                                      .clamp(200.0, 400.0),),
+                                          context, 0.08,)
+                                      .clamp(40.0, 80.0),),
 
                               // Title - Professional Serif (responsive)
                               Builder(
@@ -706,33 +791,35 @@ class _TitleScreenState extends State<TitleScreen> {
                                 },
                               ),
 
-                              // Stats Button
-                              _buildMenuButton(
-                                context,
-                                icon: Icons.bar_chart_outlined,
-                                label: 'Stats',
-                                onPressed: () => _switchToStatsTab(context),
-                                isPrimary: false,
-                              ),
-
-                              Builder(
-                                builder: (context) {
-                                  final buttonSpacing =
-                                      ResponsiveHelper.responsiveHeight(
-                                              context, 0.015,)
-                                          .clamp(8.0, 16.0);
-                                  return SizedBox(height: buttonSpacing);
+                              // Daily Challenges Button
+                              Consumer<SubscriptionService>(
+                                builder: (context, subscriptionService, _) {
+                                  if (!subscriptionService.hasOnlineAccess) {
+                                    return _buildMenuButton(
+                                      context,
+                                      icon: Icons.event_available_outlined,
+                                      label: 'Daily Challenges (Locked)',
+                                      onPressed: () => _showUpgradeDialog(
+                                        context,
+                                        'Daily Challenges',
+                                        'Upgrade to Premium to access daily challenges and leaderboards!',
+                                      ),
+                                      isPrimary: false,
+                                    );
+                                  }
+                                  return _buildMenuButton(
+                                    context,
+                                    icon: Icons.event_available_outlined,
+                                    label: 'Daily Challenges',
+                                    onPressed: () {
+                                      NavigationHelper.safeNavigate(
+                                        context,
+                                        '/daily-challenges',
+                                      );
+                                    },
+                                    isPrimary: false,
+                                  );
                                 },
-                              ),
-
-                              // Leaderboard Button
-                              _buildMenuButton(
-                                context,
-                                icon: Icons.leaderboard_outlined,
-                                label: 'Leaderboard',
-                                onPressed: () =>
-                                    _switchToLeaderboardTab(context),
-                                isPrimary: false,
                               ),
 
                               Builder(

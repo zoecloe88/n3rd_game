@@ -187,3 +187,4 @@ class FirestoreErrorHandler {
     return false;
   }
 }
+

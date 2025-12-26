@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Initial loading screen - first screen shown on app launch
-/// Uses simple black background
+/// Uses simple black background - no spinner per user request
 class InitialLoadingScreen extends StatelessWidget {
   const InitialLoadingScreen({super.key});
 
@@ -9,11 +9,7 @@ class InitialLoadingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D9FF)),
-        ),
-      ),
+      body: SizedBox.shrink(), // No spinner - just black screen
     );
   }
 }

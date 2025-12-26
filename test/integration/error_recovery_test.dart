@@ -34,6 +34,53 @@ void main() {
       null,
     );
   });
+  setUp(() {
+    // Mock SharedPreferences for testing
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/shared_preferences'),
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'getAll') {
+          return <String, dynamic>{};
+        }
+        if (methodCall.method == 'getString') {
+          return null;
+        }
+        if (methodCall.method == 'setString') {
+          return true;
+        }
+        if (methodCall.method == 'getDouble') {
+          return null;
+        }
+        if (methodCall.method == 'setDouble') {
+          return true;
+        }
+        if (methodCall.method == 'getInt') {
+          return null;
+        }
+        if (methodCall.method == 'setInt') {
+          return true;
+        }
+        if (methodCall.method == 'remove') {
+          return true;
+        }
+        if (methodCall.method == 'clear') {
+          return true;
+        }
+        return null;
+      },
+    );
+  });
+
+  tearDown(() {
+    // Clear mock handler
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/shared_preferences'),
+      null,
+    );
+  });
+
   group('Error Recovery Tests', () {
     test('GameService handles trivia generation errors gracefully', () {
       final gameService = GameService();

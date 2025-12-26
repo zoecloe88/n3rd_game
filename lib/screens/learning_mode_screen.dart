@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/learning_service.dart';
 import 'package:n3rd_game/models/reviewed_question.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 
 class LearningModeScreen extends StatefulWidget {
   const LearningModeScreen({super.key});
@@ -34,18 +34,10 @@ class _LearningModeScreenState extends State<LearningModeScreen>
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
-      body: Stack(
-        children: [
-          // Background
-          Positioned.fill(
-            child: Container(
-              color: AppColors.of(context).background,
-            ),
-          ),
-
-          // Content
-          SafeArea(
+      backgroundColor: Colors.black,
+      body: BackgroundImageWidget(
+        imagePath: 'assets/background n3rd.png',
+        child: SafeArea(
             child: Column(
               children: [
                 // Header
@@ -97,8 +89,7 @@ class _LearningModeScreenState extends State<LearningModeScreen>
               ],
             ),
           ),
-        ],
-      ),
+        ),
     );
   }
 

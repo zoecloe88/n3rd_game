@@ -6,9 +6,9 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 
 class PracticeModeScreen extends StatefulWidget {
   const PracticeModeScreen({super.key});
@@ -26,13 +26,18 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background
-          Positioned.fill(
-            child: Container(
-              color: AppColors.of(context).background,
+          // Video background instead of white
+          const Positioned.fill(
+            child: VideoBackgroundWidget(
+              videoPath: 'assets/modeselectionscreen.mp4',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              loop: true,
+              autoplay: true,
+              child: SizedBox.shrink(),
             ),
           ),
 
@@ -42,7 +47,150 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
               builder: (context, gameService, _) {
                 return Column(
                   children: [
-                    // Header
+                    // Practice game area
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          margin: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.school,
+                                size: 64,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                              const SizedBox(height: 16),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Unlimited practice rounds with progressive hints.\nNo score penalties - focus on learning!',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontSize: 14,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  if (!mounted) return;
+                                  final buildContext = context;
+                                  // Start practice game with retry logic
+                                  try {
+                                    final generator =
+                                        Provider.of<TriviaGeneratorService>(
+                                      buildContext,
+                                      listen: false,
+                                    );
+                                    final analyticsService =
+                                        Provider.of<AnalyticsService>(
+                                      buildContext,
+                                      listen: false,
+                                    );
+
+                                    // Use retry logic for better reliability
+                                    final triviaPool =
+                                        await _generateTriviaWithRetry(
+                                      buildContext,
+                                      generator,
+                                      analyticsService,
+                                      'practice',
+                                    );
+
+                                    if (!mounted || !buildContext.mounted) {
+                                      return;
+                                    }
+                                    if (triviaPool.isNotEmpty) {
+                                      gameService.startNewRound(
+                                        triviaPool,
+                                        mode: GameMode.practice,
+                                      );
+                                      NavigationHelper.safeNavigate(
+                                        buildContext,
+                                        '/game',
+                                        arguments: GameMode.practice,
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        buildContext,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'No trivia content available after multiple attempts. Please try again or restart the app.',
+                                          ),
+                                          duration: Duration(seconds: 4),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (!mounted || !buildContext.mounted) {
+                                      return;
+                                    }
+                                    // Provide specific error message
+                                    String errorMessage =
+                                        'Failed to load trivia content. ';
+                                    if (e.toString().contains(
+                                          'No templates available',
+                                        )) {
+                                      errorMessage +=
+                                          'Template initialization issue. Please restart the app.';
+                                    } else if (e.toString().contains(
+                                          'Unable to generate unique trivia',
+                                        )) {
+                                      errorMessage +=
+                                          'All available content has been used. Try clearing history.';
+                                    } else {
+                                      errorMessage += 'Please try again.';
+                                    }
+                                    ScaffoldMessenger.of(
+                                      buildContext,
+                                    ).showSnackBar(
+                                      SnackBar(
+                                        content: Text(errorMessage),
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00D9FF),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 16,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Start Practice',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Hint Levels:\n• Level 1: Eliminate 1 wrong answer\n• Level 2: Eliminate 2 wrong answers\n• Show Answer: Reveal correct answers',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Header moved to bottom
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
@@ -129,154 +277,15 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                         ],
                       ),
                     ),
-
-                    // Practice game area
-                    Expanded(
-                      child: Center(
-                        child: Container(
-                          margin: const EdgeInsets.all(24),
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.school,
-                                size: 64,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Practice Mode',
-                                style: AppTypography.headlineLarge.copyWith(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Unlimited practice rounds with progressive hints.\nNo score penalties - focus on learning!',
-                                textAlign: TextAlign.center,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  if (!mounted) return;
-                                  final buildContext = context;
-                                  // Start practice game with retry logic
-                                  try {
-                                    final generator =
-                                        Provider.of<TriviaGeneratorService>(
-                                      buildContext,
-                                      listen: false,
-                                    );
-                                    final analyticsService =
-                                        Provider.of<AnalyticsService>(
-                                      buildContext,
-                                      listen: false,
-                                    );
-
-                                    // Use retry logic for better reliability
-                                    final triviaPool =
-                                        await _generateTriviaWithRetry(
-                                      buildContext,
-                                      generator,
-                                      analyticsService,
-                                      'practice',
-                                    );
-
-                                    if (!mounted || !buildContext.mounted) {
-                                      return;
-                                    }
-                                    if (triviaPool.isNotEmpty) {
-                                      gameService.startNewRound(
-                                        triviaPool,
-                                        mode: GameMode.classic,
-                                      );
-                                      Navigator.of(buildContext).pushNamed(
-                                        '/game',
-                                        arguments: GameMode.classic,
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        buildContext,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'No trivia content available after multiple attempts. Please try again or restart the app.',
-                                          ),
-                                          duration: Duration(seconds: 4),
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (!mounted || !buildContext.mounted) {
-                                      return;
-                                    }
-                                    // Provide specific error message
-                                    String errorMessage =
-                                        'Failed to load trivia content. ';
-                                    if (e.toString().contains(
-                                          'No templates available',
-                                        )) {
-                                      errorMessage +=
-                                          'Template initialization issue. Please restart the app.';
-                                    } else if (e.toString().contains(
-                                          'Unable to generate unique trivia',
-                                        )) {
-                                      errorMessage +=
-                                          'All available content has been used. Try clearing history.';
-                                    } else {
-                                      errorMessage += 'Please try again.';
-                                    }
-                                    ScaffoldMessenger.of(
-                                      buildContext,
-                                    ).showSnackBar(
-                                      SnackBar(
-                                        content: Text(errorMessage),
-                                        duration: const Duration(seconds: 4),
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00D9FF),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
-                                  ),
-                                ),
-                                child: Text(
-                                  'Start Practice',
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Hint Levels:\n• Level 1: Eliminate 1 wrong answer\n• Level 2: Eliminate 2 wrong answers\n• Show Answer: Reveal correct answers',
-                                textAlign: TextAlign.center,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ],
-                          ),
+                    // Header at bottom
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Practice Mode',
+                        style: AppTypography.headlineLarge.copyWith(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),
