@@ -61,7 +61,7 @@ void main() {
       await service.init();
       await service.recordGameStart();
       expect(service.hasGamesRemaining, true);
-      
+
       // Fill up to limit
       for (int i = 1; i < service.maxGamesPerDay; i++) {
         await service.recordGameStart();
@@ -76,4 +76,3 @@ void main() {
     });
   });
 }
-

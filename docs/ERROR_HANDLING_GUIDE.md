@@ -1,7 +1,10 @@
 # Error Handling Guide
 
 ## Overview
+
 This document describes the comprehensive error handling strategy used throughout the N3RD Trivia Game application.
+
+> **Related**: See [ADR-007: Error Handling Strategy](./ADRs/007-error-handling-strategy.md) for the architectural decision that established this error handling approach.
 
 ## Error Handling Philosophy
 
@@ -103,6 +106,86 @@ try {
 } on StorageException catch (e) {
   // Fallback to memory cache
   _memoryCache.save(state);
+}
+```
+
+### 6. Navigation Errors
+**Location**: `lib/utils/navigation_helper.dart` - `NavigationHelper`
+
+**Handling Strategy**:
+- Automatic retry with exponential backoff (max 2 retries)
+- Route argument validation before navigation
+- User-friendly error messages
+- Analytics tracking of navigation failures
+- Fallback to safe routes on persistent failures
+
+**Automatic Error Recovery**:
+```dart
+// NavigationHelper automatically retries failed navigations
+NavigationHelper.safeNavigate(
+  context,
+  '/game',
+  arguments: {'mode': GameMode.classic},
+  maxRetries: 2, // Default: 2 retries with exponential backoff
+  source: NavigationSource.buttonTap,
+);
+// If navigation fails after retries, user sees friendly error message
+```
+
+**Error Handling Flow**:
+1. Validate route arguments using `RouteRegistry.validateRouteArguments()`
+2. Save navigation state before attempting navigation
+3. Attempt navigation with automatic retry (100ms, 200ms delays)
+4. Track navigation analytics (success/failure, duration)
+5. Show user-friendly error message if all retries fail
+6. Log navigation error for debugging
+
+**Example Scenarios**:
+
+**Invalid Route Arguments**:
+```dart
+// RouteRegistry validates arguments before navigation
+final isValid = RouteRegistry.validateRouteArguments(
+  '/multiplayer-loading',
+  'invalid_argument', // Should be MultiplayerMode
+);
+if (!isValid) {
+  LoggerService.warning('Invalid route arguments');
+  // Navigation will fail gracefully
+}
+```
+
+**Route Not Found**:
+```dart
+// NavigationHelper handles unknown routes gracefully
+NavigationHelper.safeNavigate(context, '/unknown-route');
+// Shows user-friendly error: "Unable to navigate. Please try again."
+// Error tracked in analytics
+```
+
+**Navigation During Widget Disposal**:
+```dart
+// NavigationHelper checks context.mounted before navigating
+if (context.mounted) {
+  NavigationHelper.safeNavigate(context, '/route');
+}
+// Prevents navigation errors on disposed widgets
+```
+
+**Deep Link Restoration After Auth**:
+```dart
+// NavigationStateService saves deep links for post-auth navigation
+final stateService = NavigationStateService();
+await stateService.savePendingDeepLink('/family-invitation?groupId=abc123');
+
+// After authentication completes:
+final deepLink = await stateService.getAndClearPendingDeepLink();
+if (deepLink != null) {
+  NavigationHelper.safeNavigate(
+    context,
+    deepLink,
+    source: NavigationSource.deepLink,
+  );
 }
 ```
 
@@ -240,14 +323,27 @@ void startGame() {
 }
 ```
 
-### 3. Use Safe Navigation
+### 3. Use Safe Navigation with Error Recovery
 ```dart
-// Good
-NavigationHelper.safeNavigate(context, '/route');
+// Good - Automatic error recovery and analytics
+NavigationHelper.safeNavigate(
+  context,
+  '/game',
+  arguments: {'mode': GameMode.classic},
+  source: NavigationSource.buttonTap,
+);
 
-// Bad
+// Bad - No error recovery, no analytics
 Navigator.of(context).pushNamed('/route');
 ```
+
+**Navigation Error Recovery Features**:
+- Automatic retry with exponential backoff (default: 2 retries)
+- Route argument validation before navigation
+- User-friendly error messages on failure
+- Analytics tracking of navigation events
+- Navigation state persistence
+- Context validation (checks `context.mounted`)
 
 **Note**: As of the latest build, all navigation has been migrated to `NavigationHelper`. 
 There are 0 remaining direct `Navigator.of(context)` calls in the codebase.

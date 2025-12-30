@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service to manage subscription tiers
 /// Integrates with RevenueCat for actual subscription management
@@ -25,7 +28,9 @@ class SubscriptionService extends ChangeNotifier {
   ); // 30 minute grace period for active games
   SubscriptionTier _currentTier = SubscriptionTier.free;
   RevenueCatService? _revenueCat;
+  AnalyticsService? _analytics;
   bool _isSettingTier = false; // Mutex to prevent concurrent tier updates
+  DateTime? _lastSubscriptionChange; // Track time between changes
 
   SubscriptionTier get currentTier => _currentTier;
   bool get isFree => _currentTier == SubscriptionTier.free;
@@ -62,9 +67,7 @@ class SubscriptionService extends ChangeNotifier {
       // Check if game started within grace period
       return elapsed < _gracePeriod;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error checking active game session: $e');
-      }
+      LoggerService.error('Error checking active game session', error: e);
       return false;
     }
   }
@@ -84,9 +87,7 @@ class SubscriptionService extends ChangeNotifier {
         _currentTier.name,
       );
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error marking game session active: $e');
-      }
+      LoggerService.error('Error marking game session active', error: e);
     }
   }
 
@@ -97,9 +98,7 @@ class SubscriptionService extends ChangeNotifier {
       await prefs.remove(_prefKeyActiveGameStart);
       await prefs.remove(_prefKeyActiveGameTier);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error clearing game session: $e');
-      }
+      LoggerService.error('Error clearing game session', error: e);
     }
   }
 
@@ -148,9 +147,7 @@ class SubscriptionService extends ChangeNotifier {
           );
         }
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Error reading tier at game start: $e');
-        }
+        LoggerService.error('Error reading tier at game start', error: e);
       }
 
       // Use tier at game start if available, otherwise use current tier (conservative)
@@ -210,9 +207,7 @@ class SubscriptionService extends ChangeNotifier {
         await _loadFromFirestore(user.uid);
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to load subscription tier from Firestore: $e');
-      }
+      LoggerService.error('Failed to load subscription tier from Firestore', error: e);
       // Continue with local value
     }
 
@@ -221,6 +216,9 @@ class SubscriptionService extends ChangeNotifier {
 
   /// Sync subscription tier from RevenueCat
   void syncWithRevenueCat(RevenueCatService? revenueCat, AuthService? auth) {
+    // Validate dependencies (debug mode only)
+    _validateDependencies(operation: 'syncWithRevenueCat');
+
     // Remove existing listener first to prevent duplicates
     _revenueCat?.removeListener(_onRevenueCatUpdate);
 
@@ -267,6 +265,29 @@ class SubscriptionService extends ChangeNotifier {
     }
   }
 
+  /// Set analytics service for tracking
+  void setAnalyticsService(AnalyticsService? analytics) {
+    _analytics = analytics;
+  }
+
+  /// Validate that required dependencies are set (debug mode only)
+  void _validateDependencies({required String operation}) {
+    if (!kDebugMode) return;
+
+    final missingDeps = <String>[];
+    if (_revenueCat == null || !_revenueCat!.isInitialized) {
+      missingDeps.add('RevenueCatService');
+    }
+    // AuthService is accessed via FirebaseAuth.instance, not stored
+
+    if (missingDeps.isNotEmpty) {
+      LoggerService.debug(
+        'SubscriptionService: Missing dependencies for $operation: ${{missingDeps.join(", ")}}. '
+        'Subscription features may be unavailable.',
+      );
+    }
+  }
+
   /// Set subscription tier (called by RevenueCat service when subscription changes)
   /// CRITICAL: Protected by mutex to prevent race conditions from concurrent updates
   Future<void> setTier(SubscriptionTier tier) async {
@@ -289,7 +310,27 @@ class SubscriptionService extends ChangeNotifier {
 
     _isSettingTier = true;
     try {
+      // Track subscription change with analytics
+      final timeSinceLastChange = _lastSubscriptionChange != null
+          ? DateTime.now().difference(_lastSubscriptionChange!)
+          : null;
+
+      unawaited((_analytics?.logSubscriptionChange(
+        fromTier: oldTier.name,
+        toTier: tier.name,
+        timeSinceLastChange: timeSinceLastChange,
+      ) ?? Future<void>.value()) as Future<dynamic>,);
+
+      // Track funnel step if upgrading
+      if (tier != SubscriptionTier.free && oldTier == SubscriptionTier.free) {
+        unawaited((_analytics?.logSubscriptionFunnel(
+          step: 'activate',
+          tier: tier.name,
+        ) ?? Future<void>.value()) as Future<dynamic>,);
+      }
+
       _currentTier = tier;
+      _lastSubscriptionChange = DateTime.now();
       final prefs = await SharedPreferences.getInstance();
       final tierString = tier.name;
       await prefs.setString(_prefKeyTier, tierString);
@@ -301,9 +342,7 @@ class SubscriptionService extends ChangeNotifier {
           await _syncToFirestore(user.uid, tier);
         }
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Failed to sync subscription tier to Firestore: $e');
-        }
+        LoggerService.error('Failed to sync subscription tier to Firestore', error: e);
         // Continue - local tier is set
       }
 
@@ -347,9 +386,7 @@ class SubscriptionService extends ChangeNotifier {
           },
         );
 
-        if (kDebugMode) {
-          debugPrint('Synced subscription tier to Firestore: $tierString');
-        }
+        LoggerService.debug('Synced subscription tier to Firestore: $tierString');
         return; // Success - exit retry loop
       } catch (e) {
         lastError = e.toString();

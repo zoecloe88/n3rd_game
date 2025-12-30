@@ -1,11 +1,6 @@
 import 'package:n3rd_game/services/logger_service.dart';
 
 class Friend {
-  final String userId;
-  final String? displayName;
-  final String? email;
-  final DateTime? addedAt;
-  final bool isOnline;
 
   Friend({
     required this.userId,
@@ -14,14 +9,6 @@ class Friend {
     this.addedAt,
     this.isOnline = false,
   });
-
-  Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'displayName': displayName,
-        'email': email,
-        'addedAt': addedAt?.toIso8601String(),
-        'isOnline': isOnline,
-      };
 
   factory Friend.fromJson(Map<String, dynamic> json) => Friend(
         userId: json['userId'] as String,
@@ -44,16 +31,22 @@ class Friend {
             : null,
         isOnline: json['isOnline'] as bool? ?? false,
       );
+  final String userId;
+  final String? displayName;
+  final String? email;
+  final DateTime? addedAt;
+  final bool isOnline;
+
+  Map<String, dynamic> toJson() => {
+        'userId': userId,
+        'displayName': displayName,
+        'email': email,
+        'addedAt': addedAt?.toIso8601String(),
+        'isOnline': isOnline,
+      };
 }
 
 class FriendRequest {
-  final String id;
-  final String fromUserId;
-  final String toUserId;
-  final String? fromDisplayName;
-  final String? fromEmail;
-  final DateTime createdAt;
-  final FriendRequestStatus status;
 
   FriendRequest({
     required this.id,
@@ -64,16 +57,6 @@ class FriendRequest {
     required this.createdAt,
     this.status = FriendRequestStatus.pending,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'fromUserId': fromUserId,
-        'toUserId': toUserId,
-        'fromDisplayName': fromDisplayName,
-        'fromEmail': fromEmail,
-        'createdAt': createdAt.toIso8601String(),
-        'status': status.name,
-      };
 
   factory FriendRequest.fromJson(Map<String, dynamic> json) => FriendRequest(
         id: json['id'] as String,
@@ -99,6 +82,23 @@ class FriendRequest {
           orElse: () => FriendRequestStatus.pending,
         ),
       );
+  final String id;
+  final String fromUserId;
+  final String toUserId;
+  final String? fromDisplayName;
+  final String? fromEmail;
+  final DateTime createdAt;
+  final FriendRequestStatus status;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fromUserId': fromUserId,
+        'toUserId': toUserId,
+        'fromDisplayName': fromDisplayName,
+        'fromEmail': fromEmail,
+        'createdAt': createdAt.toIso8601String(),
+        'status': status.name,
+      };
 }
 
 enum FriendRequestStatus { pending, accepted, rejected }

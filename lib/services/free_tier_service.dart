@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service to manage free tier restrictions
 /// Free tier gets 5 games per day (games started), resets at midnight UTC
@@ -28,9 +29,7 @@ class FreeTierService extends ChangeNotifier {
       _checkDateReset();
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to initialize FreeTierService: $e');
-      }
+      LoggerService.error('Failed to initialize FreeTierService', error: e);
       // Continue with default state if SharedPreferences fails
       _gamesStartedToday = 0;
       _lastDate = DateTime.now().toUtc();
@@ -188,9 +187,7 @@ class FreeTierService extends ChangeNotifier {
       _prefs = await SharedPreferences.getInstance();
       return _prefs!;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to get SharedPreferences in FreeTierService: $e');
-      }
+      LoggerService.error('Failed to get SharedPreferences in FreeTierService', error: e);
       rethrow; // Re-throw to let caller handle
     }
   }

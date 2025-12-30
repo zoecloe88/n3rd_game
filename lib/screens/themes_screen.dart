@@ -6,6 +6,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 class ThemesScreen extends StatelessWidget {
   const ThemesScreen({super.key});
@@ -114,10 +115,17 @@ class ThemesScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back,
-                                color: Colors.white,),
-                            onPressed: () => NavigationHelper.safePop(context),
+                          Semantics(
+                            label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                            button: true,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => NavigationHelper.safePop(context),
+                              tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -209,11 +217,15 @@ class ThemesScreen extends StatelessWidget {
                                   final isSelected =
                                       theme.id == currentTheme.id;
 
-                                  return GestureDetector(
-                                    onTap: () {
-                                      themeService.setTheme(theme);
-                                    },
-                                    child: Container(
+                                  return Semantics(
+                                    label: isSelected ? '${theme.name} - Current theme' : theme.name,
+                                    hint: theme.description,
+                                    button: true,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        themeService.setTheme(theme);
+                                      },
+                                      child: Container(
                                       decoration: BoxDecoration(
                                         color:
                                             Colors.white.withValues(alpha: 0.1),
@@ -245,7 +257,8 @@ class ThemesScreen extends StatelessWidget {
                                                       (theme.colors['accent'] ??
                                                               Colors.white)
                                                           .withValues(
-                                                              alpha: 0.5,),
+                                                    alpha: 0.5,
+                                                  ),
                                                   blurRadius: 10,
                                                   spreadRadius: 2,
                                                 ),
@@ -305,6 +318,7 @@ class ThemesScreen extends StatelessWidget {
                                           ],
                                         ],
                                       ),
+                                    ),
                                     ),
                                   );
                                 },

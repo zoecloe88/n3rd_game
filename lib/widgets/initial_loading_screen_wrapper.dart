@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:n3rd_game/widgets/initial_loading_screen.dart';
 import 'package:n3rd_game/widgets/animated_logo_loading_screen_wrapper.dart';
+import 'package:n3rd_game/services/video_cache_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Wrapper that shows initial loading screen for 3 seconds, then navigates to logo loading screen
 /// Also preloads Google Fonts during the loading period for optimal performance
@@ -31,6 +34,23 @@ class _InitialLoadingScreenWrapperState
     // Preload fonts during loading screen display
     final fontLoadFuture = _preloadFonts();
 
+    // Preload logo video with timeout (don't block on it)
+    // Non-critical - video will load on-demand if preload fails
+    final videoPreloadFuture = VideoCacheService()
+        .preloadVideo('assets/logoloadingscreen.mp4')
+        .timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {
+        // Non-critical - video will load on-demand
+        LoggerService.debug('Video preload timed out (non-critical);');
+        return null;
+      },
+    ).catchError((e) {
+      // Log but don't block
+      LoggerService.debug('Video preload failed (non-critical);', error: e);
+      return null;
+    });
+
     try {
       // Show initial loading for minimum 1 second (reduced from 3), then navigate to logo loading screen
       // Wait for fonts to load or timeout, whichever comes first
@@ -38,15 +58,16 @@ class _InitialLoadingScreenWrapperState
       await Future.wait([
         Future.delayed(const Duration(seconds: 1)), // Reduced from 3 seconds
         fontLoadFuture,
+        videoPreloadFuture,
       ]);
 
       // Navigate after successful initialization
       if (mounted && context.mounted) {
-        Navigator.of(context).pushReplacement(
+        unawaited(Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
           ),
-        );
+        ),);
       }
     } catch (e) {
       // Even if font loading fails, proceed after 1 second
@@ -59,11 +80,11 @@ class _InitialLoadingScreenWrapperState
 
       // Ensure we navigate even if font loading fails
       if (mounted && context.mounted) {
-        Navigator.of(context).pushReplacement(
+        unawaited(Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
           ),
-        );
+        ),);
       }
     }
   }
@@ -130,8 +151,8 @@ class _InitialLoadingScreenWrapperState
     return Stack(
       children: [
         const InitialLoadingScreen(),
-        // Show font loading status in debug mode or if there's an error
-        if (kDebugMode || _fontLoadError != null)
+        // Show font loading status in debug mode only (production-ready)
+        if (kDebugMode)
           Positioned(
             bottom: 20,
             left: 0,

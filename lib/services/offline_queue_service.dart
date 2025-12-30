@@ -6,15 +6,15 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 /// Queues operations when offline and executes them when connectivity is restored.
 /// Supports retry logic with exponential backoff.
 class OfflineQueueService {
+
+  OfflineQueueService() {
+    _initConnectivityMonitoring();
+  }
   final List<QueuedOperation> _queue = [];
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isOnline = true;
   Timer? _retryTimer;
-
-  OfflineQueueService() {
-    _initConnectivityMonitoring();
-  }
 
   /// Initialize connectivity monitoring
   Future<void> _initConnectivityMonitoring() async {
@@ -145,12 +145,6 @@ class OfflineQueueService {
 
 /// Represents a queued operation
 class QueuedOperation<T> {
-  final Future<T> Function() operation;
-  final String operationId;
-  final int maxRetries;
-  final Duration timeout;
-  final DateTime createdAt;
-  int retryCount = 0;
 
   QueuedOperation({
     required this.operation,
@@ -159,4 +153,10 @@ class QueuedOperation<T> {
     required this.timeout,
     required this.createdAt,
   });
+  final Future<T> Function() operation;
+  final String operationId;
+  final int maxRetries;
+  final Duration timeout;
+  final DateTime createdAt;
+  int retryCount = 0;
 }

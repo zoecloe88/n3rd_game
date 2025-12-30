@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for managing user session timeout
 class SessionService extends ChangeNotifier {
@@ -44,7 +45,7 @@ class SessionService extends ChangeNotifier {
         _lastActivity = DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {
-      debugPrint('Failed to load last activity: $e');
+      LoggerService.error('Failed to load last activity', error: e);
     }
   }
 
@@ -58,7 +59,7 @@ class SessionService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('Failed to save last activity: $e');
+      LoggerService.error('Failed to save last activity', error: e);
     }
   }
 
@@ -75,7 +76,7 @@ class SessionService extends ChangeNotifier {
     _checkTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (!isSessionActive && authService.isAuthenticated) {
         // Session expired, logout user
-        debugPrint('Session expired, logging out user');
+        LoggerService.debug('Session expired, logging out user');
         authService.signOut();
         timer.cancel();
       } else if (timeUntilTimeout != null &&

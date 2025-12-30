@@ -1,12 +1,4 @@
 class DirectMessage {
-  final String id;
-  final String conversationId;
-  final String fromUserId;
-  final String toUserId;
-  final String? fromDisplayName;
-  final String message;
-  final DateTime timestamp;
-  final bool? isRead;
 
   DirectMessage({
     required this.id,
@@ -19,17 +11,6 @@ class DirectMessage {
     this.isRead,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'conversationId': conversationId,
-        'fromUserId': fromUserId,
-        'toUserId': toUserId,
-        'fromDisplayName': fromDisplayName,
-        'message': message,
-        'timestamp': timestamp.toIso8601String(),
-        'isRead': isRead,
-      };
-
   factory DirectMessage.fromJson(Map<String, dynamic> json) => DirectMessage(
         id: json['id'] as String,
         conversationId: json['conversationId'] as String,
@@ -40,17 +21,28 @@ class DirectMessage {
         timestamp: DateTime.parse(json['timestamp'] as String),
         isRead: json['isRead'] as bool?,
       );
+  final String id;
+  final String conversationId;
+  final String fromUserId;
+  final String toUserId;
+  final String? fromDisplayName;
+  final String message;
+  final DateTime timestamp;
+  final bool? isRead;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'conversationId': conversationId,
+        'fromUserId': fromUserId,
+        'toUserId': toUserId,
+        'fromDisplayName': fromDisplayName,
+        'message': message,
+        'timestamp': timestamp.toIso8601String(),
+        'isRead': isRead,
+      };
 }
 
 class Conversation {
-  final String id;
-  final String userId1;
-  final String userId2;
-  final String? user1DisplayName;
-  final String? user2DisplayName;
-  final DirectMessage? lastMessage;
-  final int unreadCount;
-  final DateTime? lastActivity;
 
   Conversation({
     required this.id,
@@ -62,6 +54,14 @@ class Conversation {
     this.unreadCount = 0,
     this.lastActivity,
   });
+  final String id;
+  final String userId1;
+  final String userId2;
+  final String? user1DisplayName;
+  final String? user2DisplayName;
+  final DirectMessage? lastMessage;
+  final int unreadCount;
+  final DateTime? lastActivity;
 
   String getOtherUserId(String currentUserId) {
     return currentUserId == userId1 ? userId2 : userId1;

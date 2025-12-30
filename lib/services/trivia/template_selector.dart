@@ -2,12 +2,6 @@ import 'dart:math';
 
 /// Trivia template model (extracted for reuse)
 class TriviaTemplate {
-  final String categoryPattern;
-  final List<String> correctPool;
-  final List<String> distractorPool;
-  final String theme;
-  final Map<String, List<String>>? distractorPools;
-  final String difficulty;
 
   TriviaTemplate({
     required this.categoryPattern,
@@ -17,14 +11,20 @@ class TriviaTemplate {
     this.distractorPools,
     this.difficulty = 'medium',
   });
+  final String categoryPattern;
+  final List<String> correctPool;
+  final List<String> distractorPool;
+  final String theme;
+  final Map<String, List<String>>? distractorPools;
+  final String difficulty;
 }
 
 /// Utility class for selecting trivia templates
 /// Extracted from TriviaGeneratorService to improve maintainability
 class TemplateSelector {
-  final Random _random;
 
   TemplateSelector({Random? random}) : _random = random ?? Random();
+  final Random _random;
 
   /// Select a random template from the available templates
   /// Filters by theme if provided, otherwise uses all templates

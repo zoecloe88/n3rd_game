@@ -1,4 +1,4 @@
-import 'dart:async' show Future, StreamSubscription;
+import 'dart:async' show Future;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +14,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
     deferred as templates;
@@ -58,8 +59,9 @@ import 'package:n3rd_game/widgets/main_navigation_wrapper.dart';
 import 'package:n3rd_game/widgets/error_boundary.dart';
 import 'package:n3rd_game/widgets/route_guard.dart';
 import 'package:n3rd_game/models/game_room.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/services/auth_service.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/services/game_service.dart' as game_service;
 import 'package:n3rd_game/services/stats_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
@@ -91,6 +93,8 @@ import 'package:n3rd_game/services/direct_message_service.dart';
 import 'package:n3rd_game/services/game_history_service.dart';
 import 'package:n3rd_game/services/video_cache_service.dart';
 import 'package:n3rd_game/services/data_export_service.dart';
+import 'package:n3rd_game/core/app_initializer.dart'
+    hide firebaseMessagingBackgroundHandler;
 
 /// Initialize SubscriptionService asynchronously
 /// Standardized async pattern using async/await instead of .then()
@@ -104,15 +108,13 @@ Future<void> _initializeSubscriptionService(
     // Only sync if RevenueCat is initialized (prevents errors if RevenueCat failed)
     if (revenueCat.isInitialized) {
       service.syncWithRevenueCat(revenueCat, auth);
-    } else if (kDebugMode) {
-      debugPrint(
-        '⚠️ SubscriptionService: RevenueCat not initialized, skipping sync. Will sync when RevenueCat initializes.',
+    } else {
+      LoggerService.warning(
+        'SubscriptionService: RevenueCat not initialized, skipping sync. Will sync when RevenueCat initializes.',
       );
     }
   } catch (e) {
-    if (kDebugMode) {
-      debugPrint('❌ SubscriptionService init error: $e');
-    }
+    LoggerService.warning('SubscriptionService init error', error: e);
     // Continue without sync - local tier is loaded from SharedPreferences
   }
 }
@@ -122,11 +124,6 @@ void main() async {
 
   // Track app startup time for performance monitoring
   final appStartTime = DateTime.now();
-
-  // Store auth state subscription to prevent memory leak
-  // Note: This subscription persists for app lifetime (intentional - no cancellation needed)
-  // ignore: unused_local_variable
-  StreamSubscription<User?>? authStateSubscription;
 
   // Initialize Firebase (must be done before Crashlytics and FCM background handler)
   bool firebaseInitialized = false;
@@ -142,25 +139,24 @@ void main() async {
     } catch (e) {
       // Background message handler registration failure is non-critical
       // The app can still function without push notifications
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Warning: Failed to register Firebase background message handler: $e',
-        );
-      }
+      LoggerService.warning(
+        'Failed to register Firebase background message handler',
+        error: e,
+      );
     }
 
     // AI Edition now uses Firebase Cloud Functions
     // API keys are stored server-side and never exposed to clients
-    if (kDebugMode) {
-      debugPrint('✓ Firebase initialized successfully');
-      debugPrint('✓ AI Edition configured to use Firebase Cloud Functions');
-    }
+    LoggerService.info('Firebase initialized successfully');
+    LoggerService.info('AI Edition configured to use Firebase Cloud Functions');
   } catch (e, stackTrace) {
     firebaseInitError = e.toString();
-    if (kDebugMode) {
-      debugPrint('❌ CRITICAL: Firebase initialization failed: $e');
-      debugPrint('Stack trace: $stackTrace');
-    }
+    LoggerService.error(
+      'CRITICAL: Firebase initialization failed',
+      error: e,
+      stack: stackTrace,
+      fatal: false,
+    );
     // App will continue but Firebase features will be disabled
     // Services that depend on Firebase will check isFirebaseInitialized
     // before attempting Firebase operations
@@ -175,13 +171,12 @@ void main() async {
           Firebase.app();
           return true;
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-              'Firebase not initialized - Crashlytics will be disabled: $e',
-            );
-            if (firebaseInitError != null) {
-              debugPrint('Original Firebase init error: $firebaseInitError');
-            }
+          LoggerService.warning(
+            'Firebase not initialized - Crashlytics will be disabled',
+            error: e,
+          );
+          if (firebaseInitError != null) {
+            LoggerService.debug('Original Firebase init error: $firebaseInitError');
           }
           return false;
         }
@@ -195,40 +190,40 @@ void main() async {
   // - ErrorWidget.builder (in ErrorBoundary): Handles synchronous widget BUILD errors
   // - FlutterError.onError (here): Handles ALL other Flutter errors (async, render, etc.)
   // Both work together: ErrorWidget.builder shows user-friendly UI, this logs to analytics
-  FlutterError.onError = (FlutterErrorDetails details) {
+  FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    // Log to console in debug mode
-    if (kDebugMode) {
-      debugPrint('Flutter Error: ${details.exception}');
-      debugPrint('Stack trace: ${details.stack}');
-    }
+    // Log to console
+    LoggerService.error(
+      'Flutter Error: ${details.exception}',
+      error: details.exception,
+      stack: details.stack,
+      fatal: false,
+    );
     // Log to Firebase Crashlytics only if Firebase is initialized
     // This ensures all errors are tracked in production for debugging
     if (isFirebaseInitialized) {
       try {
         FirebaseCrashlytics.instance.recordFlutterFatalError(details);
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Failed to log to Crashlytics: $e');
-        }
+        LoggerService.debug('Failed to log to Crashlytics', error: e);
       }
     }
   };
 
   // Platform error handler
   PlatformDispatcher.instance.onError = (error, stack) {
-    if (kDebugMode) {
-      debugPrint('Platform Error: $error');
-      debugPrint('Stack trace: $stack');
-    }
+    LoggerService.error(
+      'Platform Error: $error',
+      error: error,
+      stack: stack,
+      fatal: true,
+    );
     // Log to Crashlytics only if Firebase is initialized
     if (isFirebaseInitialized) {
       try {
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Failed to log to Crashlytics: $e');
-        }
+        LoggerService.debug('Failed to log to Crashlytics', error: e);
       }
     }
     return true; // Handled
@@ -251,11 +246,12 @@ void main() async {
       triviaInitializationFailed = true;
       triviaInitError = templates.EditionTriviaTemplates.lastValidationError ??
           'Unknown error';
-      if (kDebugMode) {
-        debugPrint(
-          '❌ CRITICAL ERROR: Template initialization failed: $triviaInitError',
-        );
-      }
+      LoggerService.error(
+        'CRITICAL ERROR: Template initialization failed: $triviaInitError',
+        error: Exception('Trivia template initialization failed: $triviaInitError'),
+        stack: StackTrace.current,
+        fatal: false,
+      );
       // Log to Crashlytics for production monitoring
       if (isFirebaseInitialized) {
         try {
@@ -269,22 +265,21 @@ void main() async {
             fatal: false,
           );
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Failed to log trivia init error to Crashlytics: $e');
-          }
+          LoggerService.debug('Failed to log trivia init error to Crashlytics', error: e);
         }
       }
     } else {
-      if (kDebugMode) {
-        debugPrint('✓ Trivia templates initialized successfully');
-      }
+      LoggerService.info('Trivia templates initialized successfully');
     }
   } catch (e) {
     triviaInitializationFailed = true;
     triviaInitError = e.toString();
-    if (kDebugMode) {
-      debugPrint('❌ CRITICAL ERROR: Failed to initialize trivia templates: $e');
-    }
+    LoggerService.error(
+      'CRITICAL ERROR: Failed to initialize trivia templates',
+      error: e,
+      stack: StackTrace.current,
+      fatal: false,
+    );
     // Log to Crashlytics for production monitoring
     if (isFirebaseInitialized) {
       try {
@@ -295,13 +290,12 @@ void main() async {
               'Critical app initialization failure - trivia template exception',
           fatal: false,
         );
-      } catch (crashlyticsError) {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to log trivia init exception to Crashlytics: $crashlyticsError',
+        } catch (crashlyticsError) {
+          LoggerService.debug(
+            'Failed to log trivia init exception to Crashlytics',
+            error: crashlyticsError,
           );
         }
-      }
     }
   }
 
@@ -317,22 +311,18 @@ void main() async {
       revenueCatApiKey = AppConfig.revenueCatApiKey;
     } catch (e) {
       // AppConfig.revenueCatApiKey throws in production if key is not provided
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Warning: RevenueCat API key not set. Subscriptions will not work.',
-        );
-        debugPrint('   Error: $e');
-      }
+      LoggerService.warning(
+        'RevenueCat API key not set. Subscriptions will not work.',
+        error: e,
+      );
       // Continue without RevenueCat - app will function but purchases won't work
       revenueCatApiKey = '';
     }
 
     if (revenueCatApiKey.isEmpty) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Warning: RevenueCat API key is empty. Subscriptions will not work.',
-        );
-      }
+      LoggerService.warning(
+        'RevenueCat API key is empty. Subscriptions will not work.',
+      );
       // Continue without RevenueCat - app will function but purchases won't work
     } else {
       await revenueCatService.initialize(revenueCatApiKey);
@@ -344,8 +334,9 @@ void main() async {
       }
 
       // Listen to auth changes to sync RevenueCat
-      // Store subscription to prevent memory leak (subscription persists for app lifetime - no cancellation needed)
-      authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
+      // Note: Subscription persists for app lifetime (intentional - no cancellation needed)
+      // ignore: cancel_subscriptions
+      FirebaseAuth.instance.authStateChanges().listen((
         user,
       ) {
         if (user != null && revenueCatService.isInitialized) {
@@ -355,28 +346,19 @@ void main() async {
         }
       });
 
-      if (kDebugMode) {
-        debugPrint('RevenueCat initialized successfully');
-      }
+      LoggerService.info('RevenueCat initialized successfully');
     }
   } catch (e) {
-    if (kDebugMode) {
-      debugPrint('RevenueCat initialization error: $e');
-    }
+    LoggerService.warning('RevenueCat initialization error', error: e);
     // App continues without RevenueCat - purchases won't work
   }
-
-  // Note: authStateSubscription is intentionally not canceled
-  // It should persist for the app lifetime to sync RevenueCat with Firebase auth changes
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // Preload priority videos for better performance
   // This happens asynchronously and doesn't block app startup
   VideoCacheService().preloadPriorityVideos().catchError((e) {
-    if (kDebugMode) {
-      debugPrint('Video preloading error (non-critical): $e');
-    }
+    LoggerService.debug('Video preloading error (non-critical);', error: e);
   });
 
   // Create NavigatorObserver for screen view tracking
@@ -481,15 +463,12 @@ void main() async {
                     'Error details: $error. '
                     'Please check that EditionTriviaTemplates.initialize() completed successfully.';
 
-                if (kDebugMode) {
-                  debugPrint('❌ CRITICAL: $errorMessage');
-                  debugPrint(
-                    '   App will continue but trivia generation will fail.',
-                  );
-                  debugPrint(
-                    '   Users will see an error message when attempting to play games.',
-                  );
-                }
+                LoggerService.error(
+                  'CRITICAL: $errorMessage. App will continue but trivia generation will fail. Users will see an error message when attempting to play games.',
+                  error: Exception(error),
+                  stack: StackTrace.current,
+                  fatal: false,
+                );
 
                 // Log to analytics if available
                 try {
@@ -509,9 +488,7 @@ void main() async {
                 } catch (e) {
                   // Even if creation fails, we need to return something non-null
                   // This will be caught by game_screen error handling
-                  if (kDebugMode) {
-                    debugPrint('Failed to create TriviaGeneratorService: $e');
-                  }
+                  LoggerService.warning('Failed to create TriviaGeneratorService', error: e);
                 }
               } else {
                 try {
@@ -522,10 +499,12 @@ void main() async {
                       'This prevents the app from generating trivia questions. '
                       'Users will see an error message when attempting to play games.';
 
-                  if (kDebugMode) {
-                    debugPrint('❌ CRITICAL: $errorMessage');
-                    debugPrint('Stack trace: $stackTrace');
-                  }
+                  LoggerService.error(
+                    'CRITICAL: $errorMessage',
+                    error: e,
+                    stack: stackTrace,
+                    fatal: false,
+                  );
 
                   // Log to analytics if available
                   try {
@@ -535,11 +514,10 @@ void main() async {
                     );
                   } catch (analyticsError) {
                     // Ignore analytics errors during initialization
-                    if (kDebugMode) {
-                      debugPrint(
-                        '⚠️ Warning: Failed to log initialization error to analytics: $analyticsError',
-                      );
-                    }
+                    LoggerService.warning(
+                      'Failed to log initialization error to analytics',
+                      error: analyticsError,
+                    );
                   }
 
                   // CRITICAL: Don't rethrow - create a service anyway to prevent null errors
@@ -547,10 +525,10 @@ void main() async {
                   try {
                     previous = TriviaGeneratorService();
                   } catch (e2) {
-                    if (kDebugMode) {
-                      debugPrint(
-                          'Second attempt to create service also failed: $e2',);
-                    }
+                    LoggerService.warning(
+                      'Second attempt to create service also failed',
+                      error: e2,
+                    );
                   }
                 }
               }
@@ -574,10 +552,12 @@ void main() async {
                     'This prevents the app from starting properly. '
                     'Original error: $e';
 
-                if (kDebugMode) {
-                  debugPrint('❌ $errorMessage');
-                  debugPrint('Stack trace: $stackTrace');
-                }
+                LoggerService.error(
+                  errorMessage,
+                  error: e,
+                  stack: stackTrace,
+                  fatal: false,
+                );
 
                 // Log to Crashlytics if available
                 try {
@@ -604,7 +584,7 @@ void main() async {
               service.setAnalyticsService(analytics);
             } catch (e) {
               if (kDebugMode) {
-                debugPrint(
+                LoggerService.debug(
                   '⚠️ Warning: Failed to set services on TriviaGeneratorService: $e',
                 );
               }
@@ -619,17 +599,17 @@ void main() async {
           },
         ),
         // Create GameService once - single instance for all dependencies
-        ChangeNotifierProvider<GameService>(
-          create: (_) => GameService(),
+        ChangeNotifierProvider<game_service.GameService>(
+          create: (_) => game_service.GameService(),
         ),
         // Wire GameService to personalization, gamification services
         // Uses ProxyProvider to reuse existing GameService instance
         ProxyProvider2<TriviaPersonalizationService, TriviaGamificationService,
-            GameService>(
+            game_service.GameService>(
           update: (_, personalization, gamification, gameService) {
             // gameService should never be null since it's created above,
             // but handle null case for type safety
-            final service = gameService ?? GameService();
+            final service = gameService ?? game_service.GameService();
             service.setPersonalizationService(personalization);
             service.setGamificationService(gamification);
             return service;
@@ -637,33 +617,33 @@ void main() async {
         ),
         // Wire AnalyticsService to GameService
         // Uses ProxyProvider to reuse existing GameService instance
-        ProxyProvider<AnalyticsService, GameService>(
+        ProxyProvider<AnalyticsService, game_service.GameService>(
           update: (_, analytics, gameService) {
             // gameService should never be null since it's created above,
             // but handle null case for type safety
-            final service = gameService ?? GameService();
+            final service = gameService ?? game_service.GameService();
             service.setAnalyticsService(analytics);
             return service;
           },
         ),
         // Wire SubscriptionService to GameService
         // Uses ProxyProvider to reuse existing GameService instance
-        ProxyProvider<SubscriptionService, GameService>(
+        ProxyProvider<SubscriptionService, game_service.GameService>(
           update: (_, subscription, gameService) {
             // gameService should never be null since it's created above,
             // but handle null case for type safety
-            final service = gameService ?? GameService();
+            final service = gameService ?? game_service.GameService();
             service.setSubscriptionService(subscription);
             return service;
           },
         ),
         // Wire GameHistoryService to GameService
         // Uses ProxyProvider to reuse existing GameService instance
-        ProxyProvider<GameHistoryService, GameService>(
+        ProxyProvider<GameHistoryService, game_service.GameService>(
           update: (_, gameHistory, gameService) {
             // gameService should never be null since it's created above,
             // but handle null case for type safety
-            final service = gameService ?? GameService();
+            final service = gameService ?? game_service.GameService();
             service.setGameHistoryService(gameHistory);
             return service;
           },
@@ -697,31 +677,50 @@ void main() async {
             builder: (context) {
               // Show blocking error screen if trivia initialization failed
               if (triviaInitializationFailed) {
-                return MaterialApp(
-                  // Localization support
-                  localizationsDelegates: const [
-                    AppLocalizations.delegate,
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  supportedLocales: const [
-                    Locale('en', ''), // English
-                  ],
-                  locale: const Locale('en', ''),
-                  debugShowCheckedModeBanner: false,
-                  home: InitializationErrorScreen(
-                    errorMessage:
-                        'Failed to initialize trivia content. The app cannot start without valid trivia templates.',
-                    recoveryAction:
-                        'Please restart the app. If the problem persists, contact support.',
-                    errorDetails: triviaInitError,
-                  ),
+                return Consumer<AccessibilityService>(
+                  builder: (context, accessibilityService, _) {
+                    // Apply fontSizeMultiplier to text scaling
+                    final fontSizeMultiplier = accessibilityService.settings.fontSizeMultiplier;
+                    final systemTextScaler = MediaQuery.textScalerOf(context);
+                    final combinedScaler = TextScaler.linear(
+                      systemTextScaler.scale(1.0) * fontSizeMultiplier,
+                    );
+                    
+                    return MaterialApp(
+                      // Localization support
+                      localizationsDelegates: const [
+                        AppLocalizations.delegate,
+                        GlobalMaterialLocalizations.delegate,
+                        GlobalWidgetsLocalizations.delegate,
+                        GlobalCupertinoLocalizations.delegate,
+                      ],
+                      supportedLocales: const [
+                        Locale('en', ''), // English
+                      ],
+                      locale: const Locale('en', ''),
+                      debugShowCheckedModeBanner: false,
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: combinedScaler,
+                          ),
+                          child: child!,
+                        );
+                      },
+                      home: InitializationErrorScreen(
+                        errorMessage:
+                            'Failed to initialize trivia content. The app cannot start without valid trivia templates.',
+                        recoveryAction:
+                            'Please restart the app. If the problem persists, contact support.',
+                        errorDetails: triviaInitError,
+                      ),
+                    );
+                  },
                 );
               }
 
-              return Consumer2<ThemeService, LanguageService>(
-                builder: (context, themeService, languageService, _) {
+              return Consumer3<ThemeService, LanguageService, AccessibilityService>(
+                builder: (context, themeService, languageService, accessibilityService, _) {
                   // Track app startup time after first frame
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     final analyticsService = Provider.of<AnalyticsService>(
@@ -736,25 +735,46 @@ void main() async {
                       firebaseInitialized: firebaseInitialized,
                       templatesInitialized: !triviaInitializationFailed,
                     );
+
+                    // Initialize all services asynchronously
+                    AppInitializer.initializeServices(context).catchError((e) {
+                    if (kDebugMode) {
+                      LoggerService.debug(
+                          'Service initialization error (non-critical);: $e',
+                        );
+                      }
+                      // Return a result indicating partial initialization
+                      return ServiceInitializationResult(
+                        initialized: false,
+                        errors: {'General': e.toString()},
+                      );
+                    });
                   });
 
+                  // Apply fontSizeMultiplier to text scaling
+                  final fontSizeMultiplier = accessibilityService.settings.fontSizeMultiplier;
+                  final systemTextScaler = MediaQuery.textScalerOf(context);
+                  final combinedScaler = TextScaler.linear(
+                    systemTextScaler.scale(1.0) * fontSizeMultiplier,
+                  );
+
                   return MaterialApp(
-                    // Force rebuild when language changes
-                    key: ValueKey(languageService.currentLocale.toString()),
-                    // Localization support
-                    localizationsDelegates: const [
-                      AppLocalizations.delegate,
-                      GlobalMaterialLocalizations.delegate,
-                      GlobalWidgetsLocalizations.delegate,
-                      GlobalCupertinoLocalizations.delegate,
-                    ],
-                    supportedLocales: const [
-                      Locale('en', ''), // English
+                      // Force rebuild when language changes
+                      key: ValueKey(languageService.currentLocale.toString()),
+                      // Localization support
+                      localizationsDelegates: const [
+                        AppLocalizations.delegate,
+                        GlobalMaterialLocalizations.delegate,
+                        GlobalWidgetsLocalizations.delegate,
+                        GlobalCupertinoLocalizations.delegate,
+                      ],
+                      supportedLocales: const [
+                        Locale('en', ''), // English
                       Locale('es', ''), // Spanish
                       Locale('fr', ''), // French
                       Locale('de', ''), // German
-                    ],
-                    locale: languageService.currentLocale,
+                      ],
+                      locale: languageService.currentLocale,
                     // Theme configuration
                     theme: ThemeData(
                       brightness: themeService.brightness,
@@ -780,12 +800,20 @@ void main() async {
                       scaffoldBackgroundColor: AppColors.darkCardBackground,
                       cardColor: AppColors.darkCardBackground,
                     ),
-                    themeMode: themeService.isDarkMode
-                        ? ThemeMode.dark
-                        : ThemeMode.light,
-                    home: const InitialLoadingScreenWrapper(),
-                    debugShowCheckedModeBanner: false,
-                    navigatorObservers: [routeObserver],
+                      themeMode: themeService.isDarkMode
+                          ? ThemeMode.dark
+                          : ThemeMode.light,
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: combinedScaler,
+                          ),
+                          child: child!,
+                        );
+                      },
+                      home: const InitialLoadingScreenWrapper(),
+                      debugShowCheckedModeBanner: false,
+                      navigatorObservers: [routeObserver],
                     routes: {
                       '/instructions': (context) => const InstructionsScreen(),
                       '/login': (context) => const LoginScreen(),
@@ -908,7 +936,7 @@ void main() async {
                       '/achievements': (context) => const AchievementsScreen(),
                       '/settings': (context) => const SettingsScreen(),
                     },
-                    onGenerateRoute: (settings) {
+                      onGenerateRoute: (settings) {
                       // Handle routes with arguments
                       if (settings.name == '/game' &&
                           settings.arguments != null) {
@@ -952,7 +980,7 @@ void main() async {
                         } else {
                           // Invalid or missing arguments - log error and return null to use default route handling
                           if (kDebugMode) {
-                            debugPrint(
+                            LoggerService.debug(
                               'MultiplayerLoadingScreen: Invalid arguments type: ${args?.runtimeType}, expected MultiplayerMode',
                             );
                           }
@@ -1022,11 +1050,11 @@ void main() async {
                           settings: settings,
                         );
                       }
-                      return null;
-                    },
+                        return null;
+                      },
                     onUnknownRoute: (settings) {
                       if (kDebugMode) {
-                        debugPrint('Unknown route: ${settings.name}');
+                        LoggerService.debug('Unknown route: ${settings.name}');
                       }
                       return MaterialPageRoute(
                         builder: (context) => Scaffold(
@@ -1145,15 +1173,15 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
     // CRITICAL: Check both mounted and context.mounted before proceeding
     if (!mounted || !context.mounted) return;
 
-    final authService = Provider.of<AuthService>(context, listen: false);
-    
+      final authService = Provider.of<AuthService>(context, listen: false);
+
     // CRITICAL: Use Navigator.maybeOf instead of Navigator.of to handle null cases
     // This prevents crashes when Navigator is not available
     final navigator = Navigator.maybeOf(context);
     if (navigator == null) return; // Navigator not available, skip navigation
 
     // Get current route
-    final currentRoute = ModalRoute.of(context)?.settings.name;
+      final currentRoute = ModalRoute.of(context)?.settings.name;
 
     // List of routes that require authentication
     const protectedRoutes = [
@@ -1170,16 +1198,16 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
       '/subscription-management',
     ];
 
-    // If user logged out and is on a protected route, redirect to login
+      // If user logged out and is on a protected route, redirect to login
     // Use pushNamedAndRemoveUntil to clear navigation stack and go to login
     // This works regardless of whether we can pop (removes all routes)
-    if (!authService.isAuthenticated &&
-        currentRoute != null &&
-        protectedRoutes.contains(currentRoute)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Double-check mounted and context.mounted before navigation
+      if (!authService.isAuthenticated &&
+          currentRoute != null &&
+          protectedRoutes.contains(currentRoute)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Double-check mounted and context.mounted before navigation
         // Also re-check Navigator availability in callback
-        if (mounted && context.mounted) {
+          if (mounted && context.mounted) {
           final navigator = Navigator.maybeOf(context);
           if (navigator != null) {
             navigator.pushNamedAndRemoveUntil('/login', (route) => false);

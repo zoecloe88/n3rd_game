@@ -5,10 +5,19 @@ This document provides API documentation for public service methods in the N3RD 
 ## Table of Contents
 
 - [GameService](#gameservice)
+- [Game State Manager](#game-state-manager)
+- [Game Timer Manager](#game-timer-manager)
+- [Game Mode Handler](#game-mode-handler)
+- [Game Scoring Service](#game-scoring-service)
+- [Game Round Manager](#game-round-manager)
 - [AnalyticsService](#analyticsservice)
 - [NetworkService](#networkservice)
 - [MultiplayerService](#multiplayerservice)
 - [SubscriptionService](#subscriptionservice)
+- [NavigationHelper](#navigationhelper)
+- [NavigationStateService](#navigationstateservice)
+- [RouteRegistry](#routeregistry)
+- [SecureHttpClient](#securehttpclient)
 
 ---
 
@@ -356,4 +365,694 @@ All services follow consistent error handling patterns:
 - Metrics logged to Firebase Analytics for monitoring
 - Warnings logged for operations > 1000ms
 
+---
+
+## NavigationHelper
+
+Centralized navigation utility providing safe navigation with analytics tracking, error recovery, and state management.
+
+**Location**: `lib/utils/navigation_helper.dart`
+
+### Methods
+
+#### `static Future<void> safeNavigate(BuildContext context, String route, {Object? arguments, bool replace = false, NavigationSource source = NavigationSource.programmatic, int maxRetries = 2})`
+
+Safely navigate to a route with error handling, analytics tracking, and automatic retry.
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `route` (required): Route path (e.g., '/game', '/settings')
+- `arguments` (optional): Route arguments (Map or single value)
+- `replace` (optional): Replace current route instead of pushing (default: false)
+- `source` (optional): Navigation source for analytics (default: programmatic)
+- `maxRetries` (optional): Maximum retry attempts on failure (default: 2)
+
+**Behavior:**
+- Validates route arguments using RouteRegistry
+- Saves navigation state to NavigationStateService
+- Tracks screen view and navigation transition analytics
+- Automatic retry with exponential backoff on failure
+- User-friendly error messages on failure
+
+**Example:**
+```dart
+NavigationHelper.safeNavigate(
+  context,
+  '/game',
+  arguments: {'mode': GameMode.classic, 'difficulty': 'medium'},
+  source: NavigationSource.buttonTap,
+);
+```
+
+#### `static void safePop(BuildContext context, [Object? result, NavigationSource source = NavigationSource.backButton])`
+
+Safely pop the current route with analytics tracking.
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `result` (optional): Result value to return
+- `source` (optional): Navigation source for analytics (default: backButton)
+
+**Example:**
+```dart
+NavigationHelper.safePop(context);
+NavigationHelper.safePop(context, {'success': true});
+```
+
+#### `static Future<T?> safePush<T>(BuildContext context, Route<T> route, {NavigationSource source = NavigationSource.programmatic})`
+
+Safely push a Route object with analytics tracking.
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `route` (required): Route to push
+- `source` (optional): Navigation source for analytics
+
+**Returns:**
+- `Future<T?>`: Result from popped route
+
+**Example:**
+```dart
+final result = await NavigationHelper.safePush(
+  context,
+  MaterialPageRoute(builder: (_) => CustomScreen()),
+  source: NavigationSource.buttonTap,
+);
+```
+
+#### `static Future<void> safePushReplacementNamed(BuildContext context, String route, {Object? arguments, NavigationSource source = NavigationSource.programmatic})`
+
+Safely replace current route with new route.
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `route` (required): Route path
+- `arguments` (optional): Route arguments
+- `source` (optional): Navigation source for analytics
+
+**Example:**
+```dart
+NavigationHelper.safePushReplacementNamed(
+  context,
+  '/login',
+  source: NavigationSource.programmatic,
+);
+```
+
+#### `static Future<void> safeNavigateAndRemoveUntil(BuildContext context, String route, bool Function(Route<dynamic>) predicate, {Object? arguments, NavigationSource source = NavigationSource.programmatic})`
+
+Safely navigate and remove routes from stack until predicate returns true.
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `route` (required): Route path
+- `predicate` (required): Predicate function for route removal
+- `arguments` (optional): Route arguments
+- `source` (optional): Navigation source for analytics
+
+**Example:**
+```dart
+NavigationHelper.safeNavigateAndRemoveUntil(
+  context,
+  '/title',
+  (route) => route.isFirst,
+  source: NavigationSource.programmatic,
+);
+```
+
+#### `static void switchToTab(BuildContext context, int tabIndex, {NavigationSource source = NavigationSource.tabSwitch})`
+
+Switch to a main navigation tab (0-4).
+
+**Parameters:**
+- `context` (required): BuildContext for navigation
+- `tabIndex` (required): Tab index (0: Title, 1: Modes, 2: Stats, 3: Friends, 4: More)
+- `source` (optional): Navigation source for analytics
+
+**Behavior:**
+- Detects if already inside MainNavigationWrapper and uses internal switch
+- Prevents navigation loops and state loss
+- Tracks tab switch analytics
+
+**Example:**
+```dart
+NavigationHelper.switchToTab(context, 0); // Switch to Title tab
+```
+
+---
+
+## NavigationStateService
+
+Service for persisting and restoring navigation state, tracking navigation history, and managing deep link restoration.
+
+**Location**: `lib/services/navigation_state_service.dart`
+
+### Methods
+
+#### `Future<void> saveNavigationState(List<String> routeStack)`
+
+Save navigation stack state for restoration.
+
+**Parameters:**
+- `routeStack` (required): List of route names in order from root to current
+
+**Example:**
+```dart
+final stateService = NavigationStateService();
+await stateService.saveNavigationState(['/title', '/modes', '/game']);
+```
+
+#### `Future<List<String>?> restoreNavigationState()`
+
+Restore saved navigation stack state.
+
+**Returns:**
+- `Future<List<String>?>`: Saved route stack or null if none exists
+
+**Example:**
+```dart
+final stack = await stateService.restoreNavigationState();
+if (stack != null) {
+  // Restore navigation stack
+}
+```
+
+#### `Future<void> saveLastRoute(String route, Map<String, dynamic>? arguments)`
+
+Save last visited route with optional arguments.
+
+**Parameters:**
+- `route` (required): Route path
+- `arguments` (optional): Route arguments map
+
+**Example:**
+```dart
+await stateService.saveLastRoute('/game', {'mode': 'classic'});
+```
+
+#### `Future<(String?, Map<String, dynamic>?)> getLastRoute()`
+
+Get last visited route with arguments.
+
+**Returns:**
+- `Future<(String?, Map<String, dynamic>?)>`: Tuple of (route, arguments)
+
+**Example:**
+```dart
+final (route, args) = await stateService.getLastRoute();
+if (route != null) {
+  // Navigate to last route
+}
+```
+
+#### `Future<void> addToHistory(String route, {Map<String, dynamic>? arguments})`
+
+Add route to navigation history (max 50 entries).
+
+**Parameters:**
+- `route` (required): Route path
+- `arguments` (optional): Route arguments
+
+**Example:**
+```dart
+await stateService.addToHistory('/game', arguments: {'mode': 'classic'});
+```
+
+#### `Future<List<Map<String, dynamic>>> getHistory({int? limit})`
+
+Get navigation history.
+
+**Parameters:**
+- `limit` (optional): Maximum number of entries to return
+
+**Returns:**
+- `Future<List<Map<String, dynamic>>>`: List of history entries with route, arguments, and timestamp
+
+**Example:**
+```dart
+final history = await stateService.getHistory(limit: 10);
+```
+
+#### `Future<void> savePendingDeepLink(String deepLink)`
+
+Save pending deep link for restoration after authentication.
+
+**Parameters:**
+- `deepLink` (required): Deep link URL
+
+**Example:**
+```dart
+await stateService.savePendingDeepLink('/family-invitation?groupId=abc123');
+```
+
+#### `Future<String?> getAndClearPendingDeepLink()`
+
+Get and clear pending deep link.
+
+**Returns:**
+- `Future<String?>`: Deep link URL or null
+
+**Example:**
+```dart
+final deepLink = await stateService.getAndClearPendingDeepLink();
+if (deepLink != null) {
+  // Navigate to deep link
+}
+```
+
+#### `Future<void> clearNavigationState()`
+
+Clear all navigation state and history.
+
+**Example:**
+```dart
+await stateService.clearNavigationState();
+```
+
+---
+
+## RouteRegistry
+
+Centralized route configuration registry providing route metadata, validation, and route creation with consistent transitions.
+
+**Location**: `lib/config/route_config.dart`
+
+### Static Methods
+
+#### `static RouteConfig? getRouteConfig(String? path)`
+
+Get route configuration by path.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `RouteConfig?`: Route configuration or null if not found
+
+**Example:**
+```dart
+final config = RouteRegistry.getRouteConfig('/game');
+if (config != null) {
+  // Use config metadata
+}
+```
+
+#### `static bool requiresAuth(String? path)`
+
+Check if route requires authentication.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `bool`: True if route requires authentication
+
+**Example:**
+```dart
+if (RouteRegistry.requiresAuth('/game')) {
+  // Check authentication
+}
+```
+
+#### `static bool requiresPremium(String? path)`
+
+Check if route requires premium subscription.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `bool`: True if route requires premium
+
+**Example:**
+```dart
+if (RouteRegistry.requiresPremium('/analytics')) {
+  // Check subscription tier
+}
+```
+
+#### `static bool requiresOnlineAccess(String? path)`
+
+Check if route requires online access.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `bool`: True if route requires online access
+
+**Example:**
+```dart
+if (RouteRegistry.requiresOnlineAccess('/multiplayer-lobby')) {
+  // Check network connectivity
+}
+```
+
+#### `static RouteTransitionType getTransitionType(String? path)`
+
+Get transition type for route.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `RouteTransitionType`: Transition type (smooth, scale, fade, none)
+
+**Example:**
+```dart
+final transition = RouteRegistry.getTransitionType('/game');
+```
+
+#### `static Route<T> createRoute<T>({required String path, required Widget page, RouteSettings? settings, Object? arguments})`
+
+Create a Route with appropriate transition based on route configuration.
+
+**Parameters:**
+- `path` (required): Route path
+- `page` (required): Widget to display
+- `settings` (optional): RouteSettings
+- `arguments` (optional): Route arguments
+
+**Returns:**
+- `Route<T>`: Configured route with proper transition
+
+**Example:**
+```dart
+final route = RouteRegistry.createRoute(
+  path: '/game',
+  page: const GameScreen(),
+  settings: settings,
+  arguments: {'mode': GameMode.classic},
+);
+```
+
+#### `static String getDocumentation(String? path)`
+
+Get formatted documentation for a route.
+
+**Parameters:**
+- `path` (required): Route path
+
+**Returns:**
+- `String`: Formatted documentation with parameters
+
+**Example:**
+```dart
+final docs = RouteRegistry.getDocumentation('/game');
+print(docs);
+```
+
+#### `static bool validateRouteArguments(String? path, Object? arguments)`
+
+Validate route arguments against parameter schema.
+
+**Parameters:**
+- `path` (required): Route path
+- `arguments` (required): Arguments to validate
+
+**Returns:**
+- `bool`: True if arguments are valid
+
+**Example:**
+```dart
+final isValid = RouteRegistry.validateRouteArguments(
+  '/game',
+  {'mode': GameMode.classic},
+);
+```
+
+#### `static List<String> getAllRoutes()`
+
+Get all registered route paths.
+
+**Returns:**
+- `List<String>`: List of all route paths
+
+**Example:**
+```dart
+final allRoutes = RouteRegistry.getAllRoutes();
+```
+
+---
+
+## Game State Manager
+
+Manages game state transitions, persistence, and restoration.
+
+### Methods
+
+#### `GameState get state`
+
+Gets the current game state.
+
+**Returns:** Current `GameState` instance
+
+#### `GamePhase get phase`
+
+Gets the current game phase.
+
+**Returns:** Current `GamePhase` (memorize, play, or result)
+
+#### `void updateState(GameState newState)`
+
+Updates the game state.
+
+**Parameters:**
+- `newState` (required): New game state to set
+
+#### `void updatePhase(GamePhase newPhase)`
+
+Updates the game phase.
+
+**Parameters:**
+- `newPhase` (required): New game phase
+
+#### `void resetState()`
+
+Resets game state to initial values.
+
+#### `Future<void> saveState()`
+
+Saves game state to SharedPreferences.
+
+**Throws:**
+- Storage errors if save fails
+
+#### `Future<bool> loadState()`
+
+Loads game state from SharedPreferences.
+
+**Returns:** `true` if state was loaded, `false` otherwise
+
+---
+
+## Game Timer Manager
+
+Manages all game timers (memorize, play, shuffle, flip, time attack).
+
+### Methods
+
+#### `void cancelAllTimers()`
+
+Cancels all active timers to prevent memory leaks.
+
+#### `void startMemorizeTimer(Duration duration)`
+
+Starts the memorize phase timer.
+
+**Parameters:**
+- `duration` (required): Duration of memorize phase
+
+#### `void startPlayTimer(Duration duration)`
+
+Starts the play phase timer.
+
+**Parameters:**
+- `duration` (required): Duration of play phase
+
+#### `void startTimeAttackTimer({required int totalSeconds, required Duration tickInterval})`
+
+Starts the time attack timer.
+
+**Parameters:**
+- `totalSeconds` (required): Total seconds for time attack
+- `tickInterval` (required): Interval between ticks
+
+#### `void startShuffleTimer({required Duration interval, required VoidCallback onTick})`
+
+Starts the shuffle timer for shuffle mode.
+
+**Parameters:**
+- `interval` (required): Interval between shuffles
+- `onTick` (required): Callback for each shuffle tick
+
+#### `void dispose()`
+
+Disposes of all timers and resources.
+
+---
+
+## Game Mode Handler
+
+Handles mode-specific game logic (shuffle, flip, time attack, etc.).
+
+### Methods
+
+#### `int get shuffleCount`
+
+Gets the current shuffle count.
+
+#### `bool get isShuffling`
+
+Gets whether shuffling is active.
+
+#### `List<String> get shuffledWords`
+
+Gets the shuffled words list.
+
+#### `List<bool> get flippedTiles`
+
+Gets the flipped tiles state.
+
+#### `void initializeShuffle({required List<String> words, required VoidCallback onShuffle, required VoidCallback onComplete})`
+
+Initializes shuffle sequence.
+
+**Parameters:**
+- `words` (required): Words to shuffle
+- `onShuffle` (required): Callback when shuffle occurs
+- `onComplete` (required): Callback when shuffle completes
+
+#### `Timer startShuffleSequence({required VoidCallback onShuffleTick, required VoidCallback onComplete})`
+
+Starts shuffle sequence.
+
+**Returns:** Timer instance for cancellation
+
+#### `({Timer initialTimer, Timer? periodicTimer}) startFlipSequence({required ModeConfig config, required ValueChanged<int> onTileFlip})`
+
+Starts flip sequence for flip mode.
+
+**Returns:** Tuple with initial timer and periodic timer
+
+---
+
+## Game Scoring Service
+
+Handles all scoring calculations, multipliers, and bonuses.
+
+### Methods
+
+#### `int calculateBasePoints(int numCorrect, [int expectedCorrect = 3])`
+
+Calculates base points for a round.
+
+**Parameters:**
+- `numCorrect` (required): Number of correct answers
+- `expectedCorrect` (optional): Expected number of correct answers (default: 3)
+
+**Returns:** Base points (10 per correct answer)
+
+#### `ScoreCalculationResult calculateScore({required int basePoints, required int numCorrect, required int expectedCorrect, required TriviaItem currentTrivia, required GameMode currentMode, required bool isPerfect})`
+
+Calculates final score with all multipliers applied.
+
+**Returns:** `ScoreCalculationResult` with final score and calculation details
+
+#### `void activateDoubleScore()`
+
+Activates double score power-up.
+
+#### `void activateStreakShield()`
+
+Activates streak shield power-up.
+
+#### `bool shouldPreventLifeLoss()`
+
+Checks if streak shield should prevent life loss.
+
+**Returns:** `true` if life loss should be prevented
+
+---
+
+## Game Round Manager
+
+Manages game round progression, trivia selection, and answer validation.
+
+### Methods
+
+#### `TriviaItem selectTriviaForRound({required GameMode mode, int recursionDepth = 0})`
+
+Selects trivia item for new round.
+
+**Parameters:**
+- `mode` (required): Current game mode
+- `recursionDepth` (optional): Recursion depth for validation retries
+
+**Returns:** Selected trivia item
+
+**Throws:**
+- `GameException`: If no valid trivia found
+
+#### `void addSelectedAnswer(String answer)`
+
+Adds selected answer.
+
+**Parameters:**
+- `answer` (required): Answer to add
+
+#### `void removeSelectedAnswer(String answer)`
+
+Removes selected answer.
+
+**Parameters:**
+- `answer` (required): Answer to remove
+
+#### `int validateAnswers()`
+
+Validates selected answers.
+
+**Returns:** Number of correct answers
+
+---
+
+## SecureHttpClient
+
+Secure HTTP client with certificate pinning support.
+
+### Methods
+
+#### `Future<http.Response> get(Uri url, {Map<String, String>? headers, Duration? timeout})`
+
+Performs GET request with certificate pinning.
+
+**Parameters:**
+- `url` (required): Request URL
+- `headers` (optional): Request headers
+- `timeout` (optional): Request timeout
+
+**Returns:** HTTP response
+
+#### `Future<http.Response> post(Uri url, {Map<String, String>? headers, Object? body, Duration? timeout})`
+
+Performs POST request with certificate pinning.
+
+**Parameters:**
+- `url` (required): Request URL
+- `headers` (optional): Request headers
+- `body` (optional): Request body
+- `timeout` (optional): Request timeout
+
+**Returns:** HTTP response
+
+**Example:**
+```dart
+final response = await SecureHttpClient.instance.get(
+  Uri.parse('https://api.example.com/data'),
+);
+```
+
+---
+
+**Last Updated:** December 2024
 

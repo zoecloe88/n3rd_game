@@ -1,54 +1,41 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/services.dart';
 import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
+import '../utils/test_helpers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await TestHelpers.setupAllTestInfrastructure();
+  });
+
+  tearDownAll(() {
+    TestHelpers.tearDownAllTestInfrastructure();
+  });
 
   group('GameService', () {
     late GameService gameService;
 
     setUp(() {
-      // Mock SharedPreferences for testing
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/shared_preferences'),
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'getAll') {
-            return <String, dynamic>{}; // Return empty map
-          }
-          if (methodCall.method == 'getString') {
-            return null; // Return null for getString calls
-          }
-          if (methodCall.method == 'setString') {
-            return true; // Return success for setString calls
-          }
-          if (methodCall.method == 'remove') {
-            return true; // Return success for remove calls
-          }
-          if (methodCall.method == 'clear') {
-            return true; // Return success for clear calls
-          }
-          return null;
-        },
-      );
-
+      TestHelpers.setupMockSharedPreferences();
       gameService = GameService();
     });
 
-    tearDown(() {
-      // Clear mock handler
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/shared_preferences'),
-        null,
-      );
-    });
-
-    tearDown(() {
+    tearDown(() async {
+      // Ensure all async operations complete before disposing
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!gameService.state.isGameOver) {
+        // Cancel any active timers before disposal
+        try {
+          // GameService should handle its own timer cancellation, but we ensure state is clean
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
       gameService.dispose();
-      // Mock handler cleanup is in the outer tearDown
+      TestHelpers.clearMockSharedPreferences();
     });
 
     test('should initialize with default state', () {
@@ -83,7 +70,7 @@ void main() {
       // Test initial state
       expect(gameService.state.isGameOver, false);
       expect(gameService.state.score, 0);
-      
+
       // State should be valid
       expect(gameService.state.lives >= 0, true);
       expect(gameService.state.round >= 0, true);
@@ -94,11 +81,11 @@ void main() {
       final classicConfig = ModeConfig.getConfig(GameMode.classic);
       expect(classicConfig.memorizeTime, 10);
       expect(classicConfig.playTime, 20);
-      
+
       final speedConfig = ModeConfig.getConfig(GameMode.speed);
       expect(speedConfig.memorizeTime, 0);
       expect(speedConfig.playTime, 7);
-      
+
       final shuffleConfig = ModeConfig.getConfig(GameMode.shuffle);
       expect(shuffleConfig.enableShuffle, true);
     });
@@ -134,7 +121,7 @@ void main() {
     test('should return valid configs for all game modes', () {
       // Verify we have exactly 18 game modes
       expect(GameMode.values.length, 18);
-      
+
       for (final mode in GameMode.values) {
         final config = ModeConfig.getConfig(mode);
         expect(config.memorizeTime >= 0, true, reason: 'Mode: $mode');
@@ -146,7 +133,7 @@ void main() {
       final round1 = ModeConfig.getConfig(GameMode.challenge, round: 1);
       final round2 = ModeConfig.getConfig(GameMode.challenge, round: 2);
       final round3 = ModeConfig.getConfig(GameMode.challenge, round: 3);
-      
+
       // Challenge mode should get progressively harder (less time)
       expect(round1.playTime >= round2.playTime, true);
       expect(round2.playTime >= round3.playTime, true);
@@ -156,7 +143,7 @@ void main() {
       final earlyRound = ModeConfig.getConfig(GameMode.marathon, round: 3);
       final midRound = ModeConfig.getConfig(GameMode.marathon, round: 8);
       final lateRound = ModeConfig.getConfig(GameMode.marathon, round: 20);
-      
+
       // Marathon should get progressively harder
       expect(earlyRound.playTime >= midRound.playTime, true);
       expect(midRound.playTime >= lateRound.playTime, true);

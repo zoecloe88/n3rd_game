@@ -5,6 +5,7 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 /// Screen that provides menu to choose between Stats and Leaderboard
 class StatsMenuScreen extends StatelessWidget {
@@ -29,10 +30,14 @@ class StatsMenuScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back, color: colors.onDarkText),
-                      onPressed: () => NavigationHelper.safePop(context),
-                      tooltip: 'Back',
+                    Semantics(
+                      label: AppLocalizations.of(context)?.back ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back, color: colors.onDarkText),
+                        onPressed: () => NavigationHelper.safePop(context),
+                        tooltip: AppLocalizations.of(context)?.back ?? 'Back',
+                      ),
                     ),
                   ],
                 ),
@@ -91,9 +96,12 @@ class StatsMenuScreen extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return Semantics(
+      label: '$title. $subtitle',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
         padding: const EdgeInsets.all(24.0),
         decoration: BoxDecoration(
           // FIX: Remove white tiles - use transparent/semi-transparent design that blends with blue background
@@ -130,10 +138,13 @@ class StatsMenuScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.8),),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
           ],
         ),
+      ),
       ),
     );
   }

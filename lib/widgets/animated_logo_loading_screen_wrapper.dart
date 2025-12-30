@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/animated_logo_loading_screen.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 /// Wrapper that shows animated logo loading screen, then routes based on auth/onboarding
 class AnimatedLogoLoadingScreenWrapper extends StatefulWidget {
@@ -25,7 +27,7 @@ class _AnimatedLogoLoadingScreenWrapperState
       // Check auth first - if not authenticated, go to login
       if (!authService.isAuthenticated) {
         if (mounted && context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/login');
+          unawaited(NavigationHelper.safeNavigate(context, '/login', replace: true));
         }
         return;
       }
@@ -36,19 +38,19 @@ class _AnimatedLogoLoadingScreenWrapperState
 
       if (!hasCompletedOnboarding) {
         if (mounted && context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/onboarding');
+          unawaited(NavigationHelper.safeNavigate(context, '/onboarding', replace: true));
         }
         return;
       }
 
       // Both onboarding and auth complete - go to word of day, then title
       if (mounted && context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/word-of-day');
+        unawaited(NavigationHelper.safeNavigate(context, '/word-of-day', replace: true));
       }
     } catch (e) {
       // On error, go to login
       if (mounted && context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        unawaited(NavigationHelper.safeNavigate(context, '/login', replace: true));
       }
     }
   }

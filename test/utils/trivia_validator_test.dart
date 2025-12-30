@@ -72,7 +72,14 @@ void main() {
       // Arrange
       final item = TriviaItem(
         category: 'Science',
-        words: ['word1', 'word2', 'word3', 'word1', 'word5', 'word6'], // word1 duplicated
+        words: [
+          'word1',
+          'word2',
+          'word3',
+          'word1',
+          'word5',
+          'word6',
+        ], // word1 duplicated
         correctAnswers: ['word1', 'word2', 'word3'],
       );
 
@@ -213,5 +220,3 @@ void main() {
     });
   });
 }
-
-

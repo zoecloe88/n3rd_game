@@ -1,10 +1,4 @@
 class Achievement {
-  final String id;
-  final String title;
-  final String description;
-  final String icon;
-  final AchievementType type;
-  final int targetValue;
 
   Achievement({
     required this.id,
@@ -14,15 +8,6 @@ class Achievement {
     required this.type,
     required this.targetValue,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'icon': icon,
-        'type': type.toString(),
-        'targetValue': targetValue,
-      };
 
   factory Achievement.fromJson(Map<String, dynamic> json) => Achievement(
         id: json['id'] as String,
@@ -35,6 +20,21 @@ class Achievement {
         ),
         targetValue: json['targetValue'] as int,
       );
+  final String id;
+  final String title;
+  final String description;
+  final String icon;
+  final AchievementType type;
+  final int targetValue;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'icon': icon,
+        'type': type.toString(),
+        'targetValue': targetValue,
+      };
 }
 
 enum AchievementType {
@@ -47,10 +47,6 @@ enum AchievementType {
 }
 
 class UserAchievement {
-  final String achievementId;
-  final DateTime unlockedAt;
-  final int progress;
-  final bool unlocked;
 
   UserAchievement({
     required this.achievementId,
@@ -59,13 +55,6 @@ class UserAchievement {
     required this.unlocked,
   });
 
-  Map<String, dynamic> toJson() => {
-        'achievementId': achievementId,
-        'unlockedAt': unlockedAt.toIso8601String(),
-        'progress': progress,
-        'unlocked': unlocked,
-      };
-
   factory UserAchievement.fromJson(Map<String, dynamic> json) =>
       UserAchievement(
         achievementId: json['achievementId'] as String,
@@ -73,4 +62,15 @@ class UserAchievement {
         progress: json['progress'] as int,
         unlocked: json['unlocked'] as bool,
       );
+  final String achievementId;
+  final DateTime unlockedAt;
+  final int progress;
+  final bool unlocked;
+
+  Map<String, dynamic> toJson() => {
+        'achievementId': achievementId,
+        'unlockedAt': unlockedAt.toIso8601String(),
+        'progress': progress,
+        'unlocked': unlocked,
+      };
 }

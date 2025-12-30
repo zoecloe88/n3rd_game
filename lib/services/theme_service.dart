@@ -1,9 +1,11 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/app_theme.dart';
+import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class ThemeService extends ChangeNotifier {
   static const String _storageKey = 'selected_theme';
@@ -53,7 +55,7 @@ class ThemeService extends ChangeNotifier {
       _isDarkMode = prefs.getBool(_darkModeKey) ?? false;
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to load dark mode preference: $e');
+      LoggerService.error('Failed to load dark mode preference', error: e);
     }
   }
 
@@ -82,7 +84,7 @@ class ThemeService extends ChangeNotifier {
             }
           }
         } catch (e) {
-          debugPrint('Failed to load theme from Firestore: $e');
+          LoggerService.error('Failed to load theme from Firestore', error: e);
         }
       }
     }
@@ -104,7 +106,7 @@ class ThemeService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to load theme from local storage: $e');
+      LoggerService.error('Failed to load theme from local storage', error: e);
     }
   }
 
@@ -113,7 +115,7 @@ class ThemeService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_storageKey, _currentTheme.id);
     } catch (e) {
-      debugPrint('Failed to save theme to local storage: $e');
+      LoggerService.error('Failed to save theme to local storage', error: e);
     }
   }
 
@@ -131,7 +133,7 @@ class ThemeService extends ChangeNotifier {
         SetOptions(merge: true),
       );
     } catch (e) {
-      debugPrint('Failed to save theme to Firestore: $e');
+      LoggerService.error('Failed to save theme to Firestore', error: e);
     }
   }
 
@@ -149,7 +151,7 @@ class ThemeService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_darkModeKey, enabled);
     } catch (e) {
-      debugPrint('Failed to save dark mode preference: $e');
+      LoggerService.error('Failed to save dark mode preference', error: e);
     }
   }
 
@@ -184,5 +186,44 @@ class ThemeService extends ChangeNotifier {
       // Additional safety: if firstWhere throws or themes list is empty, return null
       return null;
     }
+  }
+
+  /// Get ColorScheme from current AppTheme
+  ColorScheme getColorScheme() {
+    final colors = _currentTheme.colors;
+    final primary = colors['primary'] ?? AppColors.primaryButton;
+    final secondary = colors['secondary'] ?? AppColors.secondaryButton;
+    final accent = colors['accent'] ?? AppColors.accent;
+
+    return ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: brightness,
+      primary: primary,
+      secondary: secondary,
+      tertiary: accent,
+    );
+  }
+
+  /// Get ThemeData with AppTheme colors applied
+  ThemeData getThemeData() {
+    final colorScheme = getColorScheme();
+
+    return ThemeData(
+      brightness: brightness,
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor:
+          isDarkMode ? AppColors.darkCardBackground : AppColors.cardBackground,
+      cardColor:
+          isDarkMode ? AppColors.darkCardBackground : AppColors.cardBackground,
+      appBarTheme: AppBarTheme(
+        backgroundColor: isDarkMode
+            ? AppColors.darkCardBackground
+            : AppColors.cardBackground,
+        foregroundColor:
+            isDarkMode ? AppColors.darkPrimaryText : AppColors.primaryText,
+        elevation: 0,
+      ),
+    );
   }
 }

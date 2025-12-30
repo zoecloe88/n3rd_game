@@ -1,121 +1,70 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/services.dart';
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
+import '../utils/test_helpers.dart';
 
 /// Integration tests for error recovery scenarios
 /// These tests verify robust error handling and recovery mechanisms
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() {
-    // Mock connectivity_plus MethodChannel
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-      (MethodCall methodCall) async {
-        if (methodCall.method == 'check') {
-          // Return WiFi connectivity for testing
-          return ['wifi'];
-        }
-        return null;
-      },
-    );
+  setUpAll(() async {
+    await TestHelpers.setupAllTestInfrastructure();
   });
 
   tearDownAll(() {
-    // Clear mock handler
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-      null,
-    );
-  });
-  setUp(() {
-    // Mock SharedPreferences for testing
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/shared_preferences'),
-      (MethodCall methodCall) async {
-        if (methodCall.method == 'getAll') {
-          return <String, dynamic>{};
-        }
-        if (methodCall.method == 'getString') {
-          return null;
-        }
-        if (methodCall.method == 'setString') {
-          return true;
-        }
-        if (methodCall.method == 'getDouble') {
-          return null;
-        }
-        if (methodCall.method == 'setDouble') {
-          return true;
-        }
-        if (methodCall.method == 'getInt') {
-          return null;
-        }
-        if (methodCall.method == 'setInt') {
-          return true;
-        }
-        if (methodCall.method == 'remove') {
-          return true;
-        }
-        if (methodCall.method == 'clear') {
-          return true;
-        }
-        return null;
-      },
-    );
+    TestHelpers.tearDownAllTestInfrastructure();
   });
 
-  tearDown(() {
-    // Clear mock handler
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/shared_preferences'),
-      null,
-    );
+  setUp(() {
+    TestHelpers.setupMockSharedPreferences();
+  });
+
+  tearDown(() async {
+    // Ensure async operations complete before cleanup
+    await Future.delayed(const Duration(milliseconds: 100));
+    TestHelpers.clearMockSharedPreferences();
   });
 
   group('Error Recovery Tests', () {
-    test('GameService handles trivia generation errors gracefully', () {
+    test('GameService handles trivia generation errors gracefully', () async {
       final gameService = GameService();
-      
+
       // Service should handle errors without crashing
       expect(gameService, isNotNull);
       expect(gameService.state, isNotNull);
-      
+
       // Service should have error handling for trivia generation
       // This is verified by try-catch blocks in startNewRound
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
 
-    test('GameService recovers from invalid trivia items', () {
+    test('GameService recovers from invalid trivia items', () async {
       final gameService = GameService();
-      
+
       // Service should validate trivia items before use
       // Invalid items should be caught and handled
       expect(gameService, isNotNull);
-      
+
       gameService.dispose();
     });
 
     test('NetworkService handles DNS lookup failures', () async {
       final networkService = NetworkService();
       await networkService.init();
-      
+
       // Service should handle DNS failures gracefully
       // The implementation has retry logic with exponential backoff
       expect(networkService, isNotNull);
-      
+
       // Service should provide fallback behavior
       final hasInternet = await networkService.checkInternetReachability();
       expect(hasInternet, isA<bool>());
-      
+
       networkService.dispose();
     });
 
@@ -135,15 +84,15 @@ void main() {
       }
     });
 
-    test('Services handle timeout errors with retries', () {
+    test('Services handle timeout errors with retries', () async {
       // Verify retry logic exists in services
       final gameService = GameService();
       final networkService = NetworkService();
-      
+
       // All services should handle timeouts
       expect(gameService, isNotNull);
       expect(networkService, isNotNull);
-      
+
       // MultiplayerService requires Firebase, so handle gracefully
       MultiplayerService? multiplayerService;
       try {
@@ -154,7 +103,8 @@ void main() {
         // Firebase not available - expected in test environment
         expect(e.toString(), contains('Firebase'));
       }
-      
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
       networkService.dispose();
     });
@@ -167,51 +117,54 @@ void main() {
       final gameException = GameException('Game state error');
       final networkException = NetworkException('Network unavailable');
       final storageException = StorageException('Storage error');
-      
+
       // All exceptions should have clear messages
       expect(authException.message, 'User not authenticated');
       expect(validationException.message, 'Invalid input');
       expect(gameException.message, 'Game state error');
       expect(networkException.message, 'Network unavailable');
       expect(storageException.message, 'Storage error');
-      
+
       // Exceptions should convert to strings
       expect(authException.toString(), 'User not authenticated');
       expect(validationException.toString(), 'Invalid input');
     });
 
-    test('Services catch and handle exceptions without crashing', () {
+    test('Services catch and handle exceptions without crashing', () async {
       // Verify services handle exceptions gracefully
       final gameService = GameService();
-      
+
       // Service should not crash on errors
       expect(gameService, isNotNull);
       expect(gameService.state, isNotNull);
-      
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
   });
 
   group('State Recovery', () {
-    test('GameService recovers from invalid state', () {
+    test('GameService recovers from invalid state', () async {
       final gameService = GameService();
-      
+
       // Service should validate state and recover if needed
       expect(gameService.state, isNotNull);
       expect(gameService.state.score, greaterThanOrEqualTo(0));
       expect(gameService.state.lives, greaterThanOrEqualTo(0));
       expect(gameService.state.round, greaterThanOrEqualTo(0));
-      
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
 
-    test('GameService handles state persistence errors', () {
+    test('GameService handles state persistence errors', () async {
       final gameService = GameService();
-      
+
       // Service should handle state save/load errors gracefully
       // The implementation has error handling in saveState/loadState
       expect(gameService, isNotNull);
-      
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
   });
@@ -220,14 +173,14 @@ void main() {
     test('NetworkService recovers from connectivity loss', () async {
       final networkService = NetworkService();
       await networkService.init();
-      
+
       // Service should track connectivity state
       final initialState = networkService.isConnected;
       expect(initialState, isA<bool>());
-      
+
       // Service should support reconnection checks
       await networkService.checkInternetReachability();
-      
+
       networkService.dispose();
     });
 
@@ -249,36 +202,39 @@ void main() {
   });
 
   group('Data Validation Recovery', () {
-    test('Services validate data before processing', () {
+    test('Services validate data before processing', () async {
       final gameService = GameService();
-      
+
       // Service should validate trivia items
       final validTrivia = TriviaItem(
         category: 'Test',
         words: ['A', 'B', 'C', 'D', 'E', 'F'],
         correctAnswers: ['A', 'B', 'C'],
       );
-      
+
       // Valid trivia should pass validation
       expect(validTrivia.words.length, 6);
       expect(validTrivia.correctAnswers.length, 3);
-      expect(validTrivia.correctAnswers.every((a) => validTrivia.words.contains(a)), true);
-      
+      expect(
+        validTrivia.correctAnswers.every((a) => validTrivia.words.contains(a)),
+        true,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
 
-    test('Services handle invalid data gracefully', () {
+    test('Services handle invalid data gracefully', () async {
       final gameService = GameService();
-      
+
       // Service should handle invalid data without crashing
       expect(gameService, isNotNull);
-      
+
       // Invalid trivia should be caught by validation
       // This is handled by TriviaGeneratorService validation
-      
+
+      await Future.delayed(const Duration(milliseconds: 100));
       gameService.dispose();
     });
   });
 }
-
-

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -8,9 +9,12 @@ import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/text_to_speech_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
+import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/sound_service.dart';
 import 'package:n3rd_game/services/theme_service.dart';
 import 'package:n3rd_game/services/language_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
+// ignore: unused_import
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -21,7 +25,10 @@ import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/services/data_export_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/widgets/settings/email_settings_dialog.dart';
+import 'package:n3rd_game/widgets/settings/notifications_settings_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -35,7 +42,7 @@ class SettingsScreen extends StatelessWidget {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
         return Scaffold(
-          backgroundColor: Colors.black, // Black fallback
+          backgroundColor: AppColors.overlayDark, // Black fallback
           body: VideoBackgroundWidget(
             videoPath: 'assets/settingscreen.mp4',
             fit: BoxFit.cover, // CSS object-fit: cover equivalent
@@ -47,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                   // Minimal top app bar - moved closer to top
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
                       AppSpacing.md,
                       AppSpacing.sm, // Reduced top padding
                       AppSpacing.md,
@@ -71,8 +78,10 @@ class SettingsScreen extends StatelessWidget {
                                 NavigationHelper.switchToTab(context, 4);
                               }
                             },
-                            icon: Icon(Icons.arrow_back,
-                                color: colors.onDarkText,),
+                            icon: Icon(
+                              Icons.arrow_back,
+                              color: colors.onDarkText,
+                            ),
                             tooltip: AppLocalizations.of(context)?.backButton ??
                                 'Back',
                           ),
@@ -85,12 +94,13 @@ class SettingsScreen extends StatelessWidget {
 
                   // Reduced spacer to move content closer to top
                   SizedBox(
-                      height: ResponsiveHelper.responsiveHeight(context, 0.05)
-                          .clamp(20.0, 40.0),), // Reduced from 0.15 to 0.05
+                    height: ResponsiveHelper.responsiveHeight(context, 0.05)
+                        .clamp(20.0, 40.0),
+                  ), // Reduced from 0.15 to 0.05
 
                   // Profile card
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
                       AppSpacing.lg,
                       AppSpacing.sm,
                       AppSpacing.lg,
@@ -112,7 +122,8 @@ class SettingsScreen extends StatelessWidget {
                               authService.userEmail
                                       ?.substring(0, 1)
                                       .toUpperCase() ??
-                                  'U',
+                                  (AppLocalizations.of(context)?.userInitial ??
+                                      'U'),
                               style: AppTypography.titleLarge.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colors.buttonText,
@@ -125,11 +136,15 @@ class SettingsScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  authService.userEmail ?? 'Guest',
+                                  authService.userEmail ??
+                                      (AppLocalizations.of(context)?.guest ??
+                                          'Guest'),
                                   style: AppTypography.labelLarge.copyWith(
                                     fontSize: 15,
                                     color: colors.primaryText,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -151,6 +166,8 @@ class SettingsScreen extends StatelessWidget {
                   // Settings list
                   Expanded(
                     child: ListView(
+                      // Performance optimization: Add cache extent for better scroll performance
+                      cacheExtent: 200.0,
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.lg,
                       ),
@@ -174,7 +191,9 @@ class SettingsScreen extends StatelessWidget {
                                       localizations?.editProfileSubtitle ??
                                           'Update display name and avatar',
                                   onTap: () => _showEditProfileDialog(
-                                      context, authService,),
+                                    context,
+                                    authService,
+                                  ),
                                 ),
                                 _buildSettingTile(
                                   context,
@@ -270,22 +289,87 @@ class SettingsScreen extends StatelessWidget {
                                     );
                                   },
                                 ),
-                                Consumer<SubscriptionService>(
-                                  builder: (context, subscriptionService, _) {
+                                Consumer2<SubscriptionService,
+                                    VoiceCalibrationService>(
+                                  builder: (
+                                    context,
+                                    subscriptionService,
+                                    calibrationService,
+                                    _,
+                                  ) {
                                     if (!subscriptionService.isPremium) {
                                       return const SizedBox.shrink();
                                     }
-                                    return _buildSettingTile(
-                                      context,
-                                      icon: Icons.record_voice_over_outlined,
-                                      title: localizations?.voiceCalibration ??
-                                          'Voice Calibration',
-                                      subtitle: localizations
-                                              ?.voiceCalibrationSubtitle ??
-                                          'Train voice recognition',
-                                      onTap: () => Navigator.of(
-                                        context,
-                                      ).pushNamed('/voice-calibration'),
+                                    final isCalibrated =
+                                        calibrationService.isCalibrated;
+                                    final accuracyScore =
+                                        calibrationService.profile?.accuracyScore;
+                                    final calibrationStatus = isCalibrated
+                                        ? (localizations
+                                                ?.voiceCalibrationStatusCalibrated ??
+                                            'Voice recognition trained') +
+                                            (accuracyScore != null
+                                                ? ' (${(accuracyScore * 100).toInt()}%)'
+                                                : '')
+                                        : (localizations
+                                                ?.voiceCalibrationStatusNotCalibrated ??
+                                            'Train voice recognition for better accuracy');
+                                    return Semantics(
+                                      label: '${localizations?.voiceCalibration ?? 'Voice Calibration'}. $calibrationStatus',
+                                      button: true,
+                                      child: ListTile(
+                                        leading: Icon(
+                                          Icons.record_voice_over_outlined,
+                                          color: AppColors.of(context).onDarkText,
+                                        ),
+                                        title: Text(
+                                          localizations?.voiceCalibration ??
+                                              'Voice Calibration',
+                                          style: AppTypography.bodyLarge.copyWith(
+                                            color: AppColors.of(context).onDarkText,
+                                          ),
+                                        ),
+                                        subtitle: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                isCalibrated
+                                                    ? (localizations
+                                                            ?.voiceCalibrationStatusCalibrated ??
+                                                        'Voice recognition trained') +
+                                                        (accuracyScore != null
+                                                            ? ' (${(accuracyScore * 100).toInt()}%)'
+                                                            : '')
+                                                    : (localizations
+                                                            ?.voiceCalibrationStatusNotCalibrated ??
+                                                        'Train voice recognition for better accuracy'),
+                                                style: AppTypography.bodyMedium.copyWith(
+                                                  color: AppColors.of(context)
+                                                      .secondaryText,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isCalibrated)
+                                              const Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green,
+                                                size: 20,
+                                              )
+                                            else
+                                              const Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.orange,
+                                                size: 20,
+                                              ),
+                                          ],
+                                        ),
+                                        onTap: () =>
+                                            NavigationHelper.safeNavigate(
+                                          context,
+                                          '/voice-calibration',
+                                          source: NavigationSource.buttonTap,
+                                        ),
+                                      ),
                                     );
                                   },
                                 ),
@@ -399,31 +483,35 @@ class SettingsScreen extends StatelessWidget {
                           title: 'Support Dashboard',
                           subtitle: 'View support analytics (Admin)',
                           onTap: () => NavigationHelper.safeNavigate(
-                              context, '/support-dashboard',),
+                            context,
+                            '/support-dashboard',
+                          ),
                         ),
                         _buildSettingTile(
                           context,
                           icon: Icons.info_outline,
-                          title: 'About',
+                          title: AppLocalizations.of(context)?.about ?? 'About',
                           onTap: () {
                             showDialog(
                               context: context,
                               builder: (context) {
                                 final dialogColors = AppColors.of(context);
+                                final localizations =
+                                    AppLocalizations.of(context);
                                 return AlertDialog(
                                   backgroundColor: dialogColors.cardBackground,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   title: Text(
-                                    'N3RD Trivia',
+                                    localizations?.appName ?? 'N3RD Trivia',
                                     style: AppTypography.headlineLarge.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: colors.primaryText,
                                     ),
                                   ),
                                   content: Text(
-                                    'Version 1.0.0\n\nA memory-based trivia game that challenges your brain!\n\nCreated by Girard Clairsaint',
+                                    '${localizations?.version ?? 'Version 1.0.0'}\n\n${localizations?.appDescription ?? 'A memory-based trivia game that challenges your brain!'}\n\n${localizations?.createdBy ?? 'Created by Girard Clairsaint'}',
                                     style: AppTypography.bodyMedium.copyWith(
                                       color: colors.secondaryText,
                                       height: 1.5,
@@ -433,11 +521,11 @@ class SettingsScreen extends StatelessWidget {
                                     TextButton(
                                       onPressed: () {
                                         if (context.mounted) {
-                                          Navigator.pop(context);
+                                          NavigationHelper.safePop(context);
                                         }
                                       },
                                       child: Text(
-                                        'Close',
+                                        localizations?.close ?? 'Close',
                                         style:
                                             AppTypography.labelLarge.copyWith(
                                           color: colors.primaryText,
@@ -455,7 +543,9 @@ class SettingsScreen extends StatelessWidget {
                         // DEBUG: Subscription Tier Tester (only in debug mode)
                         if (kDebugMode) ...[
                           _buildSectionHeader(
-                              context, '🧪 Debug (Testing Only)',),
+                            context,
+                            '🧪 Debug (Testing Only)',
+                          ),
                           Consumer<SubscriptionService>(
                             builder: (context, subscriptionService, _) {
                               return _buildDebugSubscriptionTile(
@@ -498,7 +588,9 @@ class SettingsScreen extends StatelessWidget {
                                   actions: [
                                     TextButton(
                                       onPressed: () => NavigationHelper.safePop(
-                                          context, false,),
+                                        context,
+                                        false,
+                                      ),
                                       child: Text(
                                         'Cancel',
                                         style:
@@ -509,7 +601,9 @@ class SettingsScreen extends StatelessWidget {
                                     ),
                                     TextButton(
                                       onPressed: () => NavigationHelper.safePop(
-                                          context, true,),
+                                        context,
+                                        true,
+                                      ),
                                       child: Text(
                                         'Sign Out',
                                         style:
@@ -526,11 +620,11 @@ class SettingsScreen extends StatelessWidget {
                             if (confirm == true) {
                               await authService.signOut();
                               if (context.mounted) {
-                                NavigationHelper.safeNavigateAndRemoveUntil(
+                                unawaited(NavigationHelper.safeNavigateAndRemoveUntil(
                                   context,
                                   '/login',
                                   (route) => false,
-                                );
+                                ),);
                               }
                             }
                           },
@@ -574,10 +668,13 @@ class SettingsScreen extends StatelessWidget {
     final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
+      child: Semantics(
+        label: subtitle != null ? '$title. $subtitle' : title,
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: colors.cardBackground.withValues(alpha: 0.95),
@@ -627,14 +724,16 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 
   void _showEditProfileDialog(BuildContext context, AuthService authService) {
+    final userEmail = authService.userEmail;
     final nameController = TextEditingController(
-      text: authService.userEmail?.contains('@') == true
-          ? authService.userEmail!.split('@')[0]
-          : authService.userEmail ?? '',
+      text: userEmail != null && userEmail.contains('@')
+          ? userEmail.split('@')[0]
+          : userEmail ?? '',
     );
     showDialog(
       context: context,
@@ -649,7 +748,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,7 +757,7 @@ class SettingsScreen extends StatelessWidget {
                 AppLocalizations.of(context)?.editProfile ?? 'Edit Profile',
                 style: AppTypography.headlineLarge.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.onDarkText,
                 ),
               ),
               const SizedBox(height: 16),
@@ -677,29 +776,34 @@ class SettingsScreen extends StatelessWidget {
                       if (image != null && context.mounted) {
                         // Avatar upload functionality - Firebase Storage integration needed
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Avatar upload coming soon'),
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(context)
+                                      ?.avatarUploadComingSoon ??
+                                  'Avatar upload coming soon',
+                            ),
                           ),
                         );
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to pick image: $e'),
-                            backgroundColor: Colors.red,
-                          ),
+                        ErrorHandler.showSnackBar(
+                          context,
+                          AppLocalizations.of(context)?.imagePickError ??
+                              'Failed to pick image. Please try again.',
+                          error: e,
                         );
                       }
                     }
                   },
                   child: CircleAvatar(
                     radius: 50,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    backgroundColor:
+                        AppColors.onDarkText.withValues(alpha: 0.2),
                     child: const Icon(
                       Icons.person,
                       size: 50,
-                      color: Colors.white,
+                      color: AppColors.onDarkText,
                     ),
                   ),
                 ),
@@ -707,21 +811,33 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 16),
               TextField(
                 controller: nameController,
-                style: const TextStyle(color: Colors.white),
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.onDarkText,
+                ),
                 decoration: InputDecoration(
-                  labelText: 'Display Name',
-                  labelStyle: const TextStyle(color: Colors.white70),
+                  labelText: AppLocalizations.of(context)?.displayName ??
+                      'Display Name',
+                  labelStyle: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.onDarkText.withValues(alpha: 0.7),
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.white70),
+                    borderSide: BorderSide(
+                      color: AppColors.onDarkText.withValues(alpha: 0.7),
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.white70),
+                    borderSide: BorderSide(
+                      color: AppColors.onDarkText.withValues(alpha: 0.7),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.white),
+                    borderSide: BorderSide(
+                      color: AppColors.of(context).focus,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -733,12 +849,14 @@ class SettingsScreen extends StatelessWidget {
                   TextButton(
                     onPressed: () {
                       if (context.mounted) {
-                        Navigator.pop(context);
+                        NavigationHelper.safePop(context);
                       }
                     },
                     child: Text(
-                      'Cancel',
-                      style: AppTypography.labelLarge.copyWith(color: Colors.white),
+                      AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.onDarkText,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -746,14 +864,24 @@ class SettingsScreen extends StatelessWidget {
                     onPressed: () async {
                       final displayName = nameController.text.trim();
                       if (displayName.isNotEmpty) {
+                        // Show loading indicator
+                        unawaited(showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),);
                         try {
                           await authService.updateDisplayName(displayName);
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            NavigationHelper.safePop(context); // Close loading
+                            NavigationHelper.safePop(context); // Close dialog
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  AppLocalizations.of(context)?.profileUpdated ??
+                                  AppLocalizations.of(context)
+                                          ?.profileUpdated ??
                                       'Profile updated',
                                 ),
                               ),
@@ -761,13 +889,13 @@ class SettingsScreen extends StatelessWidget {
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${AppLocalizations.of(context)?.failedToUpdateProfile ?? 'Failed to update profile'}: $e',
-                                ),
-                              ),
+                            NavigationHelper.safePop(context); // Close loading
+                            ErrorHandler.showSnackBar(
+                              context,
+                              AppLocalizations.of(context)
+                                      ?.failedToUpdateProfile ??
+                                  'Failed to update profile. Please try again.',
+                              error: e,
                             );
                           }
                         }
@@ -775,7 +903,8 @@ class SettingsScreen extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              AppLocalizations.of(context)?.pleaseEnterDisplayName ??
+                              AppLocalizations.of(context)
+                                      ?.pleaseEnterDisplayName ??
                                   'Please enter a display name',
                             ),
                           ),
@@ -786,7 +915,10 @@ class SettingsScreen extends StatelessWidget {
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text('Save', style: AppTypography.labelLarge),
+                    child: Text(
+                      AppLocalizations.of(context)?.save ?? 'Save',
+                      style: AppTypography.labelLarge,
+                    ),
                   ),
                 ],
               ),
@@ -800,170 +932,14 @@ class SettingsScreen extends StatelessWidget {
   void _showEmailSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          // Load initial values
-          return FutureBuilder<SharedPreferences>(
-            future: SharedPreferences.getInstance(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final prefs = snapshot.data!;
-              final bool gameNotifications =
-                  prefs.getBool('email_game_notifications') ?? true;
-              final bool leaderboardUpdates =
-                  prefs.getBool('email_leaderboard_updates') ?? true;
-
-              return AlertDialog(
-                title: Text(
-                  'Email Settings',
-                  style: AppTypography.headlineLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SwitchListTile(
-                      title: Text(
-                        'Game Notifications',
-                        style: AppTypography.labelLarge,
-                      ),
-                      subtitle: Text(
-                        'Get notified about daily challenges',
-                        style: AppTypography.labelSmall,
-                      ),
-                      value: gameNotifications,
-                      onChanged: (value) async {
-                        await prefs.setBool('email_game_notifications', value);
-                        setState(() {});
-                      },
-                    ),
-                    SwitchListTile(
-                      title: Text(
-                        'Leaderboard Updates',
-                        style: AppTypography.labelLarge,
-                      ),
-                      subtitle: Text(
-                        'Get notified when you rank up',
-                        style: AppTypography.labelSmall,
-                      ),
-                      value: leaderboardUpdates,
-                      onChanged: (value) async {
-                        await prefs.setBool('email_leaderboard_updates', value);
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Text('Done', style: AppTypography.labelLarge),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
+      builder: (context) => const EmailSettingsDialog(),
     );
   }
 
   void _showNotificationsSettings(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return FutureBuilder<SharedPreferences>(
-            future: SharedPreferences.getInstance(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final prefs = snapshot.data!;
-              final bool pushNotifications =
-                  prefs.getBool('push_notifications') ?? true;
-              final bool dailyReminders =
-                  prefs.getBool('daily_reminders') ?? true;
-              final bool achievementAlerts =
-                  prefs.getBool('achievement_alerts') ?? true;
-
-              return AlertDialog(
-                title: Text(
-                  'Notifications',
-                  style: AppTypography.headlineLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SwitchListTile(
-                      title: Text(
-                        'Push Notifications',
-                        style: AppTypography.labelLarge,
-                      ),
-                      subtitle: Text(
-                        'Receive push notifications from the app',
-                        style: AppTypography.labelSmall,
-                      ),
-                      value: pushNotifications,
-                      onChanged: (value) async {
-                        await prefs.setBool('push_notifications', value);
-                        setState(() {});
-                      },
-                    ),
-                    SwitchListTile(
-                      title: Text('Daily Reminders',
-                          style: AppTypography.labelLarge,),
-                      subtitle: Text(
-                        'Remind me to play daily',
-                        style: AppTypography.labelSmall,
-                      ),
-                      value: dailyReminders,
-                      onChanged: (value) async {
-                        await prefs.setBool('daily_reminders', value);
-                        setState(() {});
-                      },
-                    ),
-                    SwitchListTile(
-                      title: Text(
-                        'Achievement Alerts',
-                        style: AppTypography.labelLarge,
-                      ),
-                      subtitle: Text(
-                        'Get notified when you unlock achievements',
-                        style: AppTypography.labelSmall,
-                      ),
-                      value: achievementAlerts,
-                      onChanged: (value) async {
-                        await prefs.setBool('achievement_alerts', value);
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Text('Done', style: AppTypography.labelLarge),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
+      builder: (context) => const NotificationsSettingsDialog(),
     );
   }
 
@@ -1022,8 +998,10 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                   SwitchListTile(
-                    title: Text('Background Music',
-                        style: AppTypography.labelLarge,),
+                    title: Text(
+                      'Background Music',
+                      style: AppTypography.labelLarge,
+                    ),
                     subtitle: Text(
                       'Enable background music during gameplay',
                       style: AppTypography.labelSmall,
@@ -1066,10 +1044,13 @@ class SettingsScreen extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   if (context.mounted) {
-                    Navigator.pop(context);
+                    NavigationHelper.safePop(context);
                   }
                 },
-                child: Text('Done', style: AppTypography.labelLarge),
+                child: Text(
+                  AppLocalizations.of(context)?.done ?? 'Done',
+                  style: AppTypography.labelLarge,
+                ),
               ),
             ],
           ),
@@ -1239,10 +1220,13 @@ class SettingsScreen extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   if (context.mounted) {
-                    Navigator.pop(context);
+                    NavigationHelper.safePop(context);
                   }
                 },
-                child: Text('Done', style: AppTypography.labelLarge),
+                child: Text(
+                  AppLocalizations.of(context)?.done ?? 'Done',
+                  style: AppTypography.labelLarge,
+                ),
               ),
             ],
           ),
@@ -1254,7 +1238,7 @@ class SettingsScreen extends StatelessWidget {
   void _showAppearanceSettings(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context, listen: false);
     String selectedTheme = themeService.isDarkMode ? 'dark' : 'light';
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1268,38 +1252,48 @@ class SettingsScreen extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ignore: deprecated_member_use
               RadioListTile<String>(
                 title: Text('Light Mode', style: AppTypography.bodyMedium),
                 value: 'light',
                 // ignore: deprecated_member_use
                 groupValue: selectedTheme,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) async {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() {
                       selectedTheme = value;
                     });
-                    await themeService.setDarkMode(false);
-                    if (context.mounted) {
-                      Navigator.pop(context);
+                    try {
+                      await themeService.setDarkMode(false);
+                      if (context.mounted) {
+                        NavigationHelper.safePop(context);
+                      }
+                    } catch (e) {
+                      LoggerService.warning('Failed to set dark mode to false', error: e);
                     }
                   }
                 },
               ),
+              // ignore: deprecated_member_use
               RadioListTile<String>(
                 title: Text('Dark Mode', style: AppTypography.bodyMedium),
                 value: 'dark',
                 // ignore: deprecated_member_use
                 groupValue: selectedTheme,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) async {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() {
                       selectedTheme = value;
                     });
-                    await themeService.setDarkMode(true);
-                    if (context.mounted) {
-                      Navigator.pop(context);
+                    try {
+                      await themeService.setDarkMode(true);
+                      if (context.mounted) {
+                        NavigationHelper.safePop(context);
+                      }
+                    } catch (e) {
+                      LoggerService.warning('Failed to set dark mode to true', error: e);
                     }
                   }
                 },
@@ -1310,10 +1304,13 @@ class SettingsScreen extends StatelessWidget {
             TextButton(
               onPressed: () {
                 if (context.mounted) {
-                  Navigator.pop(context);
+                  NavigationHelper.safePop(context);
                 }
               },
-              child: Text('Cancel', style: AppTypography.labelLarge),
+              child: Text(
+                AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                style: AppTypography.labelLarge,
+              ),
             ),
           ],
         ),
@@ -1323,7 +1320,8 @@ class SettingsScreen extends StatelessWidget {
 
   void _showLanguageSettings(BuildContext context) async {
     if (!context.mounted) return;
-    final languageService = Provider.of<LanguageService>(context, listen: false);
+    final languageService =
+        Provider.of<LanguageService>(context, listen: false);
     String selectedLanguage = 'English';
     // Get current language from service
     final currentLocale = languageService.currentLocale;
@@ -1334,9 +1332,9 @@ class SettingsScreen extends StatelessWidget {
     } else if (currentLocale.languageCode == 'de') {
       selectedLanguage = 'German';
     }
-    
+
     if (!context.mounted) return;
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -1355,7 +1353,7 @@ class SettingsScreen extends StatelessWidget {
                 // ignore: deprecated_member_use
                 groupValue: selectedLanguage,
                 // ignore: deprecated_member_use
-                onChanged: (String? value) async {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() {
                       selectedLanguage = value;
@@ -1364,11 +1362,12 @@ class SettingsScreen extends StatelessWidget {
                     await languageService.setLanguage(value);
                     if (!context.mounted) return;
                     // Close dialog first
-                    Navigator.pop(context);
+                    NavigationHelper.safePop(context);
                     // Show message
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Language changed to $value. Restart the app to see changes.'),
+                        content: Text(
+                            'Language changed to $value. Restart the app to see changes.',),
                         duration: const Duration(seconds: 3),
                       ),
                     );
@@ -1381,33 +1380,36 @@ class SettingsScreen extends StatelessWidget {
             TextButton(
               onPressed: () {
                 if (context.mounted) {
-                  Navigator.pop(context);
+                  NavigationHelper.safePop(context);
                 }
               },
-              child: Text('Done', style: AppTypography.labelLarge),
+              child: Text(
+                AppLocalizations.of(context)?.done ?? 'Done',
+                style: AppTypography.labelLarge,
+              ),
             ),
           ],
         ),
       ),
-    );
+    ),);
   }
 
   void _showGameSettings(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     if (!context.mounted) return;
-    double timerSpeed = prefs.getDouble('game_timer_speed') ?? 1.0; // 0.5x to 2.0x
-    double difficulty = prefs.getDouble('game_difficulty') ?? 1.0; // 0.5x to 2.0x
+    double timerSpeed =
+        prefs.getDouble('game_timer_speed') ?? 1.0; // 0.5x to 2.0x
     int revealUses = prefs.getInt('game_reveal_uses') ?? 3;
     int clearUses = prefs.getInt('game_clear_uses') ?? 3;
     int skipUses = prefs.getInt('game_skip_uses') ?? 3;
 
     if (!context.mounted) return;
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(
-            'Game Settings',
+            AppLocalizations.of(context)?.gameSettingsTitle ?? 'Game Settings',
             style: AppTypography.headlineLarge.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -1446,35 +1448,6 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Difficulty Multiplier', style: AppTypography.labelLarge),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: difficulty,
-                        min: 0.5,
-                        max: 2.0,
-                        divisions: 6,
-                        label: '${difficulty.toStringAsFixed(1)}x',
-                        onChanged: (value) async {
-                          setState(() {
-                            difficulty = value;
-                          });
-                          await prefs.setDouble('game_difficulty', value);
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        '${difficulty.toStringAsFixed(1)}x',
-                        style: AppTypography.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
                 Text('Starting Power-ups', style: AppTypography.labelLarge),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
@@ -1494,7 +1467,8 @@ class SettingsScreen extends StatelessWidget {
                               setState(() {
                                 revealUses = value.toInt();
                               });
-                              await prefs.setInt('game_reveal_uses', value.toInt());
+                              await prefs.setInt(
+                                  'game_reveal_uses', value.toInt(),);
                             },
                           ),
                         ],
@@ -1527,7 +1501,8 @@ class SettingsScreen extends StatelessWidget {
                               setState(() {
                                 clearUses = value.toInt();
                               });
-                              await prefs.setInt('game_clear_uses', value.toInt());
+                              await prefs.setInt(
+                                  'game_clear_uses', value.toInt(),);
                             },
                           ),
                         ],
@@ -1560,7 +1535,8 @@ class SettingsScreen extends StatelessWidget {
                               setState(() {
                                 skipUses = value.toInt();
                               });
-                              await prefs.setInt('game_skip_uses', value.toInt());
+                              await prefs.setInt(
+                                  'game_skip_uses', value.toInt(),);
                             },
                           ),
                         ],
@@ -1578,7 +1554,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Note: These settings apply to new games only.',
+                  AppLocalizations.of(context)?.gameSettingsNote ??
+                      'Note: These settings apply to new games only.',
                   style: AppTypography.labelSmall.copyWith(
                     fontSize: 11,
                     color: AppColors.of(context).tertiaryText,
@@ -1592,32 +1569,56 @@ class SettingsScreen extends StatelessWidget {
             TextButton(
               onPressed: () {
                 if (context.mounted) {
-                  Navigator.pop(context);
+                  NavigationHelper.safePop(context);
                 }
               },
-              child: Text('Cancel', style: AppTypography.labelLarge),
+              child: Text(
+                AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                style: AppTypography.labelLarge,
+              ),
             ),
             TextButton(
               onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setDouble('game_timer_speed', timerSpeed);
-                await prefs.setDouble('game_difficulty', difficulty);
-                await prefs.setInt('game_reveal_uses', revealUses);
-                await prefs.setInt('game_clear_uses', clearUses);
-                await prefs.setInt('game_skip_uses', skipUses);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context)?.gameSettingsSaved ??
-                            'Game settings saved',
+                // Show loading indicator
+                unawaited(showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),);
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setDouble('game_timer_speed', timerSpeed);
+                  await prefs.setInt('game_reveal_uses', revealUses);
+                  await prefs.setInt('game_clear_uses', clearUses);
+                  await prefs.setInt('game_skip_uses', skipUses);
+                  if (context.mounted) {
+                    NavigationHelper.safePop(context); // Close loading
+                    NavigationHelper.safePop(context); // Close dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)?.gameSettingsSaved ??
+                              'Game settings saved',
+                        ),
                       ),
-                    ),
-                  );
-                  // Reload game settings in GameService
-                  final gameService = Provider.of<GameService>(context, listen: false);
-                  await gameService.loadGameSettings();
+                    );
+                    // Reload game settings in GameService
+                    final gameService =
+                        Provider.of<GameService>(context, listen: false);
+                    await gameService.loadGameSettings();
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    NavigationHelper.safePop(context); // Close loading
+                    ErrorHandler.showSnackBar(
+                      context,
+                      AppLocalizations.of(context)?.gameSettingsSaveError ??
+                          'Failed to save game settings. Please try again.',
+                      error: e,
+                    );
+                  }
                 }
               },
               child: Text('Save', style: AppTypography.labelLarge),
@@ -1625,7 +1626,7 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),);
   }
 
   void _exportUserData(BuildContext context) async {
@@ -1635,11 +1636,11 @@ class SettingsScreen extends StatelessWidget {
         listen: false,
       );
 
-      showDialog(
+      unawaited(showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
+      ),);
 
       final filePath = await exportService.exportUserData();
 
@@ -1649,17 +1650,21 @@ class SettingsScreen extends StatelessWidget {
       if (filePath != null) {
         // Use Share.shareXFiles directly with the file path
         final file = File(filePath);
-        if (await file.exists()) {
+        if (file.existsSync()) {
+          if (!context.mounted) return;
+          final shareText = AppLocalizations.of(context)?.dataExportShareText ??
+              'My N3RD Trivia Data Export';
           await Share.shareXFiles(
             [XFile(filePath)],
-            text: 'My N3RD Trivia Data Export',
+            text: shareText,
           );
 
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Data exported successfully',
+                AppLocalizations.of(context)?.dataExportSuccess ??
+                    'Data exported successfully',
                 style: AppTypography.bodyMedium,
               ),
               backgroundColor: Colors.green,
@@ -1668,30 +1673,21 @@ class SettingsScreen extends StatelessWidget {
           );
         } else {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
+          ErrorHandler.showSnackBar(
+            context,
+            AppLocalizations.of(context)?.dataExportFileNotFound ??
                 'Export file not found',
-                style: AppTypography.bodyMedium,
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
           );
         }
       }
     } catch (e) {
       if (!context.mounted) return;
       NavigationHelper.safePop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to export data: ${e.toString()}',
-            style: AppTypography.bodyMedium,
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      ErrorHandler.showSnackBar(
+        context,
+        AppLocalizations.of(context)?.dataExportError ??
+            'Failed to export data. Please try again.',
+        error: e,
       );
     }
   }
@@ -1715,17 +1711,21 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         content: Text(
-          'This action cannot be undone. All your data will be permanently deleted.',
+          AppLocalizations.of(context)?.deleteAccountWarning ??
+              'This action cannot be undone. All your data will be permanently deleted.',
           style: AppTypography.bodyMedium,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: AppTypography.labelLarge),
+            onPressed: () => NavigationHelper.safePop(context),
+            child: Text(
+              AppLocalizations.of(context)?.cancel ?? 'Cancel',
+              style: AppTypography.labelLarge,
+            ),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              NavigationHelper.safePop(context);
               try {
                 // Delete user account from Firebase
                 final user = authService.currentUser;
@@ -1735,9 +1735,12 @@ class SettingsScreen extends StatelessWidget {
                 // Sign out and clear local data
                 await authService.signOut();
                 if (context.mounted) {
-                  Navigator.of(
+                  unawaited(NavigationHelper.safeNavigateAndRemoveUntil(
                     context,
-                  ).pushNamedAndRemoveUntil('/login', (route) => false);
+                    '/login',
+                    (route) => false,
+                    source: NavigationSource.programmatic,
+                  ),);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -1751,18 +1754,17 @@ class SettingsScreen extends StatelessWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
+                  ErrorHandler.showSnackBar(
+                    context,
+                    AppLocalizations.of(context)?.accountDeleteError ??
                         'Failed to delete account. Please re-authenticate and try again.',
-                      ),
-                    ),
+                    error: e,
                   );
                 }
               }
             },
             child: Text(
-              'Delete',
+              AppLocalizations.of(context)?.delete ?? 'Delete',
               style: AppTypography.labelLarge.copyWith(color: AppColors.error),
             ),
           ),
@@ -1814,7 +1816,7 @@ class SettingsScreen extends StatelessWidget {
                         'Current: $tierName (Debug Mode Only)',
                         style: AppTypography.labelSmall.copyWith(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: AppColors.onDarkText.withValues(alpha: 0.9),
                         ),
                       ),
                     ],
@@ -1870,8 +1872,11 @@ class SettingsScreen extends StatelessWidget {
     SubscriptionTier tier,
     bool isActive,
   ) {
-    return ElevatedButton(
-      onPressed: () async {
+    return Semantics(
+      label: 'Switch to $label tier',
+      button: true,
+      child: ElevatedButton(
+        onPressed: () async {
         // Show confirmation dialog
         final dialogColors = AppColors.of(context);
         final confirm = await showDialog<bool>(
@@ -1896,21 +1901,29 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => NavigationHelper.safePop(context, false),
-                child: Text(
-                  'Cancel',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: dialogColors.secondaryText,
+              Semantics(
+                label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                button: true,
+                child: TextButton(
+                  onPressed: () => NavigationHelper.safePop(context, false),
+                  child: Text(
+                    'Cancel',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: dialogColors.secondaryText,
+                    ),
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () => NavigationHelper.safePop(context, true),
-                child: Text(
-                  'Switch',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: Colors.orange,
+              Semantics(
+                label: 'Switch to $label tier',
+                button: true,
+                child: TextButton(
+                  onPressed: () => NavigationHelper.safePop(context, true),
+                  child: Text(
+                    'Switch',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: Colors.orange,
+                    ),
                   ),
                 ),
               ),
@@ -1965,6 +1978,7 @@ class SettingsScreen extends StatelessWidget {
       child: Text(
         label,
         style: AppTypography.labelLarge.copyWith(fontSize: 13),
+      ),
       ),
     );
   }

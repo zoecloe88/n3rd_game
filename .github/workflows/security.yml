@@ -1,0 +1,107 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'
+          channel: 'stable'
+      
+      - name: Run secret scan
+        run: |
+          chmod +x scripts/secret_scan.sh
+          ./scripts/secret_scan.sh
+      
+      - name: Run security audit
+        run: |
+          chmod +x scripts/security_audit.sh
+          ./scripts/security_audit.sh
+      
+      - name: Verify API key restrictions
+        run: |
+          chmod +x scripts/verify_api_restrictions.sh
+          ./scripts/verify_api_restrictions.sh || true
+        continue-on-error: true  # Manual verification required
+  
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Check for outdated dependencies
+        run: flutter pub outdated || true
+      
+      - name: Run dependency vulnerability scan
+        run: |
+          chmod +x scripts/dependency_vulnerability_scan.sh
+          ./scripts/dependency_vulnerability_scan.sh || true
+        continue-on-error: true
+      
+      - name: Analyze dependencies
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+  
+  code-security:
+    name: Code Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'
+          channel: 'stable'
+      
+      - name: Run Flutter analyze
+        run: flutter analyze
+      
+      - name: Check for hardcoded secrets
+        run: |
+          # Check for common secret patterns
+          if grep -r "AIza[0-9A-Za-z_-]\{35\}" lib/ --exclude-dir=generated 2>/dev/null | grep -v "//.*API" | grep -v "example" | grep -v "test"; then
+            echo "::error::Potential hardcoded API keys found"
+            exit 1
+          fi
+      
+      - name: Verify .env in .gitignore
+        run: |
+          if ! grep -q "\.env" .gitignore 2>/dev/null; then
+            echo "::error::.env file not in .gitignore"
+            exit 1
+          fi
+
+

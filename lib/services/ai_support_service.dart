@@ -1,11 +1,36 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// AI-powered support service that provides intelligent responses and troubleshooting
 /// Uses rule-based AI with pattern matching and context awareness
 class AISupportService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestore;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for AISupportService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      return FirebaseAuth.instance;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for AISupportService', error: e);
+      return null;
+    }
+  }
 
   /// Get AI-generated response based on user query
   Future<AISupportResponse> getAIResponse({
@@ -27,7 +52,7 @@ class AISupportService {
 
       return response;
     } catch (e) {
-      debugPrint('Error generating AI response: $e');
+      LoggerService.error('Error generating AI response', error: e);
       return AISupportResponse(
         message:
             'I apologize, but I\'m having trouble processing your request. '
@@ -295,17 +320,21 @@ class AISupportService {
     AISupportResponse response,
   ) {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      _firestore.collection('ai_support_logs').add({
-        'userId': user?.uid ?? 'anonymous',
-        'query': query,
-        'intent': intent,
-        'response': response.message,
-        'confidence': response.confidence,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      final auth = _authInstance;
+      final user = auth?.currentUser;
+      final firestore = _firestoreInstance;
+      if (firestore != null) {
+        firestore.collection('ai_support_logs').add({
+          'userId': user?.uid ?? 'anonymous',
+          'query': query,
+          'intent': intent,
+          'response': response.message,
+          'confidence': response.confidence,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
     } catch (e) {
-      debugPrint('Failed to log AI interaction: $e');
+      LoggerService.error('Failed to log AI interaction', error: e);
       // Don't throw - logging failure shouldn't break the feature
     }
   }
@@ -314,7 +343,11 @@ class AISupportService {
   Future<Map<String, dynamic>> getSupportAnalytics() async {
     try {
       // Get common issues
-      final issuesSnapshot = await _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        return {}; // Return empty map if Firebase not available
+      }
+      final issuesSnapshot = await firestore
           .collection('feedback')
           .where('status', isEqualTo: 'new')
           .limit(100)
@@ -326,8 +359,8 @@ class AISupportService {
         issuesByType[type] = (issuesByType[type] ?? 0) + 1;
       }
 
-      // Get AI interaction stats
-      final aiLogsSnapshot = await _firestore
+      // Get AI interaction stats (firestore already checked above)
+      final aiLogsSnapshot = await firestore
           .collection('ai_support_logs')
           .orderBy('timestamp', descending: true)
           .limit(100)
@@ -352,7 +385,7 @@ class AISupportService {
             : 0.0,
       };
     } catch (e) {
-      debugPrint('Error getting support analytics: $e');
+      LoggerService.error('Error getting support analytics', error: e);
       return {
         'totalIssues': 0,
         'issuesByType': {},
@@ -366,10 +399,6 @@ class AISupportService {
 
 /// AI Support Response model
 class AISupportResponse {
-  final String message;
-  final double confidence; // 0.0 to 1.0
-  final List<String> suggestedActions;
-  final List<String> relatedTopics;
 
   AISupportResponse({
     required this.message,
@@ -377,4 +406,8 @@ class AISupportResponse {
     required this.suggestedActions,
     required this.relatedTopics,
   });
+  final String message;
+  final double confidence; // 0.0 to 1.0
+  final List<String> suggestedActions;
+  final List<String> relatedTopics;
 }

@@ -1,0 +1,74 @@
+name: Dependency Check
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check-dependencies:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Check for outdated dependencies
+        run: |
+          chmod +x scripts/check_dependencies.sh
+          ./scripts/check_dependencies.sh
+      
+      - name: Create issue for outdated dependencies
+        uses: actions/github-script@v6
+        if: failure()
+        with:
+          script: |
+            const title = 'Dependencies need updating';
+            const body = 'Some dependencies are outdated. Please review and update.';
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'dependencies'
+            });
+            
+            const existingIssue = issues.data.find(issue => issue.title === title);
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['dependencies', 'maintenance']
+              });
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

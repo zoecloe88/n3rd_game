@@ -3,9 +3,9 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 
 class HeatMapWidget extends StatelessWidget {
-  final List<TimeOfDayPerformance> timeOfDayData;
 
   const HeatMapWidget({super.key, required this.timeOfDayData});
+  final List<TimeOfDayPerformance> timeOfDayData;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +38,13 @@ class HeatMapWidget extends StatelessWidget {
     final maxScore = timeOfDayData
         .map((d) => d.averageScore)
         .reduce((a, b) => a > b ? a : b);
+
+    // Create lookup map: hour -> TimeOfDayPerformance
+    // This allows O(1) lookup by hour instead of assuming index == hour
+    final dataMap = <int, TimeOfDayPerformance>{};
+    for (final data in timeOfDayData) {
+      dataMap[data.hour] = data;
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -88,10 +95,21 @@ class HeatMapWidget extends StatelessWidget {
             ),
             itemCount: 24,
             itemBuilder: (context, index) {
-              final data = timeOfDayData[index];
-              final intensity =
-                  maxScore > 0 ? (data.averageScore / maxScore) : 0.0;
-              final hasData = data.totalGames > 0;
+              final hour = index; // index represents hour (0-23)
+              final data = dataMap[hour];
+              
+              // If no data for this hour, create empty/default entry
+              final effectiveData = data ?? TimeOfDayPerformance(
+                hour: hour,
+                averageScore: 0.0,
+                averageAccuracy: 0.0,
+                totalGames: 0,
+              );
+              
+              final intensity = maxScore > 0 
+                  ? (effectiveData.averageScore / maxScore) 
+                  : 0.0;
+              final hasData = effectiveData.totalGames > 0;
 
               return Container(
                 decoration: BoxDecoration(
@@ -135,7 +153,7 @@ class HeatMapWidget extends StatelessWidget {
                     if (hasData) ...[
                       const SizedBox(height: 4),
                       Text(
-                        data.averageScore.toStringAsFixed(0),
+                        effectiveData.averageScore.toStringAsFixed(0),
                         style: AppTypography.bodyMedium.copyWith(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

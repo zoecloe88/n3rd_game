@@ -1,22 +1,25 @@
-import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
+import 'package:n3rd_game/services/accessibility_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/screens/title_screen.dart';
 import 'package:n3rd_game/screens/mode_selection_screen.dart';
 import 'package:n3rd_game/screens/stats_menu_screen.dart';
 import 'package:n3rd_game/screens/friends_and_messages_screen.dart';
 import 'package:n3rd_game/screens/more_menu_screen.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 /// Main navigation wrapper that provides persistent bottom navigation
 /// Only shown for authenticated users after login
 class MainNavigationWrapper extends StatefulWidget {
-  final int initialIndex;
-  final Widget? child;
 
   const MainNavigationWrapper({super.key, this.initialIndex = 0, this.child});
+  final int initialIndex;
+  final Widget? child;
 
   @override
   State<MainNavigationWrapper> createState() => MainNavigationWrapperState();
@@ -49,7 +52,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
       if (!hasCompletedOnboarding && mounted && context.mounted) {
         // Redirect to onboarding
-        Navigator.of(context).pushReplacementNamed('/onboarding');
+        unawaited(NavigationHelper.safeNavigate(context, '/onboarding', replace: true));
         return;
       }
 
@@ -60,9 +63,10 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
       }
     } catch (e) {
       // Onboarding check failed - log error but allow access (fail-open to prevent blocking users)
-      if (kDebugMode) {
-        debugPrint('⚠️ Onboarding check failed in MainNavigationWrapper: $e');
-      }
+      LoggerService.warning(
+        'Onboarding check failed in MainNavigationWrapper',
+        error: e,
+      );
       // Continue with normal flow - don't block user if onboarding check fails
       if (mounted) {
         setState(() {
@@ -122,31 +126,40 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
           Navigator.of(context).pushReplacementNamed('/login');
         }
       });
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF00D9FF)),
+          child: Semantics(
+            label: 'Checking authentication',
+            child: const CircularProgressIndicator(color: Color(0xFF00D9FF)),
+          ),
         ),
       );
     }
 
     // Check onboarding status - show loading while checking
     if (_checkingOnboarding) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF00D9FF)),
+          child: Semantics(
+            label: 'Checking onboarding status',
+            child: const CircularProgressIndicator(color: Color(0xFF00D9FF)),
+          ),
         ),
       );
     }
 
     return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // Disable swipe
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      body: Semantics(
+        liveRegion: true,
+        label: _getTabLabel(_currentIndex),
+        child: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(), // Disable swipe
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
         children: const [
           TitleScreen(),
           ModeSelectionScreen(),
@@ -154,9 +167,27 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
           FriendsAndMessagesScreen(),
           MoreMenuScreen(),
         ],
+        ),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
+  }
+
+  String _getTabLabel(int index) {
+    switch (index) {
+      case 0:
+        return 'Home tab';
+      case 1:
+        return 'Play tab';
+      case 2:
+        return 'Stats tab';
+      case 3:
+        return 'Friends tab';
+      case 4:
+        return 'More tab';
+      default:
+        return 'Tab ${index + 1}';
+    }
   }
 
   Widget _buildBottomNav() {
@@ -222,36 +253,73 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
     required int index,
   }) {
     final isActive = _currentIndex == index;
+    
+    // Check if larger touch targets should be enforced
+    bool largerTouchTargets = false;
+    try {
+      final accessibilityService = Provider.of<AccessibilityService>(
+        context,
+        listen: false,
+      );
+      largerTouchTargets = accessibilityService.settings.largerTouchTargets;
+    } catch (e) {
+      // AccessibilityService not available - use default
+      LoggerService.debug(
+        'AccessibilityService not available in MainNavigationWrapper',
+        error: e,
+      );
+    }
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onTabTapped(index),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color:
-                  isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
-              size: 24,
+    Widget navItem = GestureDetector(
+      onTap: () => _onTabTapped(index),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isActive ? activeIcon : icon,
+            color:
+                isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
+            size: 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTypography.labelSmall.copyWith(
+              color: isActive
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.6),
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTypography.labelSmall.copyWith(
-                color: isActive
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.6),
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ],
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ],
+      ),
+    );
+    
+    // Enforce minimum touch target size if setting is enabled
+    if (largerTouchTargets) {
+      navItem = ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: 48,
+          minHeight: 48,
         ),
+        child: navItem,
+      );
+    }
+    
+    // Wrap with Semantics for accessibility
+    return Expanded(
+      child: Semantics(
+        label: '$label tab',
+        hint: isActive ? 'Currently selected' : 'Tap to switch to $label',
+        button: true,
+        selected: isActive,
+        onTap: () => _onTabTapped(index),
+        child: navItem,
       ),
     );
   }

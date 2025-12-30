@@ -1,4 +1,5 @@
-import 'dart:async' show unawaited, TimeoutException;
+import 'dart:async' show TimeoutException;
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,8 @@ import 'package:n3rd_game/models/difficulty_level.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/services/trivia_personalization_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/services/rate_limiter_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
     deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/config/app_config.dart';
@@ -28,10 +31,10 @@ enum AIEditionErrorType {
 }
 
 class AIEditionException implements Exception {
-  final AIEditionErrorType type;
-  final String message;
 
   AIEditionException(this.type, this.message);
+  final AIEditionErrorType type;
+  final String message;
 
   @override
   String toString() => message;
@@ -58,6 +61,7 @@ class AIEditionService extends ChangeNotifier {
   TriviaGeneratorService?
       _generatorService; // Cache generator service for fallback
   AnalyticsService? _analyticsService;
+  final RateLimiterService _rateLimiter = RateLimiterService();
 
   void setAnalyticsService(AnalyticsService? service) {
     _analyticsService = service;
@@ -244,18 +248,14 @@ class AIEditionService extends ChangeNotifier {
             );
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing rate limit data: $e');
-          }
+          LoggerService.error('Error parsing rate limit data', error: e);
           // If parsing fails, treat as no rate limit data and allow generation
         }
       }
 
       return (true, _dailyGenerationLimit);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error checking rate limit: $e');
-      }
+      LoggerService.error('Error checking rate limit', error: e);
       return (true, _dailyGenerationLimit); // Allow on error
     }
   }
@@ -277,9 +277,7 @@ class AIEditionService extends ChangeNotifier {
             count = (data['count'] as int) + 1;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing rate limit data for increment: $e');
-          }
+          LoggerService.error('Error parsing rate limit data for increment', error: e);
           // If parsing fails, start fresh with count = 1
         }
       }
@@ -289,9 +287,7 @@ class AIEditionService extends ChangeNotifier {
         jsonEncode({'date': todayKey, 'count': count}),
       );
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error recording generation: $e');
-      }
+      LoggerService.error('Error recording generation', error: e);
     }
   }
 
@@ -397,8 +393,10 @@ class AIEditionService extends ChangeNotifier {
   /// Find templates relevant to the topic with similarity scoring
   List<TriviaTemplate> _findRelevantTemplates(String topic, bool isYouth) {
     final allTemplates = templates.EditionTriviaTemplates.getAvailableThemes()
-        .expand((theme) =>
-            templates.EditionTriviaTemplates.getTemplatesForEdition(theme),)
+        .expand(
+          (theme) =>
+              templates.EditionTriviaTemplates.getTemplatesForTheme(theme),
+        )
         .toList();
 
     // Calculate similarity scores
@@ -421,7 +419,7 @@ class AIEditionService extends ChangeNotifier {
     }
 
     // Return top 20 most relevant templates
-    return relevant.take(20).map((entry) => entry.$1).toList();
+    return relevant.take(20).map<TriviaTemplate>((entry) => entry.$1).toList();
   }
 
   /// Check if template is age-appropriate for youth
@@ -459,6 +457,29 @@ class AIEditionService extends ChangeNotifier {
     _generatorService = service;
   }
 
+  /// Validate that required dependencies are set (debug mode only)
+  void _validateDependencies({required String operation}) {
+    if (!kDebugMode) return;
+
+    final missingDeps = <String>[];
+    if (_personalizationService == null) {
+      missingDeps.add('PersonalizationService');
+    }
+    if (_generatorService == null) {
+      missingDeps.add('GeneratorService');
+    }
+    if (_analyticsService == null) {
+      missingDeps.add('AnalyticsService');
+    }
+
+    if (missingDeps.isNotEmpty) {
+      LoggerService.debug(
+        'AIEditionService: Missing dependencies for $operation: ${missingDeps.join(", ")}. '
+        'AI edition features may be unavailable.',
+      );
+    }
+  }
+
   /// Normalize theme name to match standard theme names
   /// Maps common variations (e.g., "Science" -> "science", "sciences" -> "science")
   /// Uses word boundary matching for compound themes to avoid false positives
@@ -466,9 +487,7 @@ class AIEditionService extends ChangeNotifier {
     final themeLower = theme.toLowerCase().trim();
 
     if (themeLower.isEmpty) {
-      if (kDebugMode) {
-        debugPrint('🎨 Theme normalization: Empty theme, returning "general"');
-      }
+      LoggerService.debug('🎨 Theme normalization: Empty theme, returning "general"');
       return 'general';
     }
 
@@ -625,9 +644,7 @@ class AIEditionService extends ChangeNotifier {
       final connectivityResults = await Connectivity().checkConnectivity();
       if (connectivityResults.contains(ConnectivityResult.none) ||
           connectivityResults.isEmpty) {
-        if (kDebugMode) {
-          debugPrint('No internet connection for AI generation');
-        }
+        LoggerService.debug('No internet connection for AI generation');
         _lastError =
             'No internet connection. Please check your network and try again.';
         _lastErrorType = AIEditionErrorType.offlineMode;
@@ -637,9 +654,7 @@ class AIEditionService extends ChangeNotifier {
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        if (kDebugMode) {
-          debugPrint('User not authenticated for AI generation');
-        }
+        LoggerService.debug('User not authenticated for AI generation');
         _lastError = 'Please sign in to use AI generation.';
         _lastErrorType = AIEditionErrorType.validationFailed;
         notifyListeners();
@@ -742,9 +757,7 @@ class AIEditionService extends ChangeNotifier {
                       theme: validTheme, // Always non-null and non-empty
                     );
                   } catch (e) {
-                    if (kDebugMode) {
-                      debugPrint('Error parsing trivia item: $e');
-                    }
+                    LoggerService.error('Error parsing trivia item', error: e);
                     return null;
                   }
                 })
@@ -829,46 +842,56 @@ class AIEditionService extends ChangeNotifier {
           } else {
             // Function returned but with error - fallback to templates
             final errorMessage = result?['error'] as String? ?? 'Unknown error';
-            if (kDebugMode) {
-              debugPrint('Cloud Function returned error: $errorMessage');
-            }
+            LoggerService.error('Cloud Function returned error: $errorMessage');
             _lastError = 'AI generation failed: $errorMessage';
             _lastErrorType = AIEditionErrorType.generationFailed;
             notifyListeners();
             return null;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing Cloud Function response: $e');
-          }
-          _lastError = 'Error processing AI response. Please try again.';
+          LoggerService.error('Error parsing Cloud Function response', error: e);
+          // Enhanced error message with more context
+          _lastError =
+              'Error processing AI response. The server response was invalid. Please try again.';
           _lastErrorType = AIEditionErrorType.generationFailed;
+          // Log error for debugging
+          final responseBodyPreview = response.body.length > 200
+              ? '${response.body.substring(0, 200)}...'
+              : response.body;
+          LoggerService.error(
+            'AIEditionService: Error parsing Cloud Function response. '
+            'Status code: ${response.statusCode}, Response: $responseBodyPreview',
+            error: e,
+            stack: StackTrace.current,
+            fatal: false,
+          );
           notifyListeners();
           return null;
         }
       } else if (response.statusCode == 401) {
-        if (kDebugMode) {
-          debugPrint('Authentication failed for Cloud Function');
-        }
+        LoggerService.error('Authentication failed for Cloud Function');
         _lastError = 'Authentication failed. Please sign in again.';
         _lastErrorType = AIEditionErrorType.validationFailed;
         notifyListeners();
         return null;
       } else if (response.statusCode == 403) {
-        if (kDebugMode) {
-          debugPrint('Permission denied for Cloud Function');
-        }
+        LoggerService.debug('Permission denied for Cloud Function');
         _lastError =
             'Permission denied. Please check your subscription status.';
         _lastErrorType = AIEditionErrorType.validationFailed;
         notifyListeners();
         return null;
       } else if (response.statusCode == 429) {
-        if (kDebugMode) {
-          debugPrint('Rate limit exceeded for Cloud Function');
-        }
-        _lastError = 'Rate limit exceeded. Please try again later.';
+        LoggerService.debug('Rate limit exceeded for Cloud Function');
+        // Enhanced error message with recovery suggestion
+        _lastError =
+            'Rate limit exceeded. You have reached the daily generation limit.';
         _lastErrorType = AIEditionErrorType.rateLimitExceeded;
+        // Log for analytics
+        unawaited(_analyticsService?.logError(
+          'ai_edition_rate_limit',
+          'Rate limit exceeded for AI edition generation',
+        ),);
         notifyListeners();
         return null;
       } else {
@@ -878,9 +901,7 @@ class AIEditionService extends ChangeNotifier {
           final errorData = jsonDecode(response.body) as Map<String, dynamic>;
           final error = errorData['error'] as Map<String, dynamic>?;
           errorMessage = error?['message'] as String? ?? response.body;
-          if (kDebugMode) {
-            debugPrint('Cloud Function error: $errorMessage');
-          }
+          LoggerService.error('Cloud Function error: $errorMessage');
         } catch (e) {
           if (kDebugMode) {
             debugPrint(
@@ -896,25 +917,19 @@ class AIEditionService extends ChangeNotifier {
         return null;
       }
     } on http.ClientException catch (e) {
-      if (kDebugMode) {
-        debugPrint('Network error during AI generation: $e');
-      }
+      LoggerService.error('Network error during AI generation', error: e);
       _lastError = 'Network error. Please check your connection and try again.';
       _lastErrorType = AIEditionErrorType.networkError;
       notifyListeners();
       return null;
     } on TimeoutException catch (e) {
-      if (kDebugMode) {
-        debugPrint('Timeout during AI generation: $e');
-      }
+      LoggerService.debug('Timeout during AI generation', error: e);
       _lastError = 'Request timed out. Please try again.';
       _lastErrorType = AIEditionErrorType.networkError;
       notifyListeners();
       return null;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('AI API generation failed: $e');
-      }
+      LoggerService.error('AI API generation failed', error: e);
       _lastError = 'An unexpected error occurred. Please try again.';
       _lastErrorType = AIEditionErrorType.unknownError;
       notifyListeners();
@@ -986,9 +1001,7 @@ class AIEditionService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error caching trivia: $e');
-      }
+      LoggerService.error('Error caching trivia', error: e);
     }
   }
 
@@ -1028,9 +1041,7 @@ class AIEditionService extends ChangeNotifier {
                     theme: normalizedCachedTheme,
                   );
                 } catch (e) {
-                  if (kDebugMode) {
-                    debugPrint('Error parsing cached trivia item: $e');
-                  }
+                  LoggerService.error('Error parsing cached trivia item', error: e);
                   return null;
                 }
               })
@@ -1106,16 +1117,12 @@ class AIEditionService extends ChangeNotifier {
             return triviaList;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing cached trivia data: $e');
-          }
+          LoggerService.error('Error parsing cached trivia data', error: e);
           // If parsing fails, return null to fetch fresh data
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error loading cached trivia: $e');
-      }
+      LoggerService.error('Error loading cached trivia', error: e);
     }
     return null;
   }
@@ -1126,6 +1133,9 @@ class AIEditionService extends ChangeNotifier {
     required bool isYouthEdition,
     int count = 50,
   }) async {
+    // Validate dependencies (debug mode only)
+    _validateDependencies(operation: 'generateTriviaForTopic');
+
     _isGenerating = true;
     _lastError = null;
     _lastErrorType = null;
@@ -1137,11 +1147,36 @@ class AIEditionService extends ChangeNotifier {
     String? errorType;
 
     try {
-      // Check rate limit
+      // Check daily rate limit
       final (canGenerate, remaining) = await checkRateLimit();
       if (!canGenerate) {
         _lastError =
             'Daily generation limit reached. You have used all $_dailyGenerationLimit generations today. Try again tomorrow!';
+        _lastErrorType = AIEditionErrorType.rateLimitExceeded;
+        _isGenerating = false;
+        notifyListeners();
+        throw AIEditionException(
+          AIEditionErrorType.rateLimitExceeded,
+          _lastError!,
+        );
+      }
+
+      // Check per-hour rate limit (additional protection)
+      final user = FirebaseAuth.instance.currentUser;
+      final userId = user?.uid ?? 'anonymous';
+      final canGenerateHourly = await _rateLimiter.isAllowed(
+        'ai_edition_hourly_$userId',
+        maxAttempts: 5, // Max 5 generations per hour
+        window: const Duration(hours: 1),
+      );
+      if (!canGenerateHourly) {
+        final timeUntilReset = await _rateLimiter.getTimeUntilReset(
+          'ai_edition_hourly_$userId',
+          window: const Duration(hours: 1),
+        );
+        final minutesRemaining = timeUntilReset?.inMinutes ?? 0;
+        _lastError =
+            'Hourly generation limit reached. Please wait $minutesRemaining minutes before generating another edition.';
         _lastErrorType = AIEditionErrorType.rateLimitExceeded;
         _isGenerating = false;
         notifyListeners();
@@ -1184,9 +1219,7 @@ class AIEditionService extends ChangeNotifier {
           count: count,
         );
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('AI API generation failed, falling back to templates: $e');
-        }
+        LoggerService.error('AI API generation failed, falling back to templates', error: e);
       }
 
       // Fallback to template-based generation
@@ -1243,7 +1276,7 @@ class AIEditionService extends ChangeNotifier {
       await _recordGeneration();
 
       // Save generation to history (async, don't wait)
-      _saveGenerationHistory(topic, isYouthEdition, triviaItems.length);
+      unawaited(_saveGenerationHistory(topic, isYouthEdition, triviaItems.length));
 
       _isGenerating = false;
       notifyListeners();
@@ -1251,32 +1284,28 @@ class AIEditionService extends ChangeNotifier {
       // Log performance metrics
       final duration = DateTime.now().difference(startTime);
       unawaited(
-        _analyticsService?.logAIEditionGeneration(
+        (_analyticsService?.logAIEditionGeneration(
           duration,
           success: true,
           isYouth: isYouthEdition,
           retryCount: retryCount,
-        ),
-      );
+        ) ?? Future<void>.value()) as Future<dynamic>,);
 
       return triviaItems;
     } on AIEditionException catch (e) {
       errorType = e.type.name;
       final duration = DateTime.now().difference(startTime);
       unawaited(
-        _analyticsService?.logAIEditionGeneration(
+        (_analyticsService?.logAIEditionGeneration(
           duration,
           success: false,
           isYouth: isYouthEdition,
           retryCount: retryCount,
           errorType: errorType,
-        ),
-      );
+        ) ?? Future<void>.value()) as Future<dynamic>,);
       rethrow;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error generating AI edition trivia: $e');
-      }
+      LoggerService.error('Error generating AI edition trivia', error: e);
 
       // Determine error type
       if (e.toString().contains('network') ||
@@ -1300,14 +1329,13 @@ class AIEditionService extends ChangeNotifier {
       // Log performance metrics for failure
       final duration = DateTime.now().difference(startTime);
       unawaited(
-        _analyticsService?.logAIEditionGeneration(
+        (_analyticsService?.logAIEditionGeneration(
           duration,
           success: false,
           isYouth: isYouthEdition,
           retryCount: retryCount,
           errorType: errorType,
-        ),
-      );
+        ) ?? Future<void>.value()) as Future<dynamic>,);
 
       throw AIEditionException(_lastErrorType!, _lastError!);
     }
@@ -1384,22 +1412,16 @@ class AIEditionService extends ChangeNotifier {
           // On failure, try a different theme or fallback to general
           if (theme != null && theme != 'general') {
             theme = 'general'; // Fallback to general theme
-            if (kDebugMode) {
-              debugPrint('Retrying with general theme...');
-            }
+            LoggerService.debug('Retrying with general theme...');
           } else {
             // If already on general theme or no specific theme, try a random theme
             final availableThemes = generator.getAvailableThemes();
             if (availableThemes.isNotEmpty) {
               theme = availableThemes[DateTime.now().millisecondsSinceEpoch %
                   availableThemes.length];
-              if (kDebugMode) {
-                debugPrint('Retrying with random theme: $theme...');
-              }
+              LoggerService.debug('Retrying with random theme: $theme...');
             } else {
-              if (kDebugMode) {
-                debugPrint('No available themes for retry.');
-              }
+              LoggerService.debug('No available themes for retry.');
               break; // No more themes to try
             }
           }
@@ -1443,9 +1465,7 @@ class AIEditionService extends ChangeNotifier {
               .add(history)
               .timeout(const Duration(seconds: 5));
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error saving to Firestore: $e');
-          }
+          LoggerService.error('Error saving to Firestore', error: e);
           _isOfflineMode = true;
         }
       }
@@ -1453,9 +1473,7 @@ class AIEditionService extends ChangeNotifier {
       // Always save to local storage
       await _saveToLocalStorage(history);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error saving generation history: $e');
-      }
+      LoggerService.error('Error saving generation history', error: e);
     }
   }
 
@@ -1471,9 +1489,7 @@ class AIEditionService extends ChangeNotifier {
       }
       await prefs.setStringList(_localStorageKey, existing);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error saving to local storage: $e');
-      }
+      LoggerService.error('Error saving to local storage', error: e);
     }
   }
 
@@ -1498,9 +1514,7 @@ class AIEditionService extends ChangeNotifier {
 
           return snapshot.docs.map((doc) => doc.data()).toList();
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error loading from Firestore: $e');
-          }
+          LoggerService.error('Error loading from Firestore', error: e);
           _isOfflineMode = true;
         }
       }
@@ -1520,9 +1534,7 @@ class AIEditionService extends ChangeNotifier {
 
       return history.take(limit).toList();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error loading generation history: $e');
-      }
+      LoggerService.error('Error loading generation history', error: e);
       return [];
     }
   }
@@ -1532,7 +1544,7 @@ class AIEditionService extends ChangeNotifier {
     String topic,
     bool isYouth,
   ) async {
-    return await _getCachedTrivia(topic, isYouth);
+    return _getCachedTrivia(topic, isYouth);
   }
 
   /// Clear cache
@@ -1545,9 +1557,7 @@ class AIEditionService extends ChangeNotifier {
         await prefs.remove(key);
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error clearing cache: $e');
-      }
+      LoggerService.error('Error clearing cache', error: e);
     }
   }
 

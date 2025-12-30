@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ErrorRecoveryWidget', () {
-    testWidgets('displays error message', (WidgetTester tester) async {
+    testWidgets('displays error message', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -15,11 +17,12 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Test error message'), findsOneWidget);
     });
 
-    testWidgets('displays title when provided', (WidgetTester tester) async {
+    testWidgets('displays title when provided', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -31,12 +34,13 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Error Title'), findsOneWidget);
       expect(find.text('Test error message'), findsOneWidget);
     });
 
-    testWidgets('shows retry button when onRetry provided', (WidgetTester tester) async {
+    testWidgets('shows retry button when onRetry provided', (tester) async {
       bool retryCalled = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -51,16 +55,19 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Retry'), findsOneWidget);
-      
+
       await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-      
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
       expect(retryCalled, true);
     });
 
-    testWidgets('hides retry button when showRetryButton is false', (WidgetTester tester) async {
+    testWidgets('hides retry button when showRetryButton is false',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -73,9 +80,9 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Retry'), findsNothing);
     });
   });
 }
-

@@ -105,10 +105,15 @@ ErrorRecoveryWidget(
 )
 ```
 
-## Related ADRs
+## Related Documentation
 
-- ADR-004: Error Recovery Mechanisms
-- ADR-005: Performance Monitoring (error correlation)
+- [Error Handling Guide](../ERROR_HANDLING_GUIDE.md) - Comprehensive implementation guide and best practices
+- [ADR-004: Error Recovery Mechanisms](./004-error-recovery-mechanisms.md)
+- [ADR-005: Performance Monitoring](./005-performance-monitoring.md) (error correlation)
+
+
+
+
 
 
 

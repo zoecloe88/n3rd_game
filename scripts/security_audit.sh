@@ -63,17 +63,59 @@ else
     echo "   ✅ Error messages appear safe"
 fi
 
+# Run secret scan if available
+echo ""
+echo "6. Running secret scan..."
+if [ -f "scripts/secret_scan.sh" ]; then
+    chmod +x scripts/secret_scan.sh
+    if ./scripts/secret_scan.sh; then
+        echo "   ✅ Secret scan passed"
+    else
+        echo "   ⚠️  Secret scan found issues"
+        ISSUES=$((ISSUES + 1))
+    fi
+else
+    echo "   ⚠️  Secret scan script not found"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+# Check for certificate pinning
+echo ""
+echo "7. Checking for certificate pinning..."
+if grep -r "certificate.*pinning\|http_certificate_pinning\|SecureHttpClient" lib/ --exclude-dir=generated 2>/dev/null | grep -v "test" | grep -q .; then
+    echo "   ✅ Certificate pinning implementation found"
+else
+    echo "   ⚠️  Certificate pinning not implemented (recommended for production)"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+# Check dependency vulnerabilities (basic check)
+echo ""
+echo "8. Checking dependency security..."
+if command -v flutter &> /dev/null; then
+    echo "   💡 Run 'flutter pub outdated' to check for outdated dependencies"
+    echo "   💡 Review pub.dev for security advisories"
+else
+    echo "   ⚠️  Flutter not found, skipping dependency check"
+fi
+
 # Summary
 echo ""
 echo "=========================================="
-if [ $ISSUES -eq 0 ]; then
+if [ $ISSUES -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo "✅ Security audit passed!"
     exit 0
+elif [ $ISSUES -eq 0 ]; then
+    echo "⚠️  Security audit completed with $WARNINGS warning(s)"
+    echo "   Please review the warnings above"
+    exit 0
 else
-    echo "⚠️  Found $ISSUES potential security issue(s)"
+    echo "⚠️  Found $ISSUES potential security issue(s) and $WARNINGS warning(s)"
     echo "   Please review the warnings above"
     exit 1
 fi
+
+
 
 
 

@@ -6,13 +6,6 @@ import 'package:n3rd_game/utils/subscription_guard.dart';
 /// Widget that wraps a feature with a tooltip explaining tier requirements
 /// Shows tooltip on long press for locked features
 class FeatureTooltipWidget extends StatelessWidget {
-  final Widget child;
-  final String featureName;
-  final bool requiresPremium;
-  final bool requiresOnlineAccess;
-  final bool requiresEditionsAccess;
-  final bool requiresAllModesAccess;
-  final bool requiresFamilyFriends;
 
   const FeatureTooltipWidget({
     super.key,
@@ -24,6 +17,13 @@ class FeatureTooltipWidget extends StatelessWidget {
     this.requiresAllModesAccess = false,
     this.requiresFamilyFriends = false,
   });
+  final Widget child;
+  final String featureName;
+  final bool requiresPremium;
+  final bool requiresOnlineAccess;
+  final bool requiresEditionsAccess;
+  final bool requiresAllModesAccess;
+  final bool requiresFamilyFriends;
 
   @override
   Widget build(BuildContext context) {

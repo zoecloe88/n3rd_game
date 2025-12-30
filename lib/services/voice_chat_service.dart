@@ -1,10 +1,13 @@
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Free WebRTC-based voice chat service (replaces Agora)
 /// Uses peer-to-peer connections with Firebase Firestore for signaling
@@ -22,7 +25,31 @@ class VoiceChatService extends ChangeNotifier {
   String? _currentUserId;
 
   StreamSubscription<QuerySnapshot>? _signalingSubscription;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestore;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for VoiceChatService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      return FirebaseAuth.instance;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for VoiceChatService', error: e);
+      return null;
+    }
+  }
 
   bool get isInitialized => _isInitialized;
   bool get isMuted => _isMuted;
@@ -36,17 +63,18 @@ class VoiceChatService extends ChangeNotifier {
 
     try {
       // Get user ID
-      final user = FirebaseAuth.instance.currentUser;
+      final auth = _authInstance;
+      final user = auth?.currentUser;
       if (user == null) {
         throw AuthenticationException('User must be logged in');
       }
       _currentUserId = user.uid;
 
       _isInitialized = true;
-      debugPrint('Voice chat service initialized (WebRTC)');
+      LoggerService.debug('Voice chat service initialized (WebRTC);');
       notifyListeners();
     } catch (e) {
-      debugPrint('Error initializing voice chat: $e');
+      LoggerService.error('Error initializing voice chat', error: e);
       _isInitialized = false;
     }
   }
@@ -86,23 +114,23 @@ class VoiceChatService extends ChangeNotifier {
       });
 
       // Listen for remote streams
-      _peerConnection!.onTrack = (RTCTrackEvent event) {
+      _peerConnection!.onTrack = (event) {
         if (event.streams.isNotEmpty) {
           final remoteUserId = event.streams[0].id;
           _remoteStreams[remoteUserId] = event.streams[0];
           notifyListeners();
-          debugPrint('Voice chat: Remote stream received from $remoteUserId');
+          LoggerService.debug('Voice chat: Remote stream received from $remoteUserId');
         }
       };
 
       // Listen for ICE candidates
-      _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
+      _peerConnection!.onIceCandidate = (candidate) {
         _sendIceCandidate(channelName, candidate);
       };
 
       // Listen for connection state changes
-      _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
-        debugPrint('Voice chat: Connection state: $state');
+      _peerConnection!.onConnectionState = (state) {
+        LoggerService.debug('Voice chat: Connection state: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           _isInChannel = true;
           notifyListeners();
@@ -116,7 +144,7 @@ class VoiceChatService extends ChangeNotifier {
       };
 
       // Start listening for signaling messages
-      _listenForSignaling(channelName);
+      unawaited(_listenForSignaling(channelName));
 
       // Create and send offer
       final offer = await _peerConnection!.createOffer();
@@ -124,10 +152,10 @@ class VoiceChatService extends ChangeNotifier {
       await _sendOffer(channelName, offer);
 
       _isInChannel = true;
-      debugPrint('Voice chat: Joined channel $channelName');
+      LoggerService.debug('Voice chat: Joined channel $channelName');
       notifyListeners();
     } catch (e) {
-      debugPrint('Error joining voice channel: $e');
+      LoggerService.error('Error joining voice channel', error: e);
       await leaveChannel();
       rethrow;
     }
@@ -135,7 +163,7 @@ class VoiceChatService extends ChangeNotifier {
 
   Future<void> leaveChannel() async {
     try {
-      _signalingSubscription?.cancel();
+      unawaited((_signalingSubscription?.cancel() ?? Future<void>.value()) as Future<dynamic>,);
       _signalingSubscription = null;
 
       // Stop local stream
@@ -155,7 +183,7 @@ class VoiceChatService extends ChangeNotifier {
         try {
           await stream.dispose();
         } catch (e) {
-          debugPrint('Error disposing remote stream: $e');
+          LoggerService.error('Error disposing remote stream', error: e);
         }
       }
       _remoteStreams.clear();
@@ -163,7 +191,11 @@ class VoiceChatService extends ChangeNotifier {
 
       // Clean up signaling data
       if (_currentChannelId != null && _currentUserId != null) {
-        final signalingRef = _firestore
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          throw NetworkException('Firebase not available');
+        }
+        final signalingRef = firestore
             .collection('voice_signaling')
             .doc(_currentChannelId)
             .collection('users')
@@ -173,10 +205,10 @@ class VoiceChatService extends ChangeNotifier {
 
       _isInChannel = false;
       _currentChannelId = null;
-      debugPrint('Voice chat: Left channel');
+      LoggerService.debug('Voice chat: Left channel');
       notifyListeners();
     } catch (e) {
-      debugPrint('Error leaving voice channel: $e');
+      LoggerService.error('Error leaving voice channel', error: e);
     }
   }
 
@@ -189,9 +221,9 @@ class VoiceChatService extends ChangeNotifier {
         track.enabled = !_isMuted;
       });
       notifyListeners();
-      debugPrint('Voice chat: ${_isMuted ? "Muted" : "Unmuted"}');
+      LoggerService.debug('Voice chat: ${_isMuted ? "Muted" : "Unmuted"}');
     } catch (e) {
-      debugPrint('Error toggling mute: $e');
+      LoggerService.error('Error toggling mute', error: e);
     }
   }
 
@@ -213,11 +245,15 @@ class VoiceChatService extends ChangeNotifier {
       ],
     };
 
-    return await createPeerConnection(configuration);
+    return createPeerConnection(configuration);
   }
 
   Future<void> _listenForSignaling(String channelId) async {
-    final signalingRef = _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      throw NetworkException('Firebase not available');
+    }
+    final signalingRef = firestore
         .collection('voice_signaling')
         .doc(channelId)
         .collection('users');
@@ -273,14 +309,19 @@ class VoiceChatService extends ChangeNotifier {
         await _peerConnection!.addCandidate(candidate);
       }
     } catch (e) {
-      debugPrint('Error handling signaling message: $e');
+      LoggerService.error('Error handling signaling message', error: e);
     }
   }
 
   Future<void> _sendOffer(String channelId, RTCSessionDescription offer) async {
     if (_currentUserId == null) return;
 
-    await _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.debug('Firebase not available, skipping cleanup');
+      return;
+    }
+    await firestore
         .collection('voice_signaling')
         .doc(channelId)
         .collection('users')
@@ -300,7 +341,12 @@ class VoiceChatService extends ChangeNotifier {
   ) async {
     if (_currentUserId == null) return;
 
-    await _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.debug('Firebase not available, skipping cleanup');
+      return;
+    }
+    await firestore
         .collection('voice_signaling')
         .doc(channelId)
         .collection('users')
@@ -320,7 +366,12 @@ class VoiceChatService extends ChangeNotifier {
   ) async {
     if (_currentUserId == null) return;
 
-    await _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.debug('Firebase not available, skipping cleanup');
+      return;
+    }
+    await firestore
         .collection('voice_signaling')
         .doc(channelId)
         .collection('users')

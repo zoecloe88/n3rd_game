@@ -1,13 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class LeaderboardEntry {
-  final String userId;
-  final String? displayName;
-  final String? email;
-  final int score;
-  final int rank;
 
   LeaderboardEntry({
     required this.userId,
@@ -27,6 +22,11 @@ class LeaderboardEntry {
       rank: rank,
     );
   }
+  final String userId;
+  final String? displayName;
+  final String? email;
+  final int score;
+  final int rank;
 }
 
 class LeaderboardService {
@@ -92,7 +92,7 @@ class LeaderboardService {
         return LeaderboardEntry.fromFirestore(entry.value, entry.key + 1);
       }).toList();
     } catch (e) {
-      debugPrint('Error fetching global leaderboard: $e');
+      LoggerService.error('Error fetching global leaderboard', error: e);
       return [];
     }
   }
@@ -147,7 +147,7 @@ class LeaderboardService {
         'hasMore': hasMore,
       };
     } catch (e) {
-      debugPrint('Error fetching global leaderboard with pagination: $e');
+      LoggerService.error('Error fetching global leaderboard with pagination', error: e);
       return {
         'entries': <LeaderboardEntry>[],
         'lastDocument': null,
@@ -176,7 +176,7 @@ class LeaderboardService {
 
       return snapshot.count! + 1;
     } catch (e) {
-      debugPrint('Error getting user rank: $e');
+      LoggerService.error('Error getting user rank', error: e);
       return 0;
     }
   }
@@ -207,7 +207,7 @@ class LeaderboardService {
         return rank >= startRank && rank <= userRank + range;
       }).toList();
     } catch (e) {
-      debugPrint('Error fetching leaderboard around user: $e');
+      LoggerService.error('Error fetching leaderboard around user', error: e);
       return [];
     }
   }

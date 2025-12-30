@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 
 class EditionModel {
-  final String id;
-  final String name;
-  final String emoji;
-  final String category;
-  final String categoryCount;
-  final bool isPremium;
-  final List<Color> gradientColors;
 
   const EditionModel({
     required this.id,
@@ -18,4 +11,11 @@ class EditionModel {
     required this.isPremium,
     required this.gradientColors,
   });
+  final String id;
+  final String name;
+  final String emoji;
+  final String category;
+  final String categoryCount;
+  final bool isPremium;
+  final List<Color> gradientColors;
 }

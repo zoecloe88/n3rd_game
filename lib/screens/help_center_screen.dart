@@ -1,13 +1,33 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/services/quick_tips_service.dart';
 import 'package:n3rd_game/services/knowledge_base_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
+import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/feedback_helper.dart';
+import 'package:n3rd_game/utils/accessibility_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/widgets/app_button.dart';
+import 'package:n3rd_game/widgets/app_card.dart';
+import 'package:n3rd_game/widgets/app_text_field.dart';
+import 'package:n3rd_game/widgets/app_chip.dart';
+import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
+import 'package:n3rd_game/widgets/error_recovery_widget.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
+/// Help Center screen providing access to quick tips, FAQ, and knowledge base articles
+///
+/// Features:
+/// - Search functionality with debouncing
+/// - Three tabs: Quick Tips, FAQ, Articles
+/// - Article detail view
+/// - Error handling and recovery
+/// - Full accessibility support
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
 
@@ -17,23 +37,63 @@ class HelpCenterScreen extends StatefulWidget {
 
 class _HelpCenterScreenState extends State<HelpCenterScreen> {
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   String _selectedTab = 'quick_tips';
   List<KnowledgeArticle> _searchResults = [];
   bool _isSearching = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+  Timer? _searchDebounceTimer;
+
+  static const String _tabQuickTips = 'quick_tips';
+  static const String _tabFAQ = 'faq';
+  static const String _tabArticles = 'articles';
+  static const Duration _searchDebounceDelay = Duration(milliseconds: 300);
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
+  /// Handle search input changes with debouncing
+  ///
+  /// Debounces search queries by 300ms to avoid excessive service calls
+  /// Shows error recovery UI if search fails
   void _onSearchChanged(String query) {
+    _searchDebounceTimer?.cancel();
     setState(() {
       _isSearching = query.isNotEmpty;
-      if (query.isNotEmpty) {
-        _searchResults = KnowledgeBaseService.searchArticles(query);
-      } else {
-        _searchResults = [];
+      _errorMessage = null;
+    });
+
+    if (query.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+
+    _searchDebounceTimer = Timer(_searchDebounceDelay, () {
+      if (!mounted) return;
+      try {
+        final results = KnowledgeBaseService.searchArticles(query);
+        setState(() {
+          _searchResults = results;
+          _errorMessage = null;
+        });
+      } catch (e) {
+        LoggerService.error(
+          'HelpCenter: Failed to search articles',
+          error: e,
+          stack: StackTrace.current,
+          fatal: false,
+        );
+        setState(() {
+          _errorMessage = 'Failed to search articles. Please try again.';
+          _searchResults = [];
+        });
+        FeedbackHelper.showError(context, _errorMessage!);
       }
     });
   }
@@ -41,7 +101,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor: AppColors.of(context).background,
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
@@ -52,40 +112,35 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
                   children: [
-                    Semantics(
-                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
-                      button: true,
-                      child: IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        tooltip:
-                            AppLocalizations.of(context)?.backButton ?? 'Back',
-                      ),
+                    AppButton(
+                      icon: Icons.arrow_back,
+                      onPressed: () => NavigationHelper.safePop(context),
+                      variant: AppButtonVariant.icon,
+                      semanticsLabel:
+                          AppLocalizations.of(context)?.backButton ?? 'Back',
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: AppColors.of(context).onDarkText,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Help Center',
                       style: AppTypography.headlineLarge.copyWith(
-                        color: Colors.white,
+                        color: AppColors.of(context).onDarkText,
                       ),
                     ),
                     const Spacer(),
-                    Semantics(
-                      label: 'Submit Feedback',
-                      button: true,
-                      child: IconButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const FeedbackScreen(),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.feedback_outlined,
-                          color: Colors.white,
-                        ),
-                        tooltip: 'Submit Feedback',
-                      ),
+                    AppButton(
+                      icon: Icons.feedback_outlined,
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const FeedbackScreen(),
+                        );
+                      },
+                      variant: AppButtonVariant.icon,
+                      semanticsLabel: 'Submit Feedback',
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: AppColors.of(context).onDarkText,
                     ),
                   ],
                 ),
@@ -93,59 +148,44 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
               // Search bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextField(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: AppTextField(
                   controller: _searchController,
                   onChanged: _onSearchChanged,
-                  style: AppTypography.bodyMedium.copyWith(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search help articles...',
-                    hintStyle: AppTypography.bodyMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
-                    ),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? Semantics(
-                            label: 'Clear search',
-                            button: true,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.clear,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                                _onSearchChanged('');
-                              },
-                              tooltip: 'Clear search',
-                            ),
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.2),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
+                  hint: 'Search help articles...',
+                  leadingIcon: Icons.search,
+                  trailingIcon:
+                      _searchController.text.isNotEmpty ? Icons.clear : null,
+                  onTrailingIconTap: _searchController.text.isNotEmpty
+                      ? () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        }
+                      : null,
+                  focusNode: _searchFocusNode,
+                  textInputAction: TextInputAction.search,
+                  semanticsLabel: 'Search help articles',
+                  semanticsHint: 'Type to search for help articles',
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
               // Tabs
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    _buildTab('Quick Tips', 'quick_tips'),
-                    _buildTab('FAQ', 'faq'),
-                    _buildTab('Articles', 'articles'),
-                  ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: AppCard(
+                  variant: AppCardVariant.filled,
+                  padding: EdgeInsets.zero,
+                  backgroundColor:
+                      AppColors.of(context).onDarkText.withValues(alpha: 0.1),
+                  child: Row(
+                    children: [
+                      _buildTab('Quick Tips', _tabQuickTips),
+                      _buildTab('FAQ', _tabFAQ),
+                      _buildTab('Articles', _tabArticles),
+                    ],
+                  ),
                 ),
               ),
 
@@ -160,27 +200,35 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           ),
         ),
       ),
-      );
+    );
   }
 
+  /// Build a tab button with accessibility support
+  ///
+  /// [label] - Display text for the tab
+  /// [value] - Tab identifier value
   Widget _buildTab(String label, String value) {
     final isSelected = _selectedTab == value;
+    final colors = AppColors.of(context);
     return Expanded(
-      child: GestureDetector(
+      child: AccessibilityHelper.buttonSemantics(
+        label: '$label tab',
+        hint: isSelected ? 'Selected' : 'Tap to select',
+        selected: isSelected,
         onTap: () => setState(() => _selectedTab = value),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.white.withValues(alpha: 0.3)
+                ? colors.onDarkText.withValues(alpha: 0.3)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.medium),
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: AppTypography.labelLarge.copyWith(
-              color: Colors.white,
+              color: colors.onDarkText,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -189,70 +237,120 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
+  /// Build content for the currently selected tab
+  ///
+  /// Shows loading state, error recovery, or tab-specific content
   Widget _buildTabContent() {
+    if (_isLoading) {
+      return const StandardizedLoadingWidget(
+        message: 'Loading help content...',
+      );
+    }
+
+    if (_errorMessage != null && !_isSearching) {
+      return ErrorRecoveryWidget(
+        errorMessage: _errorMessage!,
+        onRetry: () {
+          setState(() {
+            _errorMessage = null;
+            _isLoading = true;
+          });
+          // Reload content
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              setState(() => _isLoading = false);
+            }
+          });
+        },
+      );
+    }
+
     switch (_selectedTab) {
-      case 'quick_tips':
+      case _tabQuickTips:
         return _buildQuickTips();
-      case 'faq':
+      case _tabFAQ:
         return _buildFAQ();
-      case 'articles':
+      case _tabArticles:
         return _buildArticles();
       default:
         return _buildQuickTips();
     }
   }
 
+  /// Build the Quick Tips tab content
+  ///
+  /// Displays game gems organized by category with error handling
   Widget _buildQuickTips() {
-    final gems = QuickTipsService.getAllGems();
-    final categories = gems.map((g) => g.category).toSet().toList();
+    try {
+      final gems = QuickTipsService.getAllGems();
+      final categories = gems.map((g) => g.category).toSet().toList();
+      final colors = AppColors.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Game Gems & Tips',
-          style: AppTypography.headlineLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Discover all the secrets to maximize your score and master the game!',
-          style: AppTypography.bodyMedium.copyWith(
-            color: Colors.white.withValues(alpha: 0.8),
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Text(
+            'Game Gems & Tips',
+            style: AppTypography.headlineLarge.copyWith(
+              color: colors.primaryText,
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        ...categories.map((category) {
-          final categoryGems =
-              gems.where((g) => g.category == category).toList();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                category.toUpperCase(),
-                style: AppTypography.labelLarge.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Discover all the secrets to maximize your score and master the game!',
+            style: AppTypography.bodyMedium.copyWith(
+              color: colors.secondaryText,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ...categories.map((category) {
+            final categoryGems =
+                gems.where((g) => g.category == category).toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.toUpperCase(),
+                  style: AppTypography.labelLarge.copyWith(
+                    color: colors.primaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              ...categoryGems.map((gem) => _buildGemCard(gem)),
-              const SizedBox(height: 24),
-            ],
-          );
-        }),
-      ],
-    );
+                const SizedBox(height: AppSpacing.md),
+                ...categoryGems.map((gem) => _buildGemCard(gem)),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+            );
+          }),
+        ],
+      );
+    } catch (e) {
+      LoggerService.error(
+        'HelpCenter: Failed to load quick tips',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      return ErrorRecoveryWidget(
+        errorMessage: 'Failed to load quick tips. Please try again.',
+        onRetry: () {
+          setState(() {});
+        },
+      );
+    }
   }
 
+  /// Build a card displaying a game gem (tip)
+  ///
+  /// [gem] - The game gem to display
   Widget _buildGemCard(GameGem gem) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black, // Black buttons with white text
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
+    final colors = AppColors.of(context);
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      backgroundColor: colors.cardBackground,
+      semanticsLabel: '${gem.title}. ${gem.description}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -262,32 +360,35 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 child: Text(
                   gem.title,
                   style: AppTypography.titleLarge.copyWith(
-                    color: Colors.white,
+                    color: colors.primaryText,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.info.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.small),
                 ),
                 child: Text(
                   gem.points,
                   style: AppTypography.labelSmall.copyWith(
-                    color: Colors.white,
+                    color: colors.onDarkText,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             gem.description,
             style: AppTypography.bodyMedium.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: colors.secondaryText,
             ),
           ),
         ],
@@ -295,159 +396,230 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
+  /// Build the FAQ tab content
+  ///
+  /// Displays frequently asked questions from the knowledge base
   Widget _buildFAQ() {
-    final faqArticles = KnowledgeBaseService.getAllArticles()
-        .where((a) => a.category == 'Support' || a.id == 'troubleshooting')
-        .toList();
+    try {
+      final faqArticles = KnowledgeBaseService.getAllArticles()
+          .where((a) => a.category == 'Support' || a.id == 'troubleshooting')
+          .toList();
+      final colors = AppColors.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Frequently Asked Questions',
-          style: AppTypography.headlineLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: 24),
-        ...faqArticles.map((article) => _buildArticleCard(article)),
-      ],
-    );
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Text(
+            'Frequently Asked Questions',
+            style: AppTypography.headlineLarge.copyWith(
+              color: colors.primaryText,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ...faqArticles.map((article) => _buildArticleCard(article)),
+        ],
+      );
+    } catch (e) {
+      LoggerService.error(
+        'HelpCenter: Failed to load FAQ',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      return ErrorRecoveryWidget(
+        errorMessage: 'Failed to load FAQ. Please try again.',
+        onRetry: () {
+          setState(() {});
+        },
+      );
+    }
   }
 
+  /// Build the Articles tab content
+  ///
+  /// Displays all knowledge base articles organized by category
   Widget _buildArticles() {
-    final articles = KnowledgeBaseService.getAllArticles();
-    final categories = articles.map((a) => a.category).toSet().toList();
+    try {
+      final articles = KnowledgeBaseService.getAllArticles();
+      final categories = articles.map((a) => a.category).toSet().toList();
+      final colors = AppColors.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Knowledge Base',
-          style: AppTypography.headlineLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: 24),
-        ...categories.map((category) {
-          final categoryArticles =
-              articles.where((a) => a.category == category).toList();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                category,
-                style: AppTypography.titleLarge.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...categoryArticles.map((article) => _buildArticleCard(article)),
-              const SizedBox(height: 24),
-            ],
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildArticleCard(KnowledgeArticle article) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        color: Colors.black, // Black buttons with white text
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: () => _showArticleDetail(article),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Text(
+            'Knowledge Base',
+            style: AppTypography.headlineLarge.copyWith(
+              color: colors.primaryText,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ...categories.map((category) {
+            final categoryArticles =
+                articles.where((a) => a.category == category).toList();
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  article.title,
+                  category,
                   style: AppTypography.titleLarge.copyWith(
-                    color: Colors.white, // White text on black background
+                    color: colors.primaryText,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${article.content.substring(0, article.content.length > 150 ? 150 : article.content.length)}...',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8), // White text
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: article.tags.take(3).map((tag) {
-                    return Chip(
-                      label: Text(tag, style: AppTypography.labelSmall),
-                      backgroundColor: Colors.black, // Black chip background
-                      labelStyle: const TextStyle(
-                        color: Colors.white, // White text
-                        fontSize: 10,
-                      ),
-                    );
-                  }).toList(),
-                ),
+                const SizedBox(height: AppSpacing.md),
+                ...categoryArticles
+                    .map((article) => _buildArticleCard(article)),
+                const SizedBox(height: AppSpacing.lg),
               ],
+            );
+          }),
+        ],
+      );
+    } catch (e) {
+      LoggerService.error(
+        'HelpCenter: Failed to load articles',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      return ErrorRecoveryWidget(
+        errorMessage: 'Failed to load articles. Please try again.',
+        onRetry: () {
+          setState(() {});
+        },
+      );
+    }
+  }
+
+  /// Build a card displaying a knowledge base article
+  ///
+  /// [article] - The article to display
+  Widget _buildArticleCard(KnowledgeArticle article) {
+    final colors = AppColors.of(context);
+    final preview = article.content.length > 150
+        ? '${article.content.substring(0, 150)}...'
+        : article.content;
+
+    return AppCard(
+      variant: AppCardVariant.elevated,
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      onTap: () => _showArticleDetail(article),
+      semanticsLabel: '${article.title}. $preview',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            article.title,
+            style: AppTypography.titleLarge.copyWith(
+              color: colors.primaryText,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            preview,
+            style: AppTypography.bodyMedium.copyWith(
+              color: colors.secondaryText,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: article.tags.take(3).map((tag) {
+              return AppChip(
+                label: tag,
+                variant: AppChipVariant.filled,
+                semanticsLabel: 'Tag: $tag',
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
 
+  /// Build search results view
+  ///
+  /// Shows error state, empty state, or list of matching articles
   Widget _buildSearchResults() {
+    if (_errorMessage != null) {
+      return ErrorRecoveryWidget(
+        errorMessage: _errorMessage!,
+        onRetry: () {
+          _onSearchChanged(_searchController.text);
+        },
+      );
+    }
+
     if (_searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No results found',
-              style: AppTypography.headlineLarge.copyWith(color: Colors.white),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try different keywords',
-              style: AppTypography.bodyMedium.copyWith(
-                color: Colors.white.withValues(alpha: 0.7),
+      final colors = AppColors.of(context);
+      return Semantics(
+        label: 'No search results found. Try different keywords.',
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AccessibilityHelper.accessibleIcon(
+                icon: Icons.search_off,
+                label: 'No results',
+                size: 64,
+                color: colors.tertiaryText,
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'No results found',
+                style: AppTypography.headlineLarge.copyWith(
+                  color: colors.primaryText,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Try different keywords',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: colors.secondaryText,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Search Results (${_searchResults.length.toString()})',
-          style: AppTypography.headlineLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: 16),
-        ..._searchResults.map((article) => _buildArticleCard(article)),
-      ],
+    final colors = AppColors.of(context);
+    return Semantics(
+      label: 'Search results: ${_searchResults.length} articles found',
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Text(
+            'Search Results (${_searchResults.length})',
+            style: AppTypography.headlineLarge.copyWith(
+              color: colors.primaryText,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ..._searchResults.map((article) => _buildArticleCard(article)),
+        ],
+      ),
     );
   }
 
+  /// Show article detail in a dialog
+  ///
+  /// [article] - The article to display in detail
   void _showArticleDetail(KnowledgeArticle article) {
     final dialogColors = AppColors.of(context);
     showDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: dialogColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.large),
+        ),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
           child: Column(
@@ -468,16 +640,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                         style: AppTypography.headlineLarge,
                       ),
                     ),
-                    Semantics(
-                      label:
+                    AppButton(
+                      icon: Icons.close,
+                      onPressed: () => NavigationHelper.safePop(context),
+                      variant: AppButtonVariant.icon,
+                      semanticsLabel:
                           AppLocalizations.of(context)?.closeButton ?? 'Close',
-                      button: true,
-                      child: IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                        tooltip: AppLocalizations.of(context)?.closeButton ??
-                            'Close',
-                      ),
+                      backgroundColor: Colors.transparent,
                     ),
                   ],
                 ),

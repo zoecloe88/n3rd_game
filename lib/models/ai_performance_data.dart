@@ -1,17 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Model for storing AI performance data for adaptive difficulty
-class AIPerformanceData {
-  final String userId;
-  final double averageAccuracy;
-  final double averageResponseTime; // in seconds
-  final Map<String, double> categoryAccuracy; // category -> accuracy percentage
-  final Map<String, int> categoryAttempts; // category -> number of attempts
-  final int totalRounds;
-  final int totalCorrect;
-  final int totalWrong;
-  final DateTime lastUpdated;
-  final double currentDifficultyLevel; // 0.0 (easy) to 1.0 (hard)
+class AIPerformanceData { // 0.0 (easy) to 1.0 (hard)
 
   AIPerformanceData({
     required this.userId,
@@ -46,6 +36,16 @@ class AIPerformanceData {
           (data['currentDifficultyLevel'] ?? 0.5).toDouble(),
     );
   }
+  final String userId;
+  final double averageAccuracy;
+  final double averageResponseTime; // in seconds
+  final Map<String, double> categoryAccuracy; // category -> accuracy percentage
+  final Map<String, int> categoryAttempts; // category -> number of attempts
+  final int totalRounds;
+  final int totalCorrect;
+  final int totalWrong;
+  final DateTime lastUpdated;
+  final double currentDifficultyLevel;
 
   /// Convert to Firestore map
   Map<String, dynamic> toFirestore() {

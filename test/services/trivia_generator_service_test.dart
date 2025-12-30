@@ -2,28 +2,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/difficulty_level.dart';
-import 'package:n3rd_game/data/trivia_templates_consolidated.dart';
+import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
+    deferred as templates;
 
 void main() {
   group('TriviaGeneratorService', () {
-    TriviaGeneratorService? triviaService; // Make nullable to handle initialization failure
+    TriviaGeneratorService?
+        triviaService; // Make nullable to handle initialization failure
 
     setUpAll(() async {
+      // Load deferred library first
+      await templates.loadLibrary();
       // Initialize templates before creating service
       // Catch validation errors - templates may have minor issues but tests should still run
       try {
-        await EditionTriviaTemplates.initialize();
+        await templates.EditionTriviaTemplates.initialize();
       } catch (e) {
         // If initialization fails due to validation, tests can still validate TriviaItem structure
         // This allows tests to run even if template data has minor issues
       }
     });
 
+    tearDownAll(() {
+      // Cleanup if needed
+    });
+
     setUp(() {
       // Service requires templates to be initialized
       // If templates failed to initialize, tests will verify TriviaItem structure only
       // Skip service creation if templates aren't initialized
-      if (EditionTriviaTemplates.isInitialized) {
+      if (templates.EditionTriviaTemplates.isInitialized) {
         try {
           triviaService = TriviaGeneratorService();
         } catch (e) {
@@ -89,4 +97,3 @@ void main() {
     });
   });
 }
-

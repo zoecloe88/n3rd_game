@@ -1,17 +1,21 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/services/game_service.dart' as game_service;
+import 'package:n3rd_game/models/game_mode_config.dart' as game_mode_config;
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
 import 'package:n3rd_game/services/ai_mode_service.dart';
 import 'package:n3rd_game/services/text_to_speech_service.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
+import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/config/app_config.dart';
+import 'package:n3rd_game/config/game_constants.dart';
 import 'package:n3rd_game/services/challenge_service.dart';
 import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
@@ -29,7 +33,11 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
+import 'package:n3rd_game/services/accessibility_service.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/utils/edition_validator.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
+import 'package:n3rd_game/widgets/celebration_animation.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -43,16 +51,42 @@ class _GameScreenState extends State<GameScreen>
   bool _hasShownDoubleTapInstruction = false;
   SubscriptionTier? _initialTier;
   bool _isValidatingSubscription = false; // Race condition protection
+  bool _isInitializing = true;
+  late String _initializationPhase;
+  double _initializationProgress = 0.0;
+  String? _currentEdition;
+  String? _currentEditionName;
+  bool _isAIEdition = false;
 
   @override
   void initState() {
     super.initState();
+    _initializationPhase =
+        AppLocalizations.of(context)?.preparingGame ?? 'Preparing game...';
     WidgetsBinding.instance.addObserver(this);
     _checkDoubleTapInstruction();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Context is available in addPostFrameCallback after widget is built
       final buildContext = context;
+      unawaited(_initializeGame(buildContext));
+    });
+  }
+
+  /// Initialize game with phased loading
+  Future<void> _initializeGame(BuildContext buildContext) async {
+    if (!mounted) return;
+
+    try {
+      // Phase 1: Service initialization (0-20%)
+      if (mounted) {
+        setState(() {
+          _initializationPhase = AppLocalizations.of(buildContext)
+                  ?.initializingServices ??
+              'Initializing services...';
+          _initializationProgress = 0.1;
+        });
+      }
 
       final service = Provider.of<GameService>(buildContext, listen: false);
       final subscriptionService = Provider.of<SubscriptionService>(
@@ -63,6 +97,31 @@ class _GameScreenState extends State<GameScreen>
         buildContext,
         listen: false,
       );
+      
+      // Set extended time multiplier from AccessibilityService
+      try {
+        final accessibilityService = Provider.of<AccessibilityService>(
+          buildContext,
+          listen: false,
+        );
+        final extendedTimeMultiplier = accessibilityService.settings.extendedTimeLimits
+            ? 1.5 // 1.5x multiplier when extended time limits are enabled
+            : 1.0;
+        service.setExtendedTimeMultiplier(extendedTimeMultiplier);
+      } catch (e) {
+        // AccessibilityService not available, use default (1.0)
+        service.setExtendedTimeMultiplier(1.0);
+      }
+
+      // Phase 2: Subscription validation (20-40%)
+      if (mounted) {
+        setState(() {
+          _initializationPhase = AppLocalizations.of(buildContext)
+                  ?.validatingSubscription ??
+              'Validating subscription...';
+          _initializationProgress = 0.3;
+        });
+      }
 
       // Store initial tier for validation
       _initialTier = subscriptionService.currentTier;
@@ -78,6 +137,16 @@ class _GameScreenState extends State<GameScreen>
         ),
       );
 
+      // Phase 3: Free tier check (40-50%)
+      if (mounted) {
+        setState(() {
+          _initializationPhase = AppLocalizations.of(buildContext)
+                  ?.checkingGameAvailability ??
+              'Checking game availability...';
+          _initializationProgress = 0.45;
+        });
+      }
+
       // Check if free tier user has games remaining
       if (subscriptionService.isFree) {
         if (!freeTierService.canPlay()) {
@@ -87,66 +156,198 @@ class _GameScreenState extends State<GameScreen>
               buildContext,
               listen: false,
             );
-            analyticsService.logFreeTierLimitReached();
-            _showGameOverLimitDialog(buildContext);
+            unawaited(analyticsService.logFreeTierLimitReached());
+            if (mounted) {
+              setState(() {
+                _isInitializing = false;
+              });
+            }
+            unawaited(_showGameOverLimitDialog(buildContext));
             return;
           }
         }
       }
 
-      if (!buildContext.mounted) return;
+      if (!buildContext.mounted || !mounted) return;
 
-      final args = ModalRoute.of(buildContext)?.settings.arguments;
+      // Phase 4: Argument parsing (50-60%)
+      if (mounted) {
+        setState(() {
+          _initializationPhase = AppLocalizations.of(buildContext)
+                  ?.loadingGameSettings ??
+              'Loading game settings...';
+          _initializationProgress = 0.55;
+        });
+      }
+
+      // Track navigation entry
+      final routeArgs = ModalRoute.of(buildContext)?.settings.arguments;
+      final argsMap = routeArgs is Map<String, dynamic> ? routeArgs : null;
+      _trackNavigationEntry(null, argsMap);
+
+      final args = routeArgs;
       GameMode? mode;
       String? difficulty;
       List<TriviaItem>? customTriviaPool;
+      bool argumentValidationSuccess = true;
+      String? argumentValidationError;
 
-      // Handle both simple GameMode argument and Map argument
-      if (args is GameMode) {
+      // Handle both simple GameMode argument and Map argument with explicit validation
+      if (args is game_mode_config.GameMode) {
         mode = args;
       } else if (args is Map<String, dynamic>) {
-        mode = args['mode'] as GameMode?;
-        difficulty = args['difficulty'] as String?;
-        customTriviaPool = args['triviaPool'] as List<TriviaItem>?;
+        // Validate mode
+        final modeValue = args['mode'];
+        if (modeValue is game_mode_config.GameMode) {
+          mode = modeValue;
+        } else if (modeValue is String) {
+          mode = _parseGameModeFromString(modeValue);
+          if (mode == null) {
+            argumentValidationSuccess = false;
+            argumentValidationError = 'Invalid mode string: $modeValue';
+            LoggerService.warning(
+                'Invalid GameMode string provided: $modeValue',);
+          }
+        } else if (modeValue != null) {
+          argumentValidationSuccess = false;
+          argumentValidationError =
+              'Invalid mode type: ${modeValue.runtimeType}';
+          LoggerService.warning(
+              'Invalid GameMode type: ${modeValue.runtimeType}',);
+        }
+
+        // Validate difficulty
+        final diffValue = args['difficulty'];
+        if (diffValue is String) {
+          const allowedDifficulties = ['easy', 'medium', 'hard', 'insane'];
+          final lowerDiff = diffValue.toLowerCase();
+          if (allowedDifficulties.contains(lowerDiff)) {
+            difficulty = lowerDiff;
+          } else {
+            argumentValidationSuccess = false;
+            argumentValidationError = 'Invalid difficulty: $diffValue';
+            LoggerService.warning('Invalid difficulty value: $diffValue');
+          }
+        } else if (diffValue != null) {
+          argumentValidationSuccess = false;
+          argumentValidationError =
+              'Invalid difficulty type: ${diffValue.runtimeType}';
+          LoggerService.warning(
+              'Invalid difficulty type: ${diffValue.runtimeType}',);
+        }
+
+        // Validate triviaPool
+        final poolValue = args['triviaPool'];
+        if (poolValue is List) {
+          if (poolValue.isEmpty) {
+            LoggerService.warning('Empty triviaPool provided');
+          } else if (poolValue.every((item) => item is TriviaItem)) {
+            customTriviaPool = poolValue.cast<TriviaItem>();
+          } else {
+            argumentValidationSuccess = false;
+            argumentValidationError =
+                'Invalid triviaPool: contains non-TriviaItem elements';
+            LoggerService.warning(
+                'Invalid triviaPool: contains non-TriviaItem elements',);
+          }
+        } else if (poolValue != null) {
+          argumentValidationSuccess = false;
+          argumentValidationError =
+              'Invalid triviaPool type: ${poolValue.runtimeType}';
+          LoggerService.warning(
+              'Invalid triviaPool type: ${poolValue.runtimeType}',);
+        }
+
+        // Extract edition information
+        _currentEdition = args['edition'] as String?;
+        _currentEditionName = args['editionName'] as String?;
+        _isAIEdition = args['isAIEdition'] as bool? ?? false;
+
+        // Validate edition ID format using EditionValidator
+        if (_currentEdition != null) {
+          if (!EditionValidator.isValidEditionId(_currentEdition)) {
+            LoggerService.warning(
+                'Invalid edition ID format: $_currentEdition',);
+            // Normalize the edition ID if possible
+            final normalized =
+                EditionValidator.normalizeEditionId(_currentEdition!);
+            if (normalized.isNotEmpty) {
+              _currentEdition = normalized;
+              LoggerService.debug('Normalized edition ID to: $_currentEdition');
+            } else {
+              _currentEdition = null; // Clear invalid edition
+            }
+          }
+        }
+
+        // Extract Flip mode reveal setting if provided
+        final revealMode = args['revealMode'] as String?;
+        if (revealMode != null && mode == game_mode_config.GameMode.flip) {
+          // Set reveal mode in GameService if provided
+          final gameService =
+              Provider.of<GameService>(buildContext, listen: false);
+          unawaited(gameService.setFlipRevealMode(revealMode));
+        }
+
         // Handle edition-specific arguments
         if (args['edition'] != null && mode == null) {
           // Editions may not have a specific mode, default to classic
-          mode = GameMode.classic;
+          mode = game_mode_config.GameMode.classic;
         }
+      } else if (args != null) {
+        // Invalid argument type
+        argumentValidationSuccess = false;
+        argumentValidationError = 'Invalid argument type: ${args.runtimeType}';
+        LoggerService.warning(
+            'Invalid argument type provided to GameScreen: ${args.runtimeType}',);
       }
+
+      // Track argument validation for analytics
+      _trackArgumentValidation(
+          argumentValidationSuccess, argumentValidationError,);
 
       // CRITICAL: Ensure mode has a default value if args is null or invalid
       // This prevents game from failing to start when no arguments are provided
-      mode ??= GameMode.classic;
+      final originalMode = mode;
+      mode ??= game_mode_config.GameMode.classic;
 
-      // Log initialization for debugging
-      if (kDebugMode) {
-        debugPrint('GameScreen: Initializing with mode=${mode.name}, args=$args');
+      // Track mode fallback if it occurred
+      if (originalMode == null && mode == game_mode_config.GameMode.classic) {
+        _trackModeFallback(
+            game_mode_config.GameMode.classic, game_mode_config.GameMode.classic, 'no_mode_provided',);
       }
 
+      // Log initialization for debugging
+      LoggerService.debug(
+        'GameScreen: Initializing with mode=${mode.name}, args=$args',
+      );
+
       // Ensure free tier only uses Classic mode
-      if (subscriptionService.isFree && mode != GameMode.classic) {
-        mode = GameMode.classic;
+      final modeBeforeTierCheck = mode;
+      if (subscriptionService.isFree && mode != game_mode_config.GameMode.classic) {
+        _trackModeFallback(
+            modeBeforeTierCheck, game_mode_config.GameMode.classic, 'free_tier_restriction',);
+        mode = game_mode_config.GameMode.classic;
       }
 
       // Check AI mode access (Premium only)
-      if (mode == GameMode.ai && !subscriptionService.isPremium) {
+      if (mode == game_mode_config.GameMode.ai && !subscriptionService.isPremium) {
         if (buildContext.mounted) {
           // Log game mode selection attempt
           final analyticsService = Provider.of<AnalyticsService>(
             buildContext,
             listen: false,
           );
-          analyticsService.logGameModeSelected(
+          unawaited(analyticsService.logGameModeSelected(
             'ai',
             subscriptionService.tierName,
-          );
+          ),);
 
-          _showUpgradeDialog(
+          unawaited(_showUpgradeDialog(
             buildContext,
             'AI Mode',
             'AI Mode is only available with Premium subscription. Upgrade to Premium to access personalized, adaptive gameplay!',
-          );
+          ),);
         }
         return;
       }
@@ -157,16 +358,30 @@ class _GameScreenState extends State<GameScreen>
           buildContext,
           listen: false,
         );
-        analyticsService.logGameModeSelected(
+        unawaited(analyticsService.logGameModeSelected(
           mode.name,
           subscriptionService.tierName,
-        );
+        ),);
+
+        // Log edition-specific analytics if playing an edition
+        if (_currentEdition != null) {
+          await analyticsService.logCustomEvent(
+            'game_started',
+            parameters: {
+              'mode': mode.name,
+              'edition': _currentEdition!,
+              'edition_name': _currentEditionName ?? 'Unknown',
+              'is_ai_edition': _isAIEdition,
+              'tier': subscriptionService.tierName,
+            },
+          );
+        }
       }
 
       if (!mounted) return;
 
       // Handle AI mode timing
-      if (mode == GameMode.ai) {
+      if (mode == game_mode_config.GameMode.ai) {
         final aiModeService = Provider.of<AIModeService>(
           context,
           listen: false,
@@ -179,7 +394,9 @@ class _GameScreenState extends State<GameScreen>
       // Use custom trivia pool if provided (e.g., from AI Edition)
       List<TriviaItem> triviaPool;
       try {
+        if (!mounted) return;
         final analyticsService = Provider.of<AnalyticsService>(
+          // ignore: use_build_context_synchronously
           buildContext,
           listen: false,
         );
@@ -187,20 +404,47 @@ class _GameScreenState extends State<GameScreen>
         if (customTriviaPool != null && customTriviaPool.isNotEmpty) {
           triviaPool = customTriviaPool;
           await analyticsService.logTriviaGeneration('custom', true);
-        } else {
-          // Generate trivia using Provider service with retry logic
-          final generator = Provider.of<TriviaGeneratorService>(
-            buildContext,
-            listen: false,
+          if (!mounted) return;
+        } else if (_currentEdition != null) {
+          // Edition games should have trivia pool or use edition-specific content system
+          // For now, generate trivia as fallback, but log warning
+          LoggerService.warning(
+            'Edition game started without trivia pool: $_currentEdition',
           );
+          // Generate trivia using Provider service with retry logic
+          // Use helper method that handles provider errors gracefully
+          if (!mounted) return;
+          // ignore: use_build_context_synchronously
+          final generator = _getTriviaGeneratorService(buildContext);
 
           // Try generating with retry and fallback
           triviaPool = await _generateTriviaWithRetry(
+            // ignore: use_build_context_synchronously
             buildContext,
             generator,
             analyticsService,
             mode.name,
           );
+          if (!mounted) return;
+        } else {
+          // Standard game mode - generate trivia
+          // Generate trivia using Provider service with retry logic
+          // Use helper method that handles provider errors gracefully
+          if (!mounted) return;
+          final generator = _getTriviaGeneratorService(
+            // ignore: use_build_context_synchronously
+            buildContext,
+          );
+
+          // Try generating with retry and fallback
+          triviaPool = await _generateTriviaWithRetry(
+            // ignore: use_build_context_synchronously
+            buildContext,
+            generator,
+            analyticsService,
+            mode.name,
+          );
+          if (!mounted) return;
 
           // Validate trivia pool is not empty
           if (triviaPool.isEmpty) {
@@ -211,12 +455,12 @@ class _GameScreenState extends State<GameScreen>
             );
             // Check buildContext.mounted directly (not State.mounted)
             if (buildContext.mounted) {
-              _showTriviaErrorDialog(
+              unawaited(_showTriviaErrorDialog(
                 buildContext,
                 AppLocalizations.of(buildContext)?.noTriviaContentAvailable ??
                     'No trivia content available after multiple attempts. '
                         'This may indicate a temporary issue. Please try again or restart the app.',
-              );
+              ),);
             }
             return;
           }
@@ -228,9 +472,7 @@ class _GameScreenState extends State<GameScreen>
         }
       } on GameException catch (e) {
         // Handle game-specific errors with user-friendly messages
-        if (kDebugMode) {
-          debugPrint('Game error: $e');
-        }
+        LoggerService.warning('Game error in GameScreen initialization', error: e);
         if (buildContext.mounted) {
           final catchAnalyticsService = Provider.of<AnalyticsService>(
             buildContext,
@@ -246,29 +488,20 @@ class _GameScreenState extends State<GameScreen>
             // Ignore analytics errors
           }
           if (buildContext.mounted) {
-            final localizations = AppLocalizations.of(buildContext);
-            String errorMessage = localizations?.failedToLoadTrivia ??
-                'Failed to load trivia content. ';
-            if (e.toString().contains('No templates available')) {
-              errorMessage += localizations?.templateInitializationIssue ??
-                  'Template initialization issue detected. Please restart the app.';
-            } else if (e.toString().contains(
-                  'Unable to generate unique trivia',
-                )) {
-              errorMessage += localizations?.allContentUsed ??
-                  'All available content has been used. Try clearing history or selecting a different theme.';
-            } else {
-              errorMessage += e.message;
-            }
-            _showTriviaErrorDialog(buildContext, errorMessage);
+            final errorMessage =
+                ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
           }
         }
         return;
       } on ValidationException catch (e) {
-        // Handle validation errors (template/content issues)
-        if (kDebugMode) {
-          debugPrint('Validation error: $e');
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
         }
+        // Handle validation errors (template/content issues)
+        LoggerService.warning('Validation error in GameScreen initialization', error: e);
         if (buildContext.mounted) {
           final catchAnalyticsService = Provider.of<AnalyticsService>(
             buildContext,
@@ -284,19 +517,24 @@ class _GameScreenState extends State<GameScreen>
             // Ignore analytics errors
           }
           if (buildContext.mounted) {
-            _showTriviaErrorDialog(
-              buildContext,
-              AppLocalizations.of(buildContext)?.triviaValidationFailed ??
-                  'Trivia content validation failed. Please restart the app or contact support if this persists.',
-            );
+            final errorMessage =
+                ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
           }
         }
         return;
-      } catch (e) {
-        // Handle any other unexpected errors
-        if (kDebugMode) {
-          debugPrint('Failed to load trivia: $e');
+      } catch (e, stackTrace) {
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
         }
+        // Handle any other unexpected errors
+        LoggerService.error(
+          'Failed to load trivia in GameScreen initialization',
+          error: e,
+          stack: stackTrace,
+        );
         // Log trivia generation failure
         // Check buildContext.mounted before accessing Provider
         if (buildContext.mounted) {
@@ -315,26 +553,22 @@ class _GameScreenState extends State<GameScreen>
           }
           // Check buildContext.mounted again after async operation
           if (buildContext.mounted) {
-            // Provide more specific error message based on exception type
-            final localizations = AppLocalizations.of(buildContext);
-            String errorMessage = localizations?.failedToLoadTrivia ??
-                'Failed to load trivia content. ';
-            if (e.toString().contains('No templates available')) {
-              errorMessage += localizations?.templateInitializationIssue ??
-                  'Template initialization issue detected. Please restart the app.';
-            } else if (e.toString().contains(
-                  'Unable to generate unique trivia',
-                )) {
-              errorMessage += localizations?.allContentUsed ??
-                  'All available content has been used. Try clearing history or selecting a different theme.';
-            } else {
-              errorMessage += localizations?.checkConnectionAndRetry ??
-                  'Please check your connection and try again.';
-            }
-            _showTriviaErrorDialog(buildContext, errorMessage);
+            final errorMessage =
+                ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
           }
         }
         return;
+      }
+
+      // Phase 6: Game start (90-100%)
+      if (mounted) {
+        setState(() {
+          _initializationPhase =
+              AppLocalizations.of(buildContext)?.startingGame ??
+                  'Starting game...';
+          _initializationProgress = 0.95;
+        });
       }
 
       // CRITICAL: Attempt to start game FIRST, then record game start only if successful
@@ -342,14 +576,14 @@ class _GameScreenState extends State<GameScreen>
       // Flow: Start game → If successful, record slot → Continue
       // If startNewRound() throws, the slot is never recorded, preserving user's daily limit
       try {
-        // CRITICAL: Mode is guaranteed to be non-null (set above with ??= GameMode.classic)
+        // CRITICAL: Mode is guaranteed to be non-null (set above with ??= game_mode_config.GameMode.classic)
         final gameMode = mode;
-        
-        if (kDebugMode) {
-          debugPrint('GameScreen: Starting game with mode=${gameMode.name}, triviaPool size=${triviaPool.length}');
-        }
 
-        if (gameMode == GameMode.timeAttack) {
+        LoggerService.debug(
+          'GameScreen: Starting game with mode=${gameMode.name}, triviaPool size=${triviaPool.length}',
+        );
+
+        if (gameMode == game_mode_config.GameMode.timeAttack) {
           // Pass List<TriviaItem> for timeAttack
           service.startNewRound(
             triviaPool,
@@ -364,8 +598,26 @@ class _GameScreenState extends State<GameScreen>
           );
         }
 
-        if (kDebugMode) {
-          debugPrint('GameScreen: Game started successfully, phase=${service.phase}');
+        LoggerService.debug(
+          'GameScreen: Game started successfully, phase=${service.phase}',
+        );
+
+        // Track game start phase completion
+        if (buildContext.mounted) {
+          final analyticsService = Provider.of<AnalyticsService>(
+            buildContext,
+            listen: false,
+          );
+          unawaited(analyticsService.logCustomEvent(
+            'game_screen_initialization_phase',
+            parameters: {
+              'phase': 'game_start',
+              'mode': gameMode.name,
+              'success': true,
+            },
+          ).catchError((_) {
+            // Non-critical
+          }),);
         }
 
         // Game started successfully (no exception thrown) - now record it for free tier users
@@ -379,37 +631,49 @@ class _GameScreenState extends State<GameScreen>
                 buildContext,
                 listen: false,
               );
-              analyticsService.logFreeTierLimitReached();
+              unawaited(analyticsService.logFreeTierLimitReached());
               // Don't show dialog here since game already started - just log
-              if (kDebugMode) {
-                debugPrint(
-                  '⚠️ Warning: Could not record game start but game already started successfully',
-                );
-              }
+              LoggerService.warning(
+                'Could not record game start but game already started successfully',
+              );
             }
           }
         }
 
         // Show mode-specific instruction if available (after game starts)
         if (buildContext.mounted) {
-          _checkAndShowModeInstruction(buildContext, gameMode);
+          unawaited(_checkAndShowModeInstruction(buildContext, gameMode));
+        }
+
+        // Initialization complete
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+            _initializationProgress = 1.0;
+          });
         }
       } on GameException catch (e, stackTrace) {
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
         // Game failed to start (startNewRound() threw GameException) - slot is NOT recorded
         // Show user-friendly error dialog directly
         LoggerService.error(
-          'GameScreen: Game failed to start (GameException) - Game slot NOT recorded',
+          'GameScreen: Game failed to start (GameException); - Game slot NOT recorded',
           error: e,
           stack: stackTrace,
           fatal: false,
         );
-        if (kDebugMode) {
-          debugPrint(
-            'Game failed to start: $e - Game slot NOT recorded (preserving user\'s daily limit)',
-          );
-        }
+        LoggerService.warning(
+          'Game failed to start - Game slot NOT recorded (preserving user\'s daily limit);',
+          error: e,
+        );
         if (buildContext.mounted) {
-          _showTriviaErrorDialog(buildContext, e.message);
+          final errorMessage =
+              ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+          unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
         }
       } on ValidationException catch (e, stackTrace) {
         // Game failed due to validation error - slot is NOT recorded
@@ -419,16 +683,14 @@ class _GameScreenState extends State<GameScreen>
           stack: stackTrace,
           fatal: false,
         );
-        if (kDebugMode) {
-          debugPrint(
-            'Validation error in game start: $e - Game slot NOT recorded',
-          );
-        }
+        LoggerService.warning(
+          'Validation error in game start - Game slot NOT recorded',
+          error: e,
+        );
         if (buildContext.mounted) {
-          _showTriviaErrorDialog(
-            buildContext,
-            'Trivia content validation failed. Please restart the app.',
-          );
+          final errorMessage =
+              ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+          unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
         }
       } catch (e, stackTrace) {
         // Game failed to start (unexpected exception) - slot is NOT recorded
@@ -439,20 +701,38 @@ class _GameScreenState extends State<GameScreen>
           stack: stackTrace,
           fatal: false,
         );
-        if (kDebugMode) {
-          debugPrint(
-            'Game failed to start (unexpected): $e - Game slot NOT recorded',
-          );
-          debugPrint('Stack trace: $stackTrace');
-        }
+        LoggerService.error(
+          'Game failed to start (unexpected); - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+        );
         if (buildContext.mounted) {
-          _showTriviaErrorDialog(
+          unawaited(_showTriviaErrorDialog(
             buildContext,
             'Failed to start game. Please try again or restart the app.',
-          );
+            recoveryAction:
+                'This could be due to a temporary issue. Please try again or restart the app.',
+            canRetry: true,
+          ),);
         }
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
+      if (buildContext.mounted) {
+        final errorMessage =
+            ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+        unawaited(_showTriviaErrorDialog(
+          buildContext,
+          errorMessage,
+          recoveryAction: 'An unexpected error occurred. Please try again.',
+          canRetry: true,
+        ),);
+      }
+    }
   }
 
   Future<void> _checkDoubleTapInstruction() async {
@@ -473,7 +753,7 @@ class _GameScreenState extends State<GameScreen>
   void _showDoubleTapInstruction() {
     // Wait for play phase to start
     final service = Provider.of<GameService>(context, listen: false);
-    if (service.phase == GamePhase.play &&
+    if (service.phase == game_mode_config.GamePhase.play &&
         !service.currentConfig.showWordsWithQuestion) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -555,7 +835,6 @@ class _GameScreenState extends State<GameScreen>
                 Text(
                   instruction.message,
                   style: AppTypography.bodyMedium.copyWith(
-                    fontSize: 15,
                     color: AppColors.of(context).secondaryText,
                   ),
                 ),
@@ -627,7 +906,6 @@ class _GameScreenState extends State<GameScreen>
             title: Text(
               instruction?.title ?? 'How to Play',
               style: AppTypography.displayMedium.copyWith(
-                fontSize: 24,
                 color: AppColors.of(context).primaryText,
               ),
             ),
@@ -636,9 +914,8 @@ class _GameScreenState extends State<GameScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Select exactly ${GameService.expectedCorrectAnswers} correct answers from the ${GameService.requiredWordsForGameplay} words shown.\n\nTap once to reveal AND SELECT a tile.',
+                  'Select exactly ${GameConstants.expectedCorrectAnswers} correct answers from the ${GameConstants.requiredWordsForGameplay} words shown.\n\nTap once to reveal AND SELECT a tile.',
                   style: AppTypography.bodyMedium.copyWith(
-                    fontSize: 15,
                     color: AppColors.of(context).secondaryText,
                   ),
                 ),
@@ -729,7 +1006,6 @@ class _GameScreenState extends State<GameScreen>
                 Text(
                   instruction.message,
                   style: AppTypography.bodyMedium.copyWith(
-                    fontSize: 15,
                     color: AppColors.of(context).secondaryText,
                   ),
                 ),
@@ -784,11 +1060,9 @@ class _GameScreenState extends State<GameScreen>
 
     // Prevent concurrent validation (race condition protection)
     if (_isValidatingSubscription) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Subscription validation already in progress, skipping duplicate call',
-        );
-      }
+      LoggerService.warning(
+        'Subscription validation already in progress, skipping duplicate call',
+      );
       return;
     }
 
@@ -834,9 +1108,10 @@ class _GameScreenState extends State<GameScreen>
           hasIndividualPremium || hasActiveFamilySubscription;
 
       // Check if family subscription expired (user was in family, but subscription is now inactive)
+      final currentGroup = familyGroupService.currentGroup;
       final familySubscriptionExpired = familyGroupService.isInGroup &&
-          familyGroupService.currentGroup != null &&
-          !familyGroupService.currentGroup!.isSubscriptionActive &&
+          currentGroup != null &&
+          !currentGroup.isSubscriptionActive &&
           _initialTier == SubscriptionTier.familyFriends;
 
       // Log subscription validation
@@ -854,14 +1129,14 @@ class _GameScreenState extends State<GameScreen>
         );
 
         // If downgraded from Premium/Family to Free/Basic during AI mode game
-        if (gameService.currentMode == GameMode.ai && !hasPremiumAccess) {
+        if (gameService.currentMode == game_mode_config.GameMode.ai && !hasPremiumAccess) {
           if (mounted && context.mounted) {
             // Show warning and end AI mode game
             final message = familySubscriptionExpired
                 ? 'Your Family & Friends subscription has expired. AI Mode is no longer available. The game will end after this round.'
                 : 'Your Premium subscription has expired. AI Mode is no longer available. The game will end after this round.';
 
-            ErrorHandler.showWarning(
+            unawaited(ErrorHandler.showWarning(
               context,
               message,
               title: 'Subscription Expired',
@@ -873,7 +1148,7 @@ class _GameScreenState extends State<GameScreen>
                   NavigationHelper.safePop(context);
                 }
               },
-            );
+            ),);
             // Log analytics for subscription expiration during AI mode
             await analyticsService.logSubscriptionTierChange(
               _initialTier?.name ?? 'unknown',
@@ -885,9 +1160,7 @@ class _GameScreenState extends State<GameScreen>
         _initialTier = currentTier;
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Subscription validation error: $e');
-      }
+      LoggerService.warning('Subscription validation error in GameScreen', error: e);
     } finally {
       // Always reset flag, even on error
       _isValidatingSubscription = false;
@@ -896,10 +1169,36 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Cache screen size using ResponsiveHelper for consistency
-    final screenWidth = ResponsiveHelper.responsiveWidth(context, 1.0);
-    final screenHeight = ResponsiveHelper.responsiveHeight(context, 1.0);
-    final screenSize = Size(screenWidth, screenHeight);
+    // Show loading screen during initialization
+    if (_isInitializing) {
+      return Scaffold(
+        backgroundColor: AppColors.overlayDark,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Semantics(
+                label: _initializationPhase,
+                value: '${(_initializationProgress * 100).toInt()}%',
+                child: CircularProgressIndicator(
+                  value: _initializationProgress,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Color(0xFF00D9FF)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _initializationPhase,
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.onDarkText,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Consumer<GameService>(
       builder: (context, service, _) {
@@ -1046,8 +1345,8 @@ class _GameScreenState extends State<GameScreen>
               final gameService =
                   Provider.of<GameService>(context, listen: false);
               final isGameActive = !gameService.state.isGameOver &&
-                  (gameService.phase == GamePhase.memorize ||
-                      gameService.phase == GamePhase.play);
+                  (gameService.phase == game_mode_config.GamePhase.memorize ||
+                      gameService.phase == game_mode_config.GamePhase.play);
 
               if (isGameActive) {
                 // Show confirmation dialog for active games
@@ -1091,59 +1390,39 @@ class _GameScreenState extends State<GameScreen>
               }
             }
           },
-          child: Scaffold(
-            body: Stack(
-              children: [
-                // Image background - optimized for performance
-                Positioned.fill(
-                  child: RepaintBoundary(
-                    child: Image.asset(
-                      'assets/images/Green Neutral Simple Serendipity Phone Wallpaper.jpg',
-                      fit: BoxFit.cover,
-                      // Optimize memory usage by caching at screen resolution
-                      cacheWidth: screenSize.width.toInt(),
-                      cacheHeight: screenSize.height.toInt(),
-                      errorBuilder: (context, error, stackTrace) {
-                        // Log error for debugging
-                        if (kDebugMode) {
-                          debugPrint(
-                            'Failed to load game screen background image: $error',
+          child: VideoBackgroundWidget(
+            videoPath: 'assets/titlescreen.mp4',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            loop: true,
+            autoplay: true,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                child: Consumer<GameService>(
+                  builder: (context, service, _) {
+                    // Show Precision mode error feedback
+                    if (service.precisionError != null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(service.precisionError!),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
                           );
                         }
-                        // Fallback to black background if image not found
-                        return Container(color: Colors.black);
-                      },
-                      // Prevent image from being disposed when off-screen
-                      gaplessPlayback: true,
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  child: Consumer<GameService>(
-                    builder: (context, service, _) {
-                      // Show Precision mode error feedback
-                      if (service.precisionError != null) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(service.precisionError!),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        });
-                      }
+                      });
+                    }
 
-                      if (service.state.isGameOver) {
-                        return _buildGameOverScreen(context, service);
-                      }
-                      return _buildGameplayScreen(context, service);
-                    },
-                  ),
+                    if (service.state.isGameOver) {
+                      return _buildGameOverScreen(context, service);
+                    }
+                    return _buildGameplayScreen(context, service);
+                  },
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -1172,22 +1451,22 @@ class _GameScreenState extends State<GameScreen>
               ),
               _buildTimer(context, service),
               const SizedBox(height: AppSpacing.sm),
-              if (service.phase != GamePhase.memorize) ...[
+              if (service.phase != game_mode_config.GamePhase.memorize) ...[
                 _buildCategory(context, service),
                 const SizedBox(height: AppSpacing.sm),
               ],
               _buildPhaseInstruction(context, service),
               // Show Flip Mode reveal setting indicator
-              if (service.isFlipMode && service.phase == GamePhase.play)
+              if (service.isFlipMode && service.phase == game_mode_config.GamePhase.play)
                 _buildFlipModeRevealIndicator(service),
               const SizedBox(height: AppSpacing.sm),
               Expanded(child: _buildTiles(context, service)),
-              if (service.phase == GamePhase.play) ...[
+              if (service.phase == game_mode_config.GamePhase.play) ...[
                 _buildActionButtons(service),
                 _buildAdvancedPowerUps(service),
                 _buildSubmitButton(service),
               ],
-              if (service.phase == GamePhase.result) ...[
+              if (service.phase == game_mode_config.GamePhase.result) ...[
                 _buildNextRoundButton(context, service),
               ],
             ],
@@ -1239,12 +1518,25 @@ class _GameScreenState extends State<GameScreen>
                       Text(
                         'Daily Challenge: Round ${service.state.round}/$targetRounds',
                         style: AppTypography.labelSmall.copyWith(
-                          fontSize: 12,
+                          // Using labelSmall which is 12px
                           color: const Color(0xFFFFD700),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
+                  ),
+                ),
+              // Edition name display
+              if (_currentEditionName != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Text(
+                    _currentEditionName!,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.of(context).secondaryText,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               Row(
@@ -1261,7 +1553,7 @@ class _GameScreenState extends State<GameScreen>
                         minSize: 20.0,
                         maxSize: 32.0,
                       ),
-                      color: Colors.white,
+                      color: AppColors.of(context).onDarkText,
                     ),
                   ),
                   // Lives
@@ -1281,7 +1573,7 @@ class _GameScreenState extends State<GameScreen>
                 ],
               ),
               // Mode-specific indicators
-              if (service.currentMode == GameMode.streak &&
+              if (service.currentMode == game_mode_config.GameMode.streak &&
                   service.streakMultiplier > 1)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -1309,7 +1601,7 @@ class _GameScreenState extends State<GameScreen>
                             Text(
                               '${service.streakMultiplier}x',
                               style: AppTypography.labelSmall.copyWith(
-                                fontSize: 12,
+                                // Using labelSmall which is 12px
                                 color: const Color(0xFFFFD700),
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1320,7 +1612,7 @@ class _GameScreenState extends State<GameScreen>
                     ],
                   ),
                 ),
-              if (service.currentMode == GameMode.survival &&
+              if (service.currentMode == game_mode_config.GameMode.survival &&
                   service.survivalPerfectCount > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -1348,7 +1640,7 @@ class _GameScreenState extends State<GameScreen>
                             Text(
                               '${service.survivalPerfectCount}/3',
                               style: AppTypography.labelSmall.copyWith(
-                                fontSize: 12,
+                                // Using labelSmall which is 12px
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1375,7 +1667,9 @@ class _GameScreenState extends State<GameScreen>
                     'Round ${service.state.round}',
                     style: AppTypography.labelSmall.copyWith(
                       fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: AppColors.of(context)
+                          .onDarkText
+                          .withValues(alpha: 0.9),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -1383,9 +1677,9 @@ class _GameScreenState extends State<GameScreen>
                     label: 'Get a tip',
                     button: true,
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.help_outline,
-                        color: Colors.white,
+                        color: AppColors.of(context).onDarkText,
                         size: 20,
                       ),
                       onPressed: () async {
@@ -1398,7 +1692,7 @@ class _GameScreenState extends State<GameScreen>
                         // Check context.mounted after async gap
                         if (!capturedContext.mounted) return;
                         if (tip != null) {
-                          _showTipDialog(capturedContext, tip);
+                          unawaited(_showTipDialog(capturedContext, tip));
                         }
                       },
                       tooltip: AppLocalizations.of(context)?.hintButton ??
@@ -1412,9 +1706,9 @@ class _GameScreenState extends State<GameScreen>
                         'Game settings',
                     button: true,
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.settings_outlined,
-                        color: Colors.white,
+                        color: AppColors.of(context).onDarkText,
                         size: 20,
                       ),
                       onPressed: () =>
@@ -1452,7 +1746,7 @@ class _GameScreenState extends State<GameScreen>
     );
 
     // Time Attack timer
-    if (service.currentMode == GameMode.timeAttack &&
+    if (service.currentMode == game_mode_config.GameMode.timeAttack &&
         service.timeAttackSecondsLeft != null) {
       return Column(
         children: [
@@ -1474,7 +1768,7 @@ class _GameScreenState extends State<GameScreen>
                   fontSize: timerFontSize,
                   color: service.timeAttackSecondsLeft! <= 10
                       ? colors.error
-                      : Colors.white,
+                      : AppColors.of(context).onDarkText,
                 ),
               ),
               // Time freeze indicator
@@ -1489,7 +1783,7 @@ class _GameScreenState extends State<GameScreen>
                     'FROZEN',
                     style: AppTypography.labelSmall.copyWith(
                       fontSize: 8,
-                      color: Colors.white,
+                      color: AppColors.of(context).onDarkText,
                     ),
                   ),
                 ),
@@ -1500,13 +1794,13 @@ class _GameScreenState extends State<GameScreen>
     }
 
     // Regular timer
-    final isUrgent = (service.phase == GamePhase.memorize &&
+    final isUrgent = (service.phase == game_mode_config.GamePhase.memorize &&
             service.memorizeTimeLeft <= 3) ||
-        (service.phase == GamePhase.play && service.playTimeLeft <= 5);
-    final timeLeft = service.phase == GamePhase.memorize
+        (service.phase == game_mode_config.GamePhase.play && service.playTimeLeft <= 5);
+    final timeLeft = service.phase == game_mode_config.GamePhase.memorize
         ? service.memorizeTimeLeft
         : service.playTimeLeft;
-    final label = service.phase == GamePhase.memorize ? 'MEMORIZE' : 'RECALL';
+    final label = service.phase == game_mode_config.GamePhase.memorize ? 'MEMORIZE' : 'RECALL';
 
     return Column(
       children: [
@@ -1526,11 +1820,12 @@ class _GameScreenState extends State<GameScreen>
               '$timeLeft',
               style: AppTypography.displayLarge.copyWith(
                 fontSize: timerFontSize,
-                color: isUrgent ? colors.error : Colors.white,
+                color:
+                    isUrgent ? colors.error : AppColors.of(context).onDarkText,
               ),
             ),
             // Time freeze indicator
-            if (service.isTimeFrozen && service.phase == GamePhase.play)
+            if (service.isTimeFrozen && service.phase == game_mode_config.GamePhase.play)
               Container(
                 padding: const EdgeInsets.all(AppSpacing.xs),
                 decoration: BoxDecoration(
@@ -1579,9 +1874,9 @@ class _GameScreenState extends State<GameScreen>
   Widget _buildPhaseInstruction(BuildContext context, GameService service) {
     String instruction = '';
 
-    if (service.phase == GamePhase.memorize) {
+    if (service.phase == game_mode_config.GamePhase.memorize) {
       final localizations = AppLocalizations.of(context);
-      instruction = service.currentMode == GameMode.shuffle
+      instruction = service.currentMode == game_mode_config.GameMode.shuffle
           ? (localizations?.memorizeTheseWillShuffle ??
               'Memorize—these will shuffle')
           : (localizations?.memorizeTheseWords ?? 'Memorize these words');
@@ -1607,10 +1902,10 @@ class _GameScreenState extends State<GameScreen>
           }
         }
       });
-    } else if (service.phase == GamePhase.play) {
+    } else if (service.phase == game_mode_config.GamePhase.play) {
       // Show play phase instruction
       instruction = AppLocalizations.of(context)?.instructionPlayPhaseMessage ??
-          'Select ${GameService.expectedCorrectAnswers} correct answers';
+          'Select ${GameConstants.expectedCorrectAnswers} correct answers';
       // Read instruction with TTS if enabled (premium only)
       // Capture context and mounted before callback
       final capturedContext = context;
@@ -1635,11 +1930,11 @@ class _GameScreenState extends State<GameScreen>
       });
     } else {
       final expectedCorrect = service.currentTrivia?.correctAnswers.length ??
-          GameService.expectedCorrectAnswers;
+          GameConstants.expectedCorrectAnswers;
       if (service.correctCount == expectedCorrect) {
         instruction = 'Perfect! +${expectedCorrect * 10} points';
       } else if (service.correctCount == 0) {
-        instruction = service.currentMode == GameMode.timeAttack
+        instruction = service.currentMode == game_mode_config.GameMode.timeAttack
             ? 'Incorrect—keep going'
             : 'Lost a life';
       } else {
@@ -1652,20 +1947,35 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final colors = AppColors.of(context);
-    return Text(
+    final isPerfect = service.phase == game_mode_config.GamePhase.result &&
+        service.correctCount ==
+            (service.currentTrivia?.correctAnswers.length ??
+                GameConstants.expectedCorrectAnswers);
+
+    final instructionWidget = Text(
       instruction,
       textAlign: TextAlign.center,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
       style: AppTypography.bodyMedium.copyWith(
         fontSize: 14,
-        color: service.phase == GamePhase.result &&
-                service.correctCount ==
-                    (service.currentTrivia?.correctAnswers.length ??
-                        GameService.expectedCorrectAnswers)
+        color: isPerfect
             ? colors.success
-            : Colors.white.withValues(alpha: 0.9),
+            : AppColors.of(context).onDarkText.withValues(alpha: 0.9),
         letterSpacing: 0.3,
       ),
     );
+
+    // Add celebration animation for perfect answers
+    if (isPerfect) {
+      return CelebrationAnimation(
+        trigger: isPerfect,
+        confettiColor: colors.success,
+        child: instructionWidget,
+      );
+    }
+
+    return instructionWidget;
   }
 
   /// Build Flip Mode reveal setting indicator (shows current reveal mode)
@@ -1741,9 +2051,9 @@ class _GameScreenState extends State<GameScreen>
     );
     final isSelected = service.selectedAnswers.contains(word);
     final isRevealed = service.revealedWords.contains(word);
-    final isMemorize = service.phase == GamePhase.memorize;
-    final isPlay = service.phase == GamePhase.play;
-    final isResult = service.phase == GamePhase.result;
+    final isMemorize = service.phase == game_mode_config.GamePhase.memorize;
+    final isPlay = service.phase == game_mode_config.GamePhase.play;
+    final isResult = service.phase == game_mode_config.GamePhase.result;
     final isFlipMode = service.isFlipMode;
 
     // Flip Mode: Check if tile is face-up or face-down
@@ -1766,8 +2076,8 @@ class _GameScreenState extends State<GameScreen>
     }
 
     // Default: black background, white text
-    Color backgroundColor = Colors.black.withValues(alpha: 0.8);
-    Color textColor = Colors.white;
+    Color backgroundColor = AppColors.overlayDark.withValues(alpha: 0.8);
+    Color textColor = AppColors.onDarkText;
 
     if (isResult) {
       final colors = AppColors.of(context);
@@ -1777,17 +2087,17 @@ class _GameScreenState extends State<GameScreen>
       if (isCorrect && wasSelected) {
         // Correct answer selected - green
         backgroundColor = colors.success.withValues(alpha: 0.9);
-        textColor = Colors.white;
+        textColor = AppColors.onDarkText;
         showWord = true; // Show the word
       } else if (!isCorrect && wasSelected) {
         // Wrong answer selected - red with X
         backgroundColor = colors.error.withValues(alpha: 0.9);
-        textColor = Colors.white;
+        textColor = AppColors.onDarkText;
         showWord = true; // Show the word with X
       } else if (isCorrect && !wasSelected) {
         // Correct answer missed - green
         backgroundColor = colors.success.withValues(alpha: 0.9);
-        textColor = Colors.white;
+        textColor = AppColors.onDarkText;
         showWord = true; // Show the word
       } else {
         // Other words - don't reveal
@@ -1795,12 +2105,12 @@ class _GameScreenState extends State<GameScreen>
       }
     } else if (isSelected && isPlay) {
       backgroundColor = Colors.white.withValues(alpha: 0.3);
-      textColor = Colors.white;
+      textColor = AppColors.onDarkText;
     }
 
     // Minimal shuffle indicator
     final isShuffling =
-        service.isShuffling && service.currentMode == GameMode.shuffle;
+        service.isShuffling && service.currentMode == game_mode_config.GameMode.shuffle;
 
     // Flip Mode: Show card back if face-down
     final showCardBack =
@@ -1886,7 +2196,9 @@ class _GameScreenState extends State<GameScreen>
                       child: showCardBack
                           ? Icon(
                               Icons.help_outline,
-                              color: Colors.white.withValues(alpha: 0.7),
+                              color: AppColors.of(context)
+                                  .onDarkText
+                                  .withValues(alpha: 0.7),
                               size: 40,
                             )
                           : isResult &&
@@ -1913,9 +2225,9 @@ class _GameScreenState extends State<GameScreen>
                                       ),
                                     ),
                                     const SizedBox(width: AppSpacing.sm),
-                                    const Icon(
+                                    Icon(
                                       Icons.close,
-                                      color: Colors.white,
+                                      color: AppColors.of(context).onDarkText,
                                       size: 20,
                                     ),
                                   ],
@@ -1955,9 +2267,9 @@ class _GameScreenState extends State<GameScreen>
                                 color: Colors.black.withValues(alpha: 0.6),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.info_outline,
-                                color: Colors.white,
+                                color: AppColors.of(context).onDarkText,
                                 size: 16,
                               ),
                             ),
@@ -2065,10 +2377,7 @@ class _GameScreenState extends State<GameScreen>
                           final buildContext = context;
                           try {
                             final generator =
-                                Provider.of<TriviaGeneratorService>(
-                              buildContext,
-                              listen: false,
-                            );
+                                _getTriviaGeneratorService(buildContext);
                             final analyticsService =
                                 Provider.of<AnalyticsService>(
                               buildContext,
@@ -2087,28 +2396,28 @@ class _GameScreenState extends State<GameScreen>
                             if (triviaPool.isNotEmpty) {
                               service.skipRound(triviaPool);
                             } else {
-                              _showTriviaErrorDialog(
+                              unawaited(_showTriviaErrorDialog(
                                 buildContext,
                                 'No trivia content available after multiple attempts. Please try again.',
-                              );
+                              ),);
                             }
                           } catch (e) {
                             if (!mounted || !buildContext.mounted) return;
-                            if (kDebugMode) {
-                              debugPrint('Failed to load trivia for skip: $e');
-                            }
+                            LoggerService.warning('Failed to load trivia for skip in GameScreen', error: e);
                             // Provide specific error message
-                            String errorMessage =
-                                'Failed to load trivia content. ';
+                            final localizations = AppLocalizations.of(context);
+                            String errorMessage = localizations
+                                    ?.triviaGenerationFailed ??
+                                'Failed to load trivia content. Please try again.';
                             if (e.toString().contains(
                                   'No templates available',
                                 )) {
-                              errorMessage +=
-                                  'Template initialization issue. Please restart the app.';
+                              errorMessage =
+                                  '${localizations?.templateInitializationIssue ?? 'Template initialization issue detected. Please restart the app.'} ${localizations?.genericError ?? 'Please try again.'}';
                             } else {
                               errorMessage += 'Please try again.';
                             }
-                            _showTriviaErrorDialog(buildContext, errorMessage);
+                            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
                           }
                         }
                       : null,
@@ -2130,35 +2439,61 @@ class _GameScreenState extends State<GameScreen>
               ),
               // Voice input button (Premium only)
               if (subscriptionService.isPremium)
-                Consumer2<VoiceRecognitionService,
-                    PronunciationDictionaryService>(
-                  builder: (context, voiceService, pronunciationService, _) {
+                Consumer3<VoiceRecognitionService,
+                    PronunciationDictionaryService, VoiceCalibrationService>(
+                  builder: (
+                    context,
+                    voiceService,
+                    pronunciationService,
+                    calibrationService,
+                    _,
+                  ) {
+                    final isCalibrated = calibrationService.isCalibrated;
                     return Semantics(
-                      label: 'Voice Input',
+                      label: 'Voice Input${isCalibrated ? ' (Calibrated)' : ' (Not Calibrated)'}',
                       button: true,
                       enabled:
                           voiceService.isEnabled && voiceService.isAvailable,
-                      child: IconButton(
-                        onPressed:
-                            voiceService.isEnabled && voiceService.isAvailable
-                                ? () => _handleVoiceInput(
-                                      context,
-                                      service,
-                                      voiceService,
-                                      pronunciationService,
-                                    )
-                                : null,
-                        icon: Icon(
-                          voiceService.isListening ? Icons.mic : Icons.mic_none,
-                          color: voiceService.isListening
-                              ? AppColors.of(context).error
-                              : Colors.white.withValues(
-                                  alpha: voiceService.isEnabled ? 1.0 : 0.5,
+                      child: Stack(
+                        children: [
+                          IconButton(
+                            onPressed:
+                                voiceService.isEnabled && voiceService.isAvailable
+                                    ? () => _handleVoiceInput(
+                                          context,
+                                          service,
+                                          voiceService,
+                                          pronunciationService,
+                                          calibrationService,
+                                        )
+                                    : null,
+                            icon: Icon(
+                              voiceService.isListening ? Icons.mic : Icons.mic_none,
+                              color: voiceService.isListening
+                                  ? AppColors.of(context).error
+                                  : Colors.white.withValues(
+                                      alpha: voiceService.isEnabled ? 1.0 : 0.5,
+                                    ),
+                              size: 24,
+                            ),
+                            tooltip: isCalibrated
+                                ? '${AppLocalizations.of(context)?.hintButton ?? 'Voice Input'} (Calibrated)'
+                                : '${AppLocalizations.of(context)?.hintButton ?? 'Voice Input'} - ${AppLocalizations.of(context)?.voiceCalibrationStatusNotCalibrated ?? 'Not calibrated'}',
+                          ),
+                          if (!isCalibrated)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.orange,
+                                  shape: BoxShape.circle,
                                 ),
-                          size: 24,
-                        ),
-                        tooltip: AppLocalizations.of(context)?.hintButton ??
-                            'Voice Input',
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
@@ -2281,11 +2616,56 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  /// Show calibration prompt dialog
+  Future<void> _showCalibrationPrompt(BuildContext context) async {
+    if (!mounted || !context.mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    final shouldCalibrate = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          localizations?.voiceCalibrationPromptTitle ??
+              'Improve Voice Recognition',
+        ),
+        content: Text(
+          localizations?.voiceCalibrationPromptMessage ??
+              'Calibrate your voice for better word recognition accuracy.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              localizations?.skipCalibration ?? 'Skip',
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              localizations?.calibrateNow ?? 'Calibrate Now',
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCalibrate == true && mounted && context.mounted) {
+      unawaited(
+        NavigationHelper.safeNavigate(
+          context,
+          '/voice-calibration',
+          source: NavigationSource.buttonTap,
+        ),
+      );
+    }
+  }
+
   void _handleVoiceInput(
     BuildContext context,
     GameService gameService,
     VoiceRecognitionService voiceService,
     PronunciationDictionaryService pronunciationService,
+    VoiceCalibrationService calibrationService,
   ) {
     // Capture context and mounted before callbacks
     final capturedContext = context;
@@ -2294,16 +2674,57 @@ class _GameScreenState extends State<GameScreen>
     if (voiceService.isListening) {
       voiceService.stop();
     } else {
+      // Check calibration status and show prompt if not calibrated
+      if (!calibrationService.isCalibrated) {
+        _showCalibrationPrompt(capturedContext);
+        return;
+      }
+
       voiceService.startListening(
         onResult: (spokenText) {
           if (!isMounted) return;
 
           // Match spoken text to available words
           final availableWords = gameService.shuffledWords;
-          final matchedWord = voiceService.matchSpokenWord(
-            spokenText,
-            availableWords,
-          );
+          String? matchedWord;
+          
+          try {
+            // Use calibration if available, with fallback
+            matchedWord = voiceService.matchSpokenWord(
+              spokenText,
+              availableWords,
+            );
+            
+            // Log calibration usage for analytics
+            if (capturedContext.mounted) {
+              final analyticsService = Provider.of<AnalyticsService>(
+                capturedContext,
+                listen: false,
+              );
+              final calibrationService = Provider.of<VoiceCalibrationService>(
+                capturedContext,
+                listen: false,
+              );
+              unawaited(
+                analyticsService.logVoiceCalibrationUsage(
+                  isCalibrated: calibrationService.isCalibrated,
+                  usedInGame: true,
+                  accuracyScore: calibrationService.profile?.accuracyScore,
+                ),
+              );
+            }
+          } catch (e) {
+            // Fall back to standard matching if calibration fails
+            LoggerService.warning(
+              'GameScreen: Calibration service error, using fallback',
+              error: e,
+            );
+            // VoiceRecognitionService will fall back automatically
+            matchedWord = voiceService.matchSpokenWord(
+              spokenText,
+              availableWords,
+            );
+          }
 
           if (matchedWord != null) {
             // Reveal and select the matched word
@@ -2359,18 +2780,22 @@ class _GameScreenState extends State<GameScreen>
           label: 'Submit answers',
           button: true,
           enabled: service.canSubmit,
-          child: ElevatedButton(
-            onPressed: service.canSubmit ? () => service.submitAnswers() : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.of(context).primaryButton,
-              foregroundColor: AppColors.of(context).buttonText,
-              disabledBackgroundColor: AppColors.of(context).tertiaryText,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          child: AnimatedButton(
+            onTap: service.canSubmit ? () => service.submitAnswers() : null,
+            child: ElevatedButton(
+              onPressed:
+                  null, // Disable default onPressed, use AnimatedButton's onTap
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.of(context).primaryButton,
+                foregroundColor: AppColors.of(context).buttonText,
+                disabledBackgroundColor: AppColors.of(context).tertiaryText,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              child: Text('Submit', style: AppTypography.labelLarge),
             ),
-            child: Text('Submit', style: AppTypography.labelLarge),
           ),
         ),
       ),
@@ -2397,7 +2822,7 @@ class _GameScreenState extends State<GameScreen>
               final scaffoldMessenger = ScaffoldMessenger.of(capturedContext);
 
               // Track AI mode performance before next round
-              if (service.currentMode == GameMode.ai) {
+              if (service.currentMode == game_mode_config.GameMode.ai) {
                 if (!isMounted) return;
                 final aiModeService = Provider.of<AIModeService>(
                   capturedContext,
@@ -2435,10 +2860,7 @@ class _GameScreenState extends State<GameScreen>
               }
 
               try {
-                final generator = Provider.of<TriviaGeneratorService>(
-                  capturedContext,
-                  listen: false,
-                );
+                final generator = _getTriviaGeneratorService(capturedContext);
                 final analyticsService = Provider.of<AnalyticsService>(
                   capturedContext,
                   listen: false,
@@ -2456,17 +2878,15 @@ class _GameScreenState extends State<GameScreen>
                   service.nextRound(triviaPool);
                 } else {
                   if (isMounted && capturedContext.mounted) {
-                    _showTriviaErrorDialog(
+                    unawaited(_showTriviaErrorDialog(
                       capturedContext,
                       'No trivia content available after multiple attempts. Please try again.',
-                    );
+                    ),);
                   }
                 }
               } catch (e) {
                 if (isMounted && capturedContext.mounted) {
-                  if (kDebugMode) {
-                    debugPrint('Failed to load trivia for next round: $e');
-                  }
+                  LoggerService.warning('Failed to load trivia for next round in GameScreen', error: e);
                   // Provide specific error message
                   String errorMessage = 'Failed to load trivia content. ';
                   if (e.toString().contains('No templates available')) {
@@ -2480,7 +2900,7 @@ class _GameScreenState extends State<GameScreen>
                   } else {
                     errorMessage += 'Please try again.';
                   }
-                  _showTriviaErrorDialog(capturedContext, errorMessage);
+                  unawaited(_showTriviaErrorDialog(capturedContext, errorMessage));
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text(errorMessage),
@@ -2535,9 +2955,7 @@ class _GameScreenState extends State<GameScreen>
             await challengeService.completeChallenge(challengeId);
             if (!isMounted || !capturedContext.mounted) return;
           } catch (e) {
-            if (kDebugMode) {
-              debugPrint('Error marking challenge as completed: $e');
-            }
+            LoggerService.warning('Error marking challenge as completed in GameScreen', error: e);
             if (!isMounted || !capturedContext.mounted) {
               return; // Check after catch
             }
@@ -2629,9 +3047,7 @@ class _GameScreenState extends State<GameScreen>
       } catch (e) {
         // Provider might not be available if widget tree was disposed
         // Silently fail - analytics are non-critical
-        if (kDebugMode) {
-          debugPrint('Failed to record analytics in game over: $e');
-        }
+        LoggerService.debug('Failed to record analytics in game over', error: e);
       }
     });
 
@@ -2745,33 +3161,154 @@ class _GameScreenState extends State<GameScreen>
   /// Generate trivia with retry logic and fallback themes
   /// Attempts to generate trivia, falling back to different themes if initial attempt fails
   /// Includes offline mode support - checks for downloaded packs if network fails
+  /// Safely get TriviaGeneratorService from Provider with fallback
+  TriviaGeneratorService _getTriviaGeneratorService(BuildContext context) {
+    try {
+      return Provider.of<TriviaGeneratorService>(
+        context,
+        listen: false,
+      );
+    } catch (e) {
+      LoggerService.warning(
+        'TriviaGeneratorService not found in provider tree, creating fallback instance',
+        error: e,
+      );
+      // Fallback: create instance directly (non-ideal but prevents crash)
+      return TriviaGeneratorService();
+    }
+  }
+
+  /// Parse GameMode from string representation
+  /// Returns null if string doesn't match any GameMode
+  GameMode? _parseGameModeFromString(String modeString) {
+    try {
+      return game_mode_config.GameMode.values.firstWhere(
+        (mode) => mode.name.toLowerCase() == modeString.toLowerCase(),
+      );
+    } catch (e) {
+      LoggerService.debug('Failed to parse GameMode from string: $modeString');
+      return null;
+    }
+  }
+
+  /// Track navigation entry for analytics
+  void _trackNavigationEntry(GameMode? mode, Map<String, dynamic>? args) {
+    try {
+      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      analytics.logCustomEvent(
+        'game_screen_navigation',
+        parameters: {
+          'mode': mode?.name ?? 'default',
+          'has_custom_args': args != null,
+          'has_custom_pool': args?['triviaPool'] != null,
+        },
+      ).catchError((_) {
+        // Non-critical
+      });
+    } catch (e) {
+      // Non-critical - analytics not available
+    }
+  }
+
+  /// Track argument validation for analytics
+  void _trackArgumentValidation(bool success, String? error) {
+    try {
+      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      analytics.logCustomEvent(
+        'game_screen_argument_validation',
+        parameters: {
+          'success': success,
+          'error': error ?? 'none',
+        },
+      ).catchError((_) {
+        // Non-critical
+      });
+    } catch (e) {
+      // Non-critical - analytics not available
+    }
+  }
+
+  /// Track mode fallback for analytics
+  void _trackModeFallback(
+      GameMode originalMode, GameMode fallbackMode, String reason,) {
+    try {
+      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      analytics.logCustomEvent(
+        'game_screen_mode_fallback',
+        parameters: {
+          'original_mode': originalMode.name,
+          'fallback_mode': fallbackMode.name,
+          'reason': reason,
+        },
+      ).catchError((_) {
+        // Non-critical
+      });
+    } catch (e) {
+      // Non-critical - analytics not available
+    }
+  }
+
   Future<List<TriviaItem>> _generateTriviaWithRetry(
     BuildContext context,
     TriviaGeneratorService generator,
     AnalyticsService analyticsService,
     String mode,
   ) async {
-    const maxRetries = 3;
+    final startTime = DateTime.now();
     final networkService = Provider.of<NetworkService>(context, listen: false);
     final offlineService = Provider.of<OfflineService>(context, listen: false);
 
-    // First attempt: try with no theme (all templates)
-    for (int attempt = 0; attempt < maxRetries; attempt++) {
+    // Track retry attempts for analytics
+    int retryAttempt = 0;
+    String? lastError;
+
+    for (int attempt = 0;
+        attempt < AppConfig.maxTriviaGenerationRetries;
+        attempt++) {
+      // Check timeout
+      if (DateTime.now().difference(startTime) >
+          AppConfig.maxTotalRetryTimeout) {
+        LoggerService.warning('Trivia generation exceeded max timeout');
+        break;
+      }
+
+      retryAttempt = attempt + 1;
+
       try {
         final pool = generator.generateBatch(50);
         if (pool.isNotEmpty) {
+          // Track successful generation
+          if (retryAttempt > 1) {
+            unawaited(analyticsService.logCustomEvent(
+              'trivia_generation_retry_success',
+              parameters: {
+                'mode': mode,
+                'attempts': retryAttempt,
+              },
+            ).catchError((_) {
+              // Non-critical
+            }),);
+          }
           return pool;
         }
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-            'Trivia generation attempt ${attempt + 1}/$maxRetries failed: $e',
-          );
-        }
+        lastError = e.toString();
 
-        // If it's a theme-specific error, try different themes
-        if (e.toString().contains('No templates available for theme')) {
-          // Get available themes and try a random one
+        LoggerService.debug(
+          'Trivia generation attempt $retryAttempt/${AppConfig.maxTriviaGenerationRetries} failed',
+          error: e,
+        );
+
+        // Categorize error for better handling
+        final isThemeError =
+            e.toString().contains('No templates available for theme');
+        // Note: Network error categorization available for future use
+        // final isNetworkError = e.toString().contains('network') ||
+        //     e.toString().contains('connection') ||
+        //     e.toString().contains('timeout');
+
+        // Try theme fallback for theme errors
+        if (isThemeError) {
           final availableThemes = generator.getAvailableThemes();
           if (availableThemes.isNotEmpty) {
             final randomTheme = availableThemes[
@@ -2779,11 +3316,9 @@ class _GameScreenState extends State<GameScreen>
             try {
               final pool = generator.generateBatch(50, theme: randomTheme);
               if (pool.isNotEmpty) {
-                if (kDebugMode) {
-                  debugPrint(
-                    'Successfully generated trivia with fallback theme: $randomTheme',
-                  );
-                }
+                LoggerService.info(
+                  'Successfully generated trivia with fallback theme: $randomTheme',
+                );
                 return pool;
               }
             } catch (_) {
@@ -2792,21 +3327,43 @@ class _GameScreenState extends State<GameScreen>
           }
         }
 
-        // Wait before retry (exponential backoff)
-        if (attempt < maxRetries - 1) {
-          await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
+        // Exponential backoff with jitter (only if not last attempt)
+        if (attempt < AppConfig.maxTriviaGenerationRetries - 1) {
+          final baseDelay = (AppConfig.initialRetryDelay.inMilliseconds *
+                  (AppConfig.retryBackoffMultiplier * attempt))
+              .round();
+          final jitter =
+              (baseDelay * 0.1 * (DateTime.now().millisecondsSinceEpoch % 10))
+                  .round();
+          final delay = Duration(
+            milliseconds: (baseDelay + jitter).clamp(
+              AppConfig.initialRetryDelay.inMilliseconds,
+              AppConfig.maxRetryDelay.inMilliseconds,
+            ),
+          );
+          await Future.delayed(delay);
         }
       }
     }
 
+    // Track failure for analytics
+    unawaited(analyticsService.logCustomEvent(
+      'trivia_generation_all_retries_failed',
+      parameters: {
+        'mode': mode,
+        'attempts': retryAttempt,
+        'last_error': lastError ?? 'unknown',
+      },
+    ).catchError((_) {
+      // Non-critical
+    }),);
+
     // All retries failed - check for offline packs if network is unavailable
     if (!networkService.isConnected &&
         offlineService.downloadedPacks.isNotEmpty) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Network unavailable. Attempting to load offline trivia pack.',
-        );
-      }
+      LoggerService.warning(
+        'Network unavailable. Attempting to load offline trivia pack.',
+      );
 
       // Try to load the most recently downloaded pack
       // CRITICAL: Check list is not empty before accessing .last to prevent crash
@@ -2815,17 +3372,13 @@ class _GameScreenState extends State<GameScreen>
           final mostRecentPack = offlineService.downloadedPacks.last;
           final offlineTrivia = await offlineService.loadPack(mostRecentPack);
           if (offlineTrivia != null && offlineTrivia.isNotEmpty) {
-            if (kDebugMode) {
-              debugPrint(
-                '✓ Loaded offline trivia pack: $mostRecentPack (${offlineTrivia.length} items)',
-              );
-            }
+            LoggerService.info(
+              'Loaded offline trivia pack: $mostRecentPack (${offlineTrivia.length} items);',
+            );
             return offlineTrivia;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Failed to load offline pack: $e');
-          }
+          LoggerService.warning('Failed to load offline pack in GameScreen', error: e);
         }
       }
 
@@ -2834,27 +3387,21 @@ class _GameScreenState extends State<GameScreen>
         try {
           final offlineTrivia = await offlineService.loadPack(packId);
           if (offlineTrivia != null && offlineTrivia.isNotEmpty) {
-            if (kDebugMode) {
-              debugPrint(
-                '✓ Loaded offline trivia pack: $packId (${offlineTrivia.length} items)',
-              );
-            }
+            LoggerService.info(
+              'Loaded offline trivia pack: $packId (${offlineTrivia.length} items);',
+            );
             return offlineTrivia;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Failed to load offline pack $packId: $e');
-          }
+          LoggerService.warning('Failed to load offline pack $packId in GameScreen', error: e);
         }
       }
     }
 
     // All retries failed - use emergency fallback trivia
-    if (kDebugMode) {
-      debugPrint(
-        '⚠️ All trivia generation attempts failed. Using emergency fallback trivia.',
-      );
-    }
+    LoggerService.warning(
+      'All trivia generation attempts failed. Using emergency fallback trivia.',
+    );
 
     // Emergency fallback: Generate basic trivia from any available templates
     try {
@@ -2863,17 +3410,13 @@ class _GameScreenState extends State<GameScreen>
         theme: null, // Use all themes
       );
       if (emergencyPool.isNotEmpty) {
-        if (kDebugMode) {
-          debugPrint(
-            '✓ Emergency fallback trivia generated successfully (${emergencyPool.length} items)',
-          );
-        }
+        LoggerService.info(
+          'Emergency fallback trivia generated successfully (${emergencyPool.length} items);',
+        );
         return emergencyPool;
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Emergency fallback also failed: $e');
-      }
+      LoggerService.error('Emergency fallback also failed in GameScreen', error: e);
     }
 
     // Last resort: Create minimal trivia items manually
@@ -2895,11 +3438,9 @@ class _GameScreenState extends State<GameScreen>
       ),
     ];
 
-    if (kDebugMode) {
-      debugPrint(
-        '⚠️ Using last resort hardcoded trivia (${lastResortTrivia.length} items)',
-      );
-    }
+    LoggerService.warning(
+      'Using last resort hardcoded trivia (${lastResortTrivia.length} items);',
+    );
 
     return lastResortTrivia;
   }
@@ -2964,8 +3505,10 @@ class _GameScreenState extends State<GameScreen>
 
   Future<void> _showTriviaErrorDialog(
     BuildContext context,
-    String message,
-  ) async {
+    String message, {
+    String? recoveryAction,
+    bool canRetry = true,
+  }) async {
     if (!mounted || !context.mounted) return;
 
     // Log trivia error analytics
@@ -2977,9 +3520,7 @@ class _GameScreenState extends State<GameScreen>
       await analyticsService.logError('trivia_error_dialog', message);
     } catch (e) {
       // Ignore analytics errors - don't block dialog display
-      if (kDebugMode) {
-        debugPrint('Failed to log trivia error analytics: $e');
-      }
+      LoggerService.debug('Failed to log trivia error analytics', error: e);
     }
 
     // Check mounted after async operation
@@ -3008,12 +3549,28 @@ class _GameScreenState extends State<GameScreen>
               ),
             ],
           ),
-          content: Text(
-            message,
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 15,
-              color: AppColors.of(context).secondaryText,
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: AppTypography.bodyMedium.copyWith(
+                  fontSize: 15,
+                  color: AppColors.of(context).secondaryText,
+                ),
+              ),
+              if (recoveryAction != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  recoveryAction,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontSize: 13,
+                    color: AppColors.of(context).secondaryText,
+                  ),
+                ),
+              ],
+            ],
           ),
           actions: [
             TextButton(
@@ -3024,26 +3581,44 @@ class _GameScreenState extends State<GameScreen>
                 NavigationHelper.safePop(context);
               },
               child: Text(
-                'Go Back',
+                AppLocalizations.of(context)?.cancel ?? 'Go Back',
                 style: AppTypography.labelLarge.copyWith(
                   color: AppColors.of(context).primaryText,
                 ),
               ),
             ),
-            TextButton(
-              onPressed: () {
-                if (!context.mounted) return;
-                NavigationHelper.safePop(dialogContext);
-                // Retry by navigating back and triggering reinit
-                NavigationHelper.safePop(context);
-              },
-              child: Text(
-                'Retry',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.of(context).primaryButton,
+            if (canRetry)
+              ElevatedButton(
+                onPressed: () {
+                  if (!context.mounted) return;
+                  NavigationHelper.safePop(dialogContext);
+                  // Retry initialization
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && context.mounted) {
+                      // Trigger re-initialization by resetting state
+                      setState(() {
+                        _isInitializing = true;
+                        _initializationPhase =
+                            AppLocalizations.of(context)?.retrying ??
+                                'Retrying...';
+                        _initializationProgress = 0.0;
+                      });
+                      // Re-run initialization
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          // Re-trigger the initialization logic
+                          final buildContext = context;
+                          _initializeGame(buildContext);
+                        }
+                      });
+                    }
+                  });
+                },
+                child: Text(
+                  AppLocalizations.of(context)?.retry ?? 'Retry',
+                  style: AppTypography.labelLarge,
                 ),
               ),
-            ),
           ],
         );
       },
@@ -3073,9 +3648,7 @@ class _GameScreenState extends State<GameScreen>
       );
     } catch (e) {
       // Ignore analytics errors - don't block dialog display
-      if (kDebugMode) {
-        debugPrint('Failed to log subscription prompt analytics: $e');
-      }
+      LoggerService.debug('Failed to log subscription prompt analytics', error: e);
     }
 
     // Check mounted after async operation
@@ -3087,8 +3660,15 @@ class _GameScreenState extends State<GameScreen>
         title: Text(
           '$feature - Premium Feature',
           style: AppTypography.displayMedium.copyWith(fontSize: 20),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        content: Text(message, style: AppTypography.bodyMedium),
+        content: Text(
+          message,
+          style: AppTypography.bodyMedium,
+          maxLines: 5,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -3311,150 +3891,198 @@ class _GameScreenState extends State<GameScreen>
                 const SizedBox(height: AppSpacing.md - 4),
 
                 // Google Search
-                ListTile(
-                  leading: Icon(Icons.search, color: dialogColors.info),
-                  title: const Text('Google Search'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () async {
-                    try {
-                      final url = Uri.parse(
-                        'https://www.google.com/search?q=${Uri.encodeComponent(word)}',
-                      );
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(
-                          url,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not open Google Search'),
-                            ),
+                Builder(
+                  builder: (dialogContext) {
+                    final localizations = AppLocalizations.of(dialogContext);
+                    return ListTile(
+                      leading: Icon(Icons.search, color: dialogColors.info),
+                      title:
+                          Text(localizations?.googleSearch ?? 'Google Search'),
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () async {
+                        try {
+                          final url = Uri.parse(
+                            'https://www.google.com/search?q=${Uri.encodeComponent(word)}',
                           );
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    localizations?.couldNotOpenService ??
+                                        'Could not open Google Search',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  localizations?.errorOpeningService ??
+                                      'Error opening Google Search',
+                                ),
+                              ),
+                            );
+                          }
                         }
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Error opening Google Search'),
-                          ),
-                        );
-                      }
-                    }
-                    if (context.mounted) Navigator.pop(context);
+                        if (context.mounted) NavigationHelper.safePop(context);
+                      },
+                    );
                   },
                 ),
 
                 // Wikipedia
-                ListTile(
-                  leading: const Icon(Icons.article, color: Colors.green),
-                  title: const Text('Wikipedia'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () async {
-                    try {
-                      final url = Uri.parse(
-                        'https://en.wikipedia.org/wiki/${Uri.encodeComponent(word)}',
-                      );
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(
-                          url,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not open Wikipedia'),
-                            ),
+                Builder(
+                  builder: (dialogContext) {
+                    final localizations = AppLocalizations.of(dialogContext);
+                    return ListTile(
+                      leading: const Icon(Icons.article, color: Colors.green),
+                      title: Text(localizations?.wikipedia ?? 'Wikipedia'),
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () async {
+                        try {
+                          final url = Uri.parse(
+                            'https://en.wikipedia.org/wiki/${Uri.encodeComponent(word)}',
                           );
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    localizations?.couldNotOpenService ??
+                                        'Could not open Wikipedia',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  localizations?.errorOpeningService ??
+                                      'Error opening Wikipedia',
+                                ),
+                              ),
+                            );
+                          }
                         }
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Error opening Wikipedia'),
-                          ),
-                        );
-                      }
-                    }
-                    if (context.mounted) Navigator.pop(context);
+                        if (context.mounted) NavigationHelper.safePop(context);
+                      },
+                    );
                   },
                 ),
 
                 // Dictionary.com
-                ListTile(
-                  leading: const Icon(Icons.book, color: Colors.orange),
-                  title: const Text('Dictionary.com'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () async {
-                    try {
-                      final url = Uri.parse(
-                        'https://www.dictionary.com/browse/${Uri.encodeComponent(word)}',
-                      );
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(
-                          url,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not open Dictionary.com'),
-                            ),
+                Builder(
+                  builder: (dialogContext) {
+                    final localizations = AppLocalizations.of(dialogContext);
+                    return ListTile(
+                      leading: const Icon(Icons.book, color: Colors.orange),
+                      title: Text(
+                          localizations?.dictionaryCom ?? 'Dictionary.com',),
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () async {
+                        try {
+                          final url = Uri.parse(
+                            'https://www.dictionary.com/browse/${Uri.encodeComponent(word)}',
                           );
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    localizations?.couldNotOpenService ??
+                                        'Could not open Dictionary.com',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  localizations?.errorOpeningService ??
+                                      'Error opening Dictionary.com',
+                                ),
+                              ),
+                            );
+                          }
                         }
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Error opening Dictionary.com'),
-                          ),
-                        );
-                      }
-                    }
-                    if (context.mounted) Navigator.pop(context);
+                        if (context.mounted) NavigationHelper.safePop(context);
+                      },
+                    );
                   },
                 ),
 
                 // Merriam-Webster
-                ListTile(
-                  leading: const Icon(Icons.menu_book, color: Colors.purple),
-                  title: const Text('Merriam-Webster'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () async {
-                    try {
-                      final url = Uri.parse(
-                        'https://www.merriam-webster.com/dictionary/${Uri.encodeComponent(word)}',
-                      );
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(
-                          url,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not open Merriam-Webster'),
-                            ),
+                Builder(
+                  builder: (dialogContext) {
+                    final localizations = AppLocalizations.of(dialogContext);
+                    return ListTile(
+                      leading:
+                          const Icon(Icons.menu_book, color: Colors.purple),
+                      title: Text(
+                          localizations?.merriamWebster ?? 'Merriam-Webster',),
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () async {
+                        try {
+                          final url = Uri.parse(
+                            'https://www.merriam-webster.com/dictionary/${Uri.encodeComponent(word)}',
                           );
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    localizations?.couldNotOpenService ??
+                                        'Could not open Merriam-Webster',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  localizations?.errorOpeningService ??
+                                      'Error opening Merriam-Webster',
+                                ),
+                              ),
+                            );
+                          }
                         }
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Error opening Merriam-Webster'),
-                          ),
-                        );
-                      }
-                    }
-                    if (context.mounted) Navigator.pop(context);
+                        if (context.mounted) NavigationHelper.safePop(context);
+                      },
+                    );
                   },
                 ),
               ],
@@ -3463,7 +4091,7 @@ class _GameScreenState extends State<GameScreen>
           actions: [
             TextButton(
               onPressed: () {
-                if (context.mounted) Navigator.pop(context);
+                if (context.mounted) NavigationHelper.safePop(context);
               },
               child: Text(
                 AppLocalizations.of(context)?.close ?? 'Close',
@@ -3512,9 +4140,12 @@ class _GameScreenState extends State<GameScreen>
 
       if (hasActiveGame && mounted && context.mounted) {
         // Show subtle notification that game state was recovered
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Game state recovered'),
+            content: Text(
+              localizations?.gameStateRecovered ?? 'Game state recovered',
+            ),
             duration: const Duration(seconds: 2),
             backgroundColor: AppColors.of(context).success,
           ),

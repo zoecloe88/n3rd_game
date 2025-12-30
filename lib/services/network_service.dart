@@ -40,7 +40,7 @@ class NetworkService extends ChangeNotifier {
 
     // Listen to connectivity changes
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-      List<ConnectivityResult> results,
+      results,
     ) async {
       await _updateConnectionStatus(results);
     });
@@ -60,7 +60,7 @@ class NetworkService extends ChangeNotifier {
       if (wasConnected != _isConnected ||
           hadInternet != _hasInternetReachability) {
         LoggerService.info(
-          'Network status changed: Disconnected (No connectivity data available)',
+          'Network status changed: Disconnected (No connectivity data available);',
         );
         notifyListeners();
       }
@@ -81,7 +81,7 @@ class NetworkService extends ChangeNotifier {
         hadInternet != _hasInternetReachability) {
       LoggerService.info(
         'Network status changed: ${_isConnected ? "Connected" : "Disconnected"} '
-        '(${_hasInternetReachability ? "Internet available" : "No internet access"})',
+        '(${_hasInternetReachability ? "Internet available" : "No internet access"});',
       );
       notifyListeners();
     }

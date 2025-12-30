@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/family_group.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
@@ -13,8 +15,34 @@ class FamilyGroupService extends ChangeNotifier {
   static const int maxMembers = 4; // Maximum members per group
   static const int maxInvitesPerDay = 10; // Rate limit for invitations
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore? _firestore;
+  FirebaseAuth? _auth;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for FamilyGroupService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    if (_auth != null) return _auth;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _auth = FirebaseAuth.instance;
+      return _auth;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for FamilyGroupService', error: e);
+      return null;
+    }
+  }
 
   FamilyGroup? _currentGroup;
   StreamSubscription<DocumentSnapshot>? _groupSubscription;
@@ -24,7 +52,7 @@ class FamilyGroupService extends ChangeNotifier {
 
   FamilyGroup? get currentGroup => _currentGroup;
   bool get isInitialized => _isInitialized;
-  String? get currentUserId => _auth.currentUser?.uid;
+  String? get currentUserId => _authInstance?.currentUser?.uid;
 
   /// Check if user is in a family group
   bool get isInGroup => _currentGroup != null;
@@ -63,7 +91,12 @@ class FamilyGroupService extends ChangeNotifier {
     try {
       // Check if user is a member of any group
       // Use memberIds array for efficient querying (Firestore rules compatible)
-      final groupsQuery = await _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        _isInitialized = true;
+        return;
+      }
+      final groupsQuery = await firestore
           .collection('family_groups')
           .where('memberIds', arrayContains: userId)
           .limit(1)
@@ -105,8 +138,12 @@ class FamilyGroupService extends ChangeNotifier {
   /// Setup real-time listener for group changes
   void _setupGroupListener(String groupId) {
     _groupSubscription?.cancel();
-    _groupSubscription =
-        _firestore.collection('family_groups').doc(groupId).snapshots().listen(
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.warning('Firebase not available, cannot listen to group');
+      return;
+    }
+    _groupSubscription = firestore.collection('family_groups').doc(groupId).snapshots().listen(
       (doc) {
         if (doc.exists) {
           _currentGroup = FamilyGroup.fromFirestore(doc);
@@ -129,7 +166,8 @@ class FamilyGroupService extends ChangeNotifier {
     final userId = currentUserId;
     if (userId == null) {
       throw AuthenticationException(
-          'User must be authenticated to create a group',);
+        'User must be authenticated to create a group',
+      );
     }
 
     // Check if user is already in a group
@@ -138,7 +176,8 @@ class FamilyGroupService extends ChangeNotifier {
     }
 
     try {
-      final user = _auth.currentUser;
+      final auth = _authInstance;
+      final user = auth?.currentUser;
       if (user?.email == null) {
         throw ValidationException('User email is required');
       }
@@ -163,13 +202,17 @@ class FamilyGroupService extends ChangeNotifier {
         'pendingInvites': [],
       };
 
-      final docRef = await _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final docRef = await firestore
           .collection('family_groups')
           .add(groupData)
           .timeout(const Duration(seconds: 10));
 
-      // Also create membership record for user
-      await _firestore
+      // Also create membership record for user (firestore already checked above)
+      await firestore
           .collection('users')
           .doc(userId)
           .collection('family_memberships')
@@ -191,7 +234,8 @@ class FamilyGroupService extends ChangeNotifier {
       LoggerService.error('Error creating family group', error: e);
       if (e is TimeoutException) {
         throw NetworkException(
-            'Request timed out. Please check your connection.',);
+          'Request timed out. Please check your connection.',
+        );
       }
       rethrow;
     }
@@ -246,8 +290,11 @@ class FamilyGroupService extends ChangeNotifier {
     }
 
     try {
-      final groupRef =
-          _firestore.collection('family_groups').doc(_currentGroup!.id);
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final groupRef = firestore.collection('family_groups').doc(_currentGroup!.id);
 
       // Add pending invite
       await groupRef.update({
@@ -271,9 +318,60 @@ class FamilyGroupService extends ChangeNotifier {
       LoggerService.error('Error inviting member', error: e);
       if (e is TimeoutException) {
         throw NetworkException(
-            'Request timed out. Please check your connection.',);
+          'Request timed out. Please check your connection.',
+        );
       }
       rethrow;
+    }
+  }
+
+  /// Check if user can access a group invitation
+  /// Validates that the group exists and user has a pending invitation
+  Future<bool> canAccessGroupInvitation(String groupId) async {
+    final userId = currentUserId;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
+
+    if (userId == null || user?.email == null) {
+      return false;
+    }
+
+    try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        return false;
+      }
+      final groupRef = firestore.collection('family_groups').doc(groupId);
+      final groupDoc = await groupRef.get().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw NetworkException(
+            'Request timed out. Please check your connection.',
+          );
+        },
+      );
+
+      if (!groupDoc.exists) {
+        return false;
+      }
+
+      final group = FamilyGroup.fromFirestore(groupDoc);
+      final userEmail = user!.email!;
+
+      // Check if user is already a member
+      if (group.isMember(userId)) {
+        return true; // Can access if already a member
+      }
+
+      // Check if user has a pending invitation
+      final invite = group.getPendingInvite(userEmail);
+      return invite != null;
+    } catch (e) {
+      LoggerService.warning(
+        'Error checking group invitation access',
+        error: e,
+      );
+      return false;
     }
   }
 
@@ -282,10 +380,12 @@ class FamilyGroupService extends ChangeNotifier {
     final userId = currentUserId;
     if (userId == null) {
       throw AuthenticationException(
-          'User must be authenticated to accept invitation',);
+        'User must be authenticated to accept invitation',
+      );
     }
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null || user.email == null) {
       throw ValidationException('User email is required');
     }
@@ -293,7 +393,11 @@ class FamilyGroupService extends ChangeNotifier {
     final userEmail = user.email!; // Safe to use ! after null check
 
     try {
-      final groupRef = _firestore.collection('family_groups').doc(groupId);
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final groupRef = firestore.collection('family_groups').doc(groupId);
       final groupDoc =
           await groupRef.get().timeout(const Duration(seconds: 10));
 
@@ -319,8 +423,8 @@ class FamilyGroupService extends ChangeNotifier {
         throw ValidationException('No pending invitation found for this email');
       }
 
-      // Use transaction to ensure atomicity
-      await _firestore.runTransaction((transaction) async {
+      // Use transaction to ensure atomicity (firestore already checked above)
+      await firestore.runTransaction((transaction) async {
         final freshDoc = await transaction.get(groupRef);
         if (!freshDoc.exists) {
           throw ValidationException('Family group no longer exists');
@@ -349,12 +453,13 @@ class FamilyGroupService extends ChangeNotifier {
               'role': 'member',
             }
           ]),
-          'memberIds': FieldValue.arrayUnion([userId]), // Add to memberIds array
+          'memberIds':
+              FieldValue.arrayUnion([userId]), // Add to memberIds array
         });
       }).timeout(const Duration(seconds: 15));
 
-      // Create membership record
-      await _firestore
+      // Create membership record (firestore already checked above)
+      await firestore
           .collection('users')
           .doc(userId)
           .collection('family_memberships')
@@ -374,7 +479,8 @@ class FamilyGroupService extends ChangeNotifier {
       LoggerService.error('Error accepting invitation', error: e);
       if (e is TimeoutException) {
         throw NetworkException(
-            'Request timed out. Please check your connection.',);
+          'Request timed out. Please check your connection.',
+        );
       }
       rethrow;
     }
@@ -397,7 +503,8 @@ class FamilyGroupService extends ChangeNotifier {
 
     if (memberUserId == userId) {
       throw ValidationException(
-          'Owner cannot remove themselves. Cancel subscription instead.',);
+        'Owner cannot remove themselves. Cancel subscription instead.',
+      );
     }
 
     final member = _currentGroup!.getMember(memberUserId);
@@ -406,8 +513,11 @@ class FamilyGroupService extends ChangeNotifier {
     }
 
     try {
-      final groupRef =
-          _firestore.collection('family_groups').doc(_currentGroup!.id);
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final groupRef = firestore.collection('family_groups').doc(_currentGroup!.id);
 
       // Remove member from group
       // Also remove from memberIds array for Firestore rules
@@ -420,11 +530,12 @@ class FamilyGroupService extends ChangeNotifier {
             'role': member.role,
           }
         ]),
-        'memberIds': FieldValue.arrayRemove([member.userId]), // Remove from memberIds array
+        'memberIds': FieldValue.arrayRemove(
+            [member.userId],), // Remove from memberIds array
       }).timeout(const Duration(seconds: 10));
 
-      // Update membership record
-      await _firestore
+      // Update membership record (firestore already checked above)
+      await firestore
           .collection('users')
           .doc(memberUserId)
           .collection('family_memberships')
@@ -442,7 +553,8 @@ class FamilyGroupService extends ChangeNotifier {
       LoggerService.error('Error removing member', error: e);
       if (e is TimeoutException) {
         throw NetworkException(
-            'Request timed out. Please check your connection.',);
+          'Request timed out. Please check your connection.',
+        );
       }
       rethrow;
     }
@@ -471,8 +583,11 @@ class FamilyGroupService extends ChangeNotifier {
     }
 
     try {
-      final groupRef =
-          _firestore.collection('family_groups').doc(_currentGroup!.id);
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final groupRef = firestore.collection('family_groups').doc(_currentGroup!.id);
 
       // Remove member from group
       // Also remove from memberIds array for Firestore rules
@@ -485,11 +600,12 @@ class FamilyGroupService extends ChangeNotifier {
             'role': member.role,
           }
         ]),
-        'memberIds': FieldValue.arrayRemove([member.userId]), // Remove from memberIds array
+        'memberIds': FieldValue.arrayRemove(
+            [member.userId],), // Remove from memberIds array
       }).timeout(const Duration(seconds: 10));
 
-      // Update membership record
-      await _firestore
+      // Update membership record (firestore already checked above)
+      await firestore
           .collection('users')
           .doc(userId)
           .collection('family_memberships')
@@ -501,7 +617,7 @@ class FamilyGroupService extends ChangeNotifier {
 
       // Clear current group
       _currentGroup = null;
-      _groupSubscription?.cancel();
+      unawaited((_groupSubscription?.cancel() ?? Future<void>.value()) as Future<dynamic>,);
       notifyListeners();
 
       LoggerService.info('Left family group');
@@ -509,7 +625,8 @@ class FamilyGroupService extends ChangeNotifier {
       LoggerService.error('Error leaving group', error: e);
       if (e is TimeoutException) {
         throw NetworkException(
-            'Request timed out. Please check your connection.',);
+          'Request timed out. Please check your connection.',
+        );
       }
       rethrow;
     }
@@ -537,7 +654,11 @@ class FamilyGroupService extends ChangeNotifier {
     DateTime? expirationDate,
   ) async {
     try {
-      await _firestore.collection('family_groups').doc(groupId).update({
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      await firestore.collection('family_groups').doc(groupId).update({
         'subscriptionExpiresAt':
             expirationDate != null ? Timestamp.fromDate(expirationDate) : null,
       }).timeout(const Duration(seconds: 10));

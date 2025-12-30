@@ -14,6 +14,7 @@ import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/upgrade_dialog.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 import 'package:n3rd_game/widgets/skeleton_loader.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 /// Screen to view and replay past AI Edition generations
 class AIEditionHistoryScreen extends StatefulWidget {
@@ -111,8 +112,8 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
 
     if (cachedTrivia != null && cachedTrivia.isNotEmpty) {
       // Navigate to game with cached trivia
-      if (!mounted) return;
-      NavigationHelper.safeNavigate(
+      if (!mounted || !context.mounted) return;
+      unawaited(NavigationHelper.safeNavigate(
         context,
         '/game',
         arguments: {
@@ -122,15 +123,15 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
           'triviaPool': cachedTrivia,
           'isAIEdition': true,
         },
-      );
+      ),);
     } else {
       // Navigate to input screen with topic pre-filled
-      if (!mounted) return;
-      NavigationHelper.safeNavigate(
+      if (!mounted || !context.mounted) return;
+      unawaited(NavigationHelper.safeNavigate(
         context,
         '/ai-edition-input',
         arguments: {'topic': topic, 'isYouthEdition': isYouth},
-      );
+      ),);
     }
   }
 
@@ -172,73 +173,73 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
           return Scaffold(
             backgroundColor: colors.background,
             body: SafeArea(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.all(24),
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: AppShadows.large,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_outline,
-                          size: 64,
-                          color: colors.tertiaryText,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppShadows.large,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 64,
+                        color: colors.tertiaryText,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Premium Feature',
+                        style: AppTypography.headlineLarge.copyWith(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: colors.primaryText,
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Premium Feature',
-                          style: AppTypography.headlineLarge.copyWith(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: colors.primaryText,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'AI Edition History is available for Premium subscribers.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontSize: 14,
+                          color: colors.secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          _showUpgradeDialog();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colors.primaryButton,
+                          foregroundColor: colors.buttonText,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'AI Edition History is available for Premium subscribers.',
-                          textAlign: TextAlign.center,
+                        child: Text(
+                          'Upgrade to Premium',
+                          style: AppTypography.labelLarge,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => NavigationHelper.safePop(context),
+                        child: Text(
+                          'Go Back',
                           style: AppTypography.bodyMedium.copyWith(
-                            fontSize: 14,
                             color: colors.secondaryText,
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            _showUpgradeDialog();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.primaryButton,
-                            foregroundColor: colors.buttonText,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: Text(
-                            'Upgrade to Premium',
-                            style: AppTypography.labelLarge,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () => NavigationHelper.safePop(context),
-                          child: Text(
-                            'Go Back',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
             ),
           );
         }
@@ -248,10 +249,14 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => NavigationHelper.safePop(context),
-              tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+            leading: Semantics(
+              label: AppLocalizations.of(context)?.backButton ?? 'Back',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => NavigationHelper.safePop(context),
+                tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+              ),
             ),
             title: Text(
               'Generation History',
@@ -262,19 +267,25 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: _loadHistory,
-                tooltip: AppLocalizations.of(context)?.retryButton ?? 'Refresh',
+              Semantics(
+                label: AppLocalizations.of(context)?.retryButton ?? 'Refresh',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: _loadHistory,
+                  tooltip: AppLocalizations.of(context)?.retryButton ?? 'Refresh',
+                ),
               ),
             ],
           ),
           body: SafeArea(
             child: _isLoading
-                ? const SkeletonLoader(
+                ? ListView.builder(
                     itemCount: 5,
-                    showAvatar: false,
-                    showSubtitle: true,
+                    itemBuilder: (context, index) => const SkeletonListItem(
+                      hasAvatar: false,
+                      hasSubtitle: true,
+                    ),
                   )
                 : _error != null
                     ? ErrorRecoveryWidget(
@@ -309,7 +320,8 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
 
                                 return Container(
                                   margin: const EdgeInsets.only(
-                                      bottom: AppSpacing.md,),
+                                    bottom: AppSpacing.md,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.1),
                                     borderRadius:
@@ -414,15 +426,21 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
                                         ),
                                       ],
                                     ),
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: () => _replayGeneration(item),
-                                      tooltip: AppLocalizations.of(context)
+                                    trailing: Semantics(
+                                      label: AppLocalizations.of(context)
                                               ?.playButton ??
                                           'Play',
+                                      button: true,
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.play_arrow,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: () => _replayGeneration(item),
+                                        tooltip: AppLocalizations.of(context)
+                                                ?.playButton ??
+                                            'Play',
+                                      ),
                                     ),
                                   ),
                                 );

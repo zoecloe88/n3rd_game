@@ -1,25 +1,70 @@
-import 'dart:async' show unawaited, StreamSubscription, TimeoutException;
+import 'dart:async' show StreamSubscription, TimeoutException;
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:n3rd_game/models/game_room.dart';
+import 'package:n3rd_game/models/room_invitation.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/exceptions/error_codes.dart';
 import 'package:n3rd_game/services/rate_limiter_service.dart';
+import 'package:n3rd_game/services/multiplayer/multiplayer_retry_queue.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/services/friends_service.dart';
+import 'package:n3rd_game/services/notification_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class MultiplayerService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore? _firestore;
+  FirebaseAuth? _auth;
   final Connectivity _connectivity = Connectivity();
   final RateLimiterService _rateLimiter = RateLimiterService();
+  final MultiplayerRetryQueue _retryQueue = MultiplayerRetryQueue();
   AnalyticsService? _analyticsService;
+  FriendsService? _friendsService;
+  NotificationService? _notificationService;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for MultiplayerService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    if (_auth != null) return _auth;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _auth = FirebaseAuth.instance;
+      return _auth;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for MultiplayerService', error: e);
+      return null;
+    }
+  }
 
   void setAnalyticsService(AnalyticsService? service) {
     _analyticsService = service;
+  }
+
+  void setFriendsService(FriendsService? service) {
+    _friendsService = service;
+  }
+
+  void setNotificationService(NotificationService? service) {
+    _notificationService = service;
   }
 
   GameRoom? _currentRoom;
@@ -35,13 +80,14 @@ class MultiplayerService extends ChangeNotifier {
   GameRoom? get currentRoom => _currentRoom;
   bool get isInitialized => _isInitialized;
   bool get isReconnecting => _isReconnecting;
-  String? get currentUserId => _auth.currentUser?.uid;
+  String? get currentUserId => _authInstance?.currentUser?.uid;
 
   Future<void> init() async {
     if (_isInitialized) return;
 
     try {
       _isInitialized = true;
+      await _retryQueue.init();
       _setupConnectivityListener();
       LoggerService.info('MultiplayerService initialized');
     } catch (e) {
@@ -53,7 +99,7 @@ class MultiplayerService extends ChangeNotifier {
   /// Setup connectivity listener for automatic reconnection
   void _setupConnectivityListener() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-      List<ConnectivityResult> results,
+      results,
     ) {
       final isOnline =
           !results.contains(ConnectivityResult.none) && results.isNotEmpty;
@@ -61,6 +107,8 @@ class MultiplayerService extends ChangeNotifier {
       if (isOnline && _lastRoomId != null && _currentRoom == null) {
         // Network restored and we were in a room - attempt reconnection
         _attemptReconnection();
+        // Process retry queue when network is restored
+        unawaited(_processRetryQueue());
       } else if (!isOnline && _currentRoom != null) {
         // Network lost while in a room
         _lastDisconnectTime = DateTime.now();
@@ -73,6 +121,32 @@ class MultiplayerService extends ChangeNotifier {
   }
 
   /// Attempt to reconnect to the last room after network restoration
+  ///
+  /// **Reconnection Algorithm:**
+  /// 1. Checks mutex to prevent concurrent reconnection attempts
+  /// 2. Waits for network to stabilize (2 seconds)
+  /// 3. Validates room still exists in Firestore
+  /// 4. Verifies user is still a member of the room
+  /// 5. Restores room state and re-establishes listener
+  /// 6. Tracks reconnection time for analytics/UX
+  ///
+  /// **Edge Cases Handled:**
+  /// - Concurrent attempts: Protected by mutex (_isAttemptingReconnection)
+  /// - Room deleted: Cancels reconnection, clears saved room ID
+  /// - User removed: Cancels reconnection, clears saved room ID
+  /// - Network timeout: Logs error, allows retry on next connectivity change
+  /// - Firestore errors: Handles gracefully, logs for debugging
+  ///
+  /// **State Management:**
+  /// - Sets _isReconnecting flag for UI feedback
+  /// - Clears _lastRoomId on success or permanent failure
+  /// - Notifies listeners of state changes
+  ///
+  /// **Performance:**
+  /// - Uses timeout (10 seconds) to prevent indefinite hangs
+  /// - Waits for network stabilization before attempting
+  /// - Cancels operation if room/user validation fails
+  ///
   /// CRITICAL: Uses mutex to prevent concurrent reconnection attempts
   Future<void> _attemptReconnection() async {
     // CRITICAL: Mutex to prevent concurrent reconnection attempts
@@ -91,7 +165,15 @@ class MultiplayerService extends ChangeNotifier {
       await Future.delayed(const Duration(seconds: 2));
 
       // Check if room still exists and we're still a member
-      final docRef = _firestore.collection('game_rooms').doc(_lastRoomId!);
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        LoggerService.warning('Firebase not available, cannot reconnect');
+        _isReconnecting = false;
+        _isAttemptingReconnection = false;
+        notifyListeners();
+        return;
+      }
+      final docRef = firestore.collection('game_rooms').doc(_lastRoomId!);
       final doc = await docRef.get().timeout(const Duration(seconds: 10));
 
       if (!doc.exists) {
@@ -106,7 +188,8 @@ class MultiplayerService extends ChangeNotifier {
       }
 
       final room = GameRoom.fromFirestore(doc);
-      final userId = _auth.currentUser?.uid;
+      final auth = _authInstance;
+      final userId = auth?.currentUser?.uid;
 
       if (userId == null || !room.players.any((p) => p.userId == userId)) {
         LoggerService.warning(
@@ -139,6 +222,9 @@ class MultiplayerService extends ChangeNotifier {
       LoggerService.info(
         'Successfully reconnected to room: ${room.id}$durationStr',
       );
+
+      // Process retry queue after successful reconnection
+      await _processRetryQueue();
 
       notifyListeners();
     } catch (e, stackTrace) {
@@ -221,20 +307,26 @@ class MultiplayerService extends ChangeNotifier {
         // Don't retry on permission errors - they won't succeed on retry
         if (e.code == 'permission-denied') {
           LoggerService.error(
-            '$operationName: Permission denied. User may not be authenticated or lacks required permissions.',
+            '$operationName: Permission denied. User may not be authenticated or lacks required permissions. '
+            'Operation: $operationName, Firebase code: ${e.code}, Message: ${e.message ?? 'No message'}',
             error: e,
             reason: 'Firestore permission-denied error',
             fatal: false,
           );
           // Check if user is authenticated
-          final userId = _auth.currentUser?.uid;
+          final auth = _authInstance;
+      final userId = auth?.currentUser?.uid;
           if (userId == null) {
             throw AuthenticationException(
               'User not authenticated. Please log in to continue.',
+              recoverySuggestion:
+                  'Please sign in to access multiplayer features.',
             );
           }
           throw NetworkException(
-            'Permission denied. You may not have access to this feature. Please check your subscription or contact support.',
+            'Permission denied. You may not have access to this feature.',
+            recoverySuggestion:
+                'Please check your subscription status or contact support if you believe you should have access.',
           );
         }
         // For other Firebase errors, log and rethrow
@@ -278,8 +370,11 @@ class MultiplayerService extends ChangeNotifier {
   Future<GameRoom> createRoom({
     required MultiplayerMode mode,
     required int maxPlayers,
+    bool friendsOnly = false,
+    List<String>? allowedPlayers,
   }) async {
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) {
       throw AuthenticationException('User must be logged in to create a room');
     }
@@ -306,12 +401,29 @@ class MultiplayerService extends ChangeNotifier {
       lastActive: DateTime.now(),
     );
 
+    // If friends-only, get host's friends list for allowedPlayers
+    List<String>? finalAllowedPlayers = allowedPlayers;
+    if (friendsOnly && _friendsService != null) {
+      try {
+        await _friendsService!.init();
+        final friends = _friendsService!.friends;
+        finalAllowedPlayers = [user.uid, ...friends.map((f) => f.userId)];
+      } catch (e) {
+        LoggerService.warning(
+          'Failed to load friends for friend-only room, using provided allowedPlayers',
+          error: e,
+        );
+      }
+    }
+
     final room = GameRoom(
       id: '', // Will be set by Firestore
       hostId: user.uid,
       mode: mode,
       maxPlayers: maxPlayers,
       createdAt: DateTime.now(),
+      friendsOnly: friendsOnly,
+      allowedPlayers: finalAllowedPlayers,
     );
 
     // Track performance for room creation
@@ -322,16 +434,32 @@ class MultiplayerService extends ChangeNotifier {
     final createdRoom = await _executeWithRetry<GameRoom>(
       () async {
         retryCount++;
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          throw NetworkException(
+            'Firebase not available',
+            errorCode: ErrorCode.networkServerError,
+          );
+        }
         final docRef =
-            await _firestore.collection('game_rooms').add(room.toJson());
+            await firestore.collection('game_rooms').add(room.toJson());
 
         // Atomically set room ID and add host as first player
         await docRef.update({
           'id': docRef.id,
           'players': [hostPlayer.toJson()],
+          'friendsOnly': friendsOnly,
+          'invitedFriends': <String>[],
+          if (finalAllowedPlayers != null)
+            'allowedPlayers': finalAllowedPlayers,
         });
 
-        return room.copyWith(id: docRef.id, players: [hostPlayer]);
+        return room.copyWith(
+          id: docRef.id,
+          players: [hostPlayer],
+          friendsOnly: friendsOnly,
+          allowedPlayers: finalAllowedPlayers,
+        );
       },
       operationName: 'Create room',
     );
@@ -360,7 +488,8 @@ class MultiplayerService extends ChangeNotifier {
   // CRITICAL: Uses Firestore transaction to prevent race conditions
   // This ensures atomic check-and-update to prevent exceeding maxPlayers
   Future<GameRoom> joinRoom(String roomId) async {
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) {
       throw AuthenticationException('User must be logged in to join a room');
     }
@@ -402,9 +531,16 @@ class MultiplayerService extends ChangeNotifier {
     final room = await _executeWithRetry<GameRoom>(
       () async {
         retryCount++;
-        return await _firestore.runTransaction<GameRoom>((transaction) async {
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          throw NetworkException(
+            'Firebase not available',
+            errorCode: ErrorCode.networkServerError,
+          );
+        }
+        return firestore.runTransaction<GameRoom>((transaction) async {
           final docRef =
-              _firestore.collection('game_rooms').doc(sanitizedRoomId);
+              firestore.collection('game_rooms').doc(sanitizedRoomId);
           final doc = await transaction.get(docRef);
 
           if (!doc.exists) {
@@ -416,6 +552,16 @@ class MultiplayerService extends ChangeNotifier {
           // Check if already in room
           if (room.players.any((p) => p.userId == user.uid)) {
             return room; // Already in room
+          }
+
+          // Check if room is friends-only and validate access
+          if (room.friendsOnly) {
+            final hasAccess = await validateFriendAccess(room.id, user.uid);
+            if (!hasAccess) {
+              throw ValidationException(
+                'This room is friends-only. Only friends of the host can join.',
+              );
+            }
           }
 
           // Check room capacity atomically within transaction
@@ -467,8 +613,14 @@ class MultiplayerService extends ChangeNotifier {
         return false; // Invalid room ID format
       }
 
-      final doc =
-          await _firestore.collection('game_rooms').doc(sanitizedRoomId).get();
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException(
+          'Firebase not available',
+          errorCode: ErrorCode.networkServerError,
+        );
+      }
+      final doc = await firestore.collection('game_rooms').doc(sanitizedRoomId).get();
 
       if (!doc.exists) return false;
 
@@ -493,10 +645,11 @@ class MultiplayerService extends ChangeNotifier {
   Future<void> leaveRoom() async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
-    _roomSubscription?.cancel();
+    unawaited((_roomSubscription?.cancel() ?? Future<void>.value()) as Future<dynamic>,);
     _roomSubscription = null;
 
     final roomId = _currentRoom!.id;
@@ -505,7 +658,14 @@ class MultiplayerService extends ChangeNotifier {
     try {
       await _executeWithRetry(
         () async {
-          final docRef = _firestore.collection('game_rooms').doc(roomId);
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
 
           // Remove player from room
           await docRef.update({
@@ -520,24 +680,108 @@ class MultiplayerService extends ChangeNotifier {
           // If host left, check if room should be deleted or host transferred
           if (wasHost) {
             final updatedDoc = await docRef.get();
-            if (updatedDoc.exists) {
-              final updatedRoom = GameRoom.fromFirestore(updatedDoc);
-              if (updatedRoom.players.isEmpty) {
+            if (!updatedDoc.exists) {
+              // Room was already deleted, nothing to do
+              LoggerService.debug('Room $roomId was already deleted');
+              return;
+            }
+
+            final updatedRoom = GameRoom.fromFirestore(updatedDoc);
+
+            // Validate room state
+            if (updatedRoom.players.isEmpty) {
+              // No players left, delete the room
+              await docRef.delete();
+              LoggerService.info('Deleted empty room $roomId after host left');
+            } else {
+              // CRITICAL: Double-check players list is not empty to prevent race condition
+              // List might become empty between isEmpty check and first access
+              // Transfer host to first remaining player
+              final newHost = updatedRoom.players.first;
+
+              // Validate new host exists and is valid
+              if (newHost.userId.isEmpty) {
+                LoggerService.error('Invalid new host userId in room $roomId');
+                // Fallback: delete room if we can't transfer
                 await docRef.delete();
-              } else if (updatedRoom.players.isNotEmpty) {
-                // CRITICAL: Double-check players list is not empty to prevent race condition
-                // List might become empty between isEmpty check and first access
-                // Transfer host to first remaining player
-                await docRef
-                    .update({'hostId': updatedRoom.players.first.userId});
+                return;
               }
+
+              // Validate new host is still in the room (defense in depth)
+              final hostStillInRoom = updatedRoom.players.any(
+                (p) => p.userId == newHost.userId,
+              );
+
+              if (!hostStillInRoom) {
+                LoggerService.error(
+                    'New host ${newHost.userId} is not in room $roomId',);
+                // Fallback: delete room if host is invalid
+                await docRef.delete();
+                return;
+              }
+
+              // Transfer host using transaction for atomicity
+              final firestore = _firestoreInstance;
+              if (firestore == null) {
+                throw NetworkException(
+                  'Firebase not available',
+                  errorCode: ErrorCode.networkServerError,
+                );
+              }
+              await firestore.runTransaction<void>((transaction) async {
+                final currentDoc = await transaction.get(docRef);
+                if (!currentDoc.exists) {
+                  return; // Room was deleted
+                }
+
+                final currentRoom = GameRoom.fromFirestore(currentDoc);
+                if (currentRoom.players.isEmpty) {
+                  // Room became empty, delete it
+                  transaction.delete(docRef);
+                  return;
+                }
+
+                // Validate new host is still available
+                final validNewHost = currentRoom.players.firstWhere(
+                  (p) => p.userId == newHost.userId,
+                  orElse: () => currentRoom.players.first,
+                );
+
+                // Transfer host
+                transaction.update(docRef, {
+                  'hostId': validNewHost.userId,
+                });
+              });
+
+              LoggerService.info(
+                'Transferred host of room $roomId to ${newHost.userId}',
+              );
+
+              // Log analytics if available
+              unawaited(
+                _analyticsService?.logCustomEvent(
+                  'host_transferred',
+                  parameters: {
+                    'roomId': roomId,
+                    'newHostId': newHost.userId,
+                    'previousHostId': user.uid,
+                  },
+                ),
+              );
             }
           }
         },
         operationName: 'Leave room',
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       LoggerService.warning('Error leaving room', error: e);
+      // Report leave room errors to Crashlytics
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Error leaving room: $roomId',
+        fatal: false,
+      ),);
       // Continue with cleanup even if Firestore operation fails
     }
 
@@ -549,34 +793,58 @@ class MultiplayerService extends ChangeNotifier {
   Future<void> setPlayerReady(bool ready) async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
     // Check connectivity before updating ready status
     await _checkConnectivity();
 
-    await _executeWithRetry(
-      () async {
-        final docRef =
-            _firestore.collection('game_rooms').doc(_currentRoom!.id);
-        final players = _currentRoom!.players.map((p) {
-          if (p.userId == user.uid) {
-            return p.copyWith(isReady: ready).toJson();
+    try {
+      await _executeWithRetry(
+        () async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
           }
-          return p.toJson();
-        }).toList();
+          final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
+          final players = _currentRoom!.players.map((p) {
+            if (p.userId == user.uid) {
+              return p.copyWith(isReady: ready).toJson();
+            }
+            return p.toJson();
+          }).toList();
 
-        await docRef.update({'players': players});
-      },
-      operationName: 'Set player ready',
-    );
+          await docRef.update({'players': players});
+        },
+        operationName: 'Set player ready',
+      );
+    } on NetworkException catch (e) {
+      // Queue for retry if network error
+      await _retryQueue.enqueueSetPlayerReady(
+        roomId: _currentRoom!.id,
+        userId: user.uid,
+        ready: ready,
+      );
+      LoggerService.warning(
+        'Network error setting player ready, queued for retry',
+        error: e,
+      );
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Start the game
   Future<void> startGame({String? gameMode, String? difficulty}) async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
     if (_currentRoom!.hostId != user.uid) {
@@ -612,8 +880,12 @@ class MultiplayerService extends ChangeNotifier {
 
     await _executeWithRetry(
       () async {
-        final docRef =
-            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          LoggerService.warning('Firebase not available, skipping update');
+          return;
+        }
+        final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
         await docRef.update({
           'status': RoomStatus.inProgress.name,
           'startedAt': DateTime.now().toIso8601String(),
@@ -671,31 +943,54 @@ class MultiplayerService extends ChangeNotifier {
   Future<void> sendPing() async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
-    await _executeWithRetry(
-      () async {
-        final docRef =
-            _firestore.collection('game_rooms').doc(_currentRoom!.id);
-        final players = _currentRoom!.players.map((p) {
-          if (p.userId == user.uid) {
-            return p.copyWith(lastPing: DateTime.now()).toJson();
+    try {
+      await _executeWithRetry(
+        () async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
           }
-          return p.toJson();
-        }).toList();
+          final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
+          final players = _currentRoom!.players.map((p) {
+            if (p.userId == user.uid) {
+              return p.copyWith(lastPing: DateTime.now()).toJson();
+            }
+            return p.toJson();
+          }).toList();
 
-        await docRef.update({'players': players});
-      },
-      operationName: 'Send ping',
-    );
+          await docRef.update({'players': players});
+        },
+        operationName: 'Send ping',
+      );
+    } on NetworkException catch (e) {
+      // Queue for retry if network error
+      await _retryQueue.enqueueSendPing(
+        roomId: _currentRoom!.id,
+        userId: user.uid,
+      );
+      LoggerService.warning(
+        'Network error sending ping, queued for retry',
+        error: e,
+      );
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Assign role to player (for squad showdown)
   Future<void> assignRole(String userId, String role) async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
     // Only host can assign roles
@@ -703,7 +998,14 @@ class MultiplayerService extends ChangeNotifier {
       throw ValidationException('Only the host can assign roles');
     }
 
-    final docRef = _firestore.collection('game_rooms').doc(_currentRoom!.id);
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      throw NetworkException(
+        'Firebase not available',
+        errorCode: ErrorCode.networkServerError,
+      );
+    }
+    final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
     final players = _currentRoom!.players.map((p) {
       if (p.userId == userId) {
         return p.copyWith(role: role).toJson();
@@ -712,7 +1014,7 @@ class MultiplayerService extends ChangeNotifier {
     }).toList();
 
     await _executeWithRetry(
-      () async => await docRef.update({'players': players}),
+      () async => docRef.update({'players': players}),
       operationName: 'Assign role',
     );
   }
@@ -726,66 +1028,123 @@ class MultiplayerService extends ChangeNotifier {
   }) async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
+
+    // CRITICAL: Rate limit answer submissions to prevent abuse
+    // Limit: 30 submissions per minute per user
+    final isAllowed = await _rateLimiter.isAllowed(
+      'submit_round_answer_${user.uid}',
+      maxAttempts: 30,
+      window: const Duration(minutes: 1),
+    );
+    if (!isAllowed) {
+      LoggerService.warning(
+        'Rate limit exceeded for answer submission by user ${user.uid}',
+      );
+      unawaited(
+        _analyticsService?.logCustomEvent(
+          'multiplayer_rate_limit_exceeded',
+          parameters: {
+            'operation': 'submit_round_answer',
+            'userId': user.uid,
+            'roomId': _currentRoom!.id,
+          },
+        ),
+      );
+      throw ValidationException(
+        'Too many answer submissions. Please wait a moment before submitting again.',
+        errorCode: ErrorCode.multiplayerRateLimitExceeded,
+        recoverySuggestion:
+            'Please wait a few seconds before submitting your answer again.',
+      );
+    }
 
     // Check connectivity before submitting answer
     await _checkConnectivity();
 
-    await _executeWithRetry(
-      () async {
-        return await _firestore.runTransaction<void>((transaction) async {
-          final docRef =
-              _firestore.collection('game_rooms').doc(_currentRoom!.id);
-          final doc = await transaction.get(docRef);
-
-          if (!doc.exists) {
-            throw ValidationException('Room not found');
-          }
-
-          final room = GameRoom.fromFirestore(doc);
-
-          // Verify player is still in room
-          if (!room.players.any((p) => p.userId == user.uid)) {
-            throw ValidationException('Player not in room');
-          }
-
-          // Update player score atomically
-          final players = room.players.map((p) {
-            if (p.userId == user.uid) {
-              return p
-                  .copyWith(
-                    score: p.score + score,
-                    correctAnswers: p.correctAnswers + correctAnswers,
-                    wrongAnswers: p.wrongAnswers + wrongAnswers,
-                  )
-                  .toJson();
-            }
-            return p.toJson();
-          }).toList();
-
-          // For battle royale, mark player as submitted
-          final Map<String, dynamic> updateData = {'players': players};
-          if (room.mode == MultiplayerMode.battleRoyale) {
-            final submissions = Map<String, bool>.from(
-              room.playerSubmissions ?? {},
+    try {
+      await _executeWithRetry(
+        () async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
             );
-            submissions[user.uid] = true;
-            updateData['playerSubmissions'] = submissions;
           }
+          return firestore.runTransaction<void>((transaction) async {
+            final docRef =
+                firestore.collection('game_rooms').doc(_currentRoom!.id);
+            final doc = await transaction.get(docRef);
 
-          transaction.update(docRef, updateData);
-        });
-      },
-      operationName: 'Submit round answer',
-    );
+            if (!doc.exists) {
+              throw ValidationException('Room not found');
+            }
+
+            final room = GameRoom.fromFirestore(doc);
+
+            // Verify player is still in room
+            if (!room.players.any((p) => p.userId == user.uid)) {
+              throw ValidationException('Player not in room');
+            }
+
+            // Update player score atomically
+            final players = room.players.map((p) {
+              if (p.userId == user.uid) {
+                return p
+                    .copyWith(
+                      score: p.score + score,
+                      correctAnswers: p.correctAnswers + correctAnswers,
+                      wrongAnswers: p.wrongAnswers + wrongAnswers,
+                    )
+                    .toJson();
+              }
+              return p.toJson();
+            }).toList();
+
+            // For battle royale, mark player as submitted
+            final Map<String, dynamic> updateData = {'players': players};
+            if (room.mode == MultiplayerMode.battleRoyale) {
+              final submissions = Map<String, bool>.from(
+                room.playerSubmissions ?? {},
+              );
+              submissions[user.uid] = true;
+              updateData['playerSubmissions'] = submissions;
+            }
+
+            transaction.update(docRef, updateData);
+          });
+        },
+        operationName: 'Submit round answer',
+      );
+    } on NetworkException catch (e) {
+      // Queue for retry if network error
+      await _retryQueue.enqueueSubmitRoundAnswer(
+        roomId: _currentRoom!.id,
+        userId: user.uid,
+        score: score,
+        correctAnswers: correctAnswers,
+        wrongAnswers: wrongAnswers,
+      );
+      LoggerService.warning(
+        'Network error submitting answer, queued for retry',
+        error: e,
+      );
+      rethrow;
+    } catch (e) {
+      // For other errors, don't queue (validation errors, etc.)
+      rethrow;
+    }
   }
 
   // Advance to next round (for battle royale, move to next player)
   Future<void> nextRound() async {
     if (_currentRoom == null) return;
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) return;
 
     if (_currentRoom!.hostId != user.uid) {
@@ -830,8 +1189,12 @@ class MultiplayerService extends ChangeNotifier {
 
     await _executeWithRetry(
       () async {
-        final docRef =
-            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          LoggerService.warning('Firebase not available, skipping update');
+          return;
+        }
+        final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
         await docRef.update({
           'currentRound': currentRound + 1,
           'currentPlayerId': nextPlayerId,
@@ -848,8 +1211,12 @@ class MultiplayerService extends ChangeNotifier {
 
     await _executeWithRetry(
       () async {
-        final docRef =
-            _firestore.collection('game_rooms').doc(_currentRoom!.id);
+        final firestore = _firestoreInstance;
+        if (firestore == null) {
+          LoggerService.warning('Firebase not available, skipping update');
+          return;
+        }
+        final docRef = firestore.collection('game_rooms').doc(_currentRoom!.id);
         await docRef.update({
           'status': RoomStatus.finished.name,
           'finishedAt': DateTime.now().toIso8601String(),
@@ -862,7 +1229,12 @@ class MultiplayerService extends ChangeNotifier {
   // Listen to room changes
   void _listenToRoom(String roomId) {
     _roomSubscription?.cancel();
-    _roomSubscription = _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.warning('Firebase not available, cannot listen to room');
+      return;
+    }
+    _roomSubscription = firestore
         .collection('game_rooms')
         .doc(roomId)
         .snapshots()
@@ -880,23 +1252,28 @@ class MultiplayerService extends ChangeNotifier {
   // Clean up abandoned/expired rooms (call on app start)
   Future<void> cleanupExpiredRooms() async {
     try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        LoggerService.warning('Firebase not available, cannot cleanup expired rooms');
+        return;
+      }
       final now = DateTime.now();
-      final expiredRooms = await _firestore
+      final expiredRooms = await firestore
           .collection('game_rooms')
           .where('expiresAt', isLessThan: now.toIso8601String())
           .get();
 
-      final batch = _firestore.batch();
+      final batch = firestore.batch();
       for (final doc in expiredRooms.docs) {
         batch.delete(doc.reference);
       }
 
       if (expiredRooms.docs.isNotEmpty) {
         await batch.commit();
-        debugPrint('Cleaned up ${expiredRooms.docs.length} expired rooms');
+        LoggerService.debug('Cleaned up ${expiredRooms.docs.length} expired rooms');
       }
     } catch (e) {
-      debugPrint('Error cleaning up expired rooms: $e');
+      LoggerService.error('Error cleaning up expired rooms', error: e);
     }
   }
 
@@ -904,7 +1281,11 @@ class MultiplayerService extends ChangeNotifier {
   // NOTE: Callers are responsible for cancelling the returned stream subscription
   // to prevent memory leaks. Use StreamSubscription.cancel() when done listening.
   Stream<List<GameRoom>> findAvailableRooms(MultiplayerMode mode) {
-    return _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      return Stream.value([]); // Return empty stream if Firebase not available
+    }
+    return firestore
         .collection('game_rooms')
         .where('mode', isEqualTo: mode.name)
         .where('status', isEqualTo: RoomStatus.waiting.name)
@@ -916,7 +1297,7 @@ class MultiplayerService extends ChangeNotifier {
             try {
               return GameRoom.fromFirestore(doc);
             } catch (e) {
-              debugPrint('Error parsing room ${doc.id}: $e');
+              LoggerService.error('Error parsing room ${doc.id}', error: e);
               return null;
             }
           })
@@ -931,10 +1312,409 @@ class MultiplayerService extends ChangeNotifier {
     });
   }
 
+  /// Send room invitation to a friend
+  Future<String> sendRoomInvitation(String roomId, String friendUserId) async {
+    final auth = _authInstance;
+    final user = auth?.currentUser;
+    if (user == null) {
+      throw AuthenticationException(
+          'User must be logged in to send invitation',);
+    }
+
+    // Validate room exists and user is host
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      throw NetworkException(
+        'Firebase not available',
+        errorCode: ErrorCode.networkServerError,
+      );
+    }
+    final roomDoc = await firestore.collection('game_rooms').doc(roomId).get();
+    if (!roomDoc.exists) {
+      throw ValidationException('Room not found');
+    }
+
+    final room = GameRoom.fromFirestore(roomDoc);
+    if (room.hostId != user.uid) {
+      throw ValidationException('Only the host can send invitations');
+    }
+
+    // Check if already invited
+    if (room.invitedFriends.contains(friendUserId)) {
+      throw ValidationException('Friend already invited');
+    }
+
+    // Generate room code (using room ID)
+    final roomCode = roomId;
+
+    // Create invitation document (firestore already checked above)
+    final invitationRef = await firestore.collection('game_room_invitations').add({
+      'roomId': roomId,
+      'inviterUserId': user.uid,
+      'friendUserId': friendUserId,
+      'roomCode': roomCode,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'pending',
+    });
+
+    // Update room to add friend to invited list
+    await firestore.collection('game_rooms').doc(roomId).update({
+      'invitedFriends': FieldValue.arrayUnion([friendUserId]),
+    });
+
+    // Send push notification
+    if (_notificationService != null) {
+      try {
+        final inviterName =
+            user.displayName ?? user.email?.split('@').first ?? 'Someone';
+        await _notificationService!.sendRoomInvitationNotification(
+          friendUserId,
+          roomId,
+          inviterName,
+          roomCode,
+        );
+      } catch (e) {
+        LoggerService.warning('Failed to send push notification for invitation',
+            error: e,);
+        // Continue even if notification fails
+      }
+    }
+
+    // Log analytics
+    unawaited(
+      _analyticsService?.logCustomEvent(
+        'room_invitation_sent',
+        parameters: {
+          'roomId': roomId,
+          'friendUserId': friendUserId,
+        },
+      ),
+    );
+
+    return invitationRef.id;
+  }
+
+  /// Get room invitations for a specific room
+  Future<List<RoomInvitation>> getRoomInvitations(String roomId) async {
+    try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException(
+          'Firebase not available',
+          errorCode: ErrorCode.networkServerError,
+        );
+      }
+      final snapshot = await firestore
+          .collection('game_room_invitations')
+          .where('roomId', isEqualTo: roomId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      return snapshot.docs
+          .map((doc) => RoomInvitation.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Error getting room invitations', error: e);
+      return [];
+    }
+  }
+
+  /// Cancel a room invitation
+  Future<void> cancelRoomInvitation(String invitationId) async {
+    final auth = _authInstance;
+    final user = auth?.currentUser;
+    if (user == null) {
+      throw AuthenticationException(
+          'User must be logged in to cancel invitation',);
+    }
+
+    try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException(
+          'Firebase not available',
+          errorCode: ErrorCode.networkServerError,
+        );
+      }
+      final invitationDoc = await firestore
+          .collection('game_room_invitations')
+          .doc(invitationId)
+          .get();
+
+      if (!invitationDoc.exists) {
+        throw ValidationException('Invitation not found');
+      }
+
+      final invitation = RoomInvitation.fromFirestore(invitationDoc);
+
+      // Verify user is the inviter
+      if (invitation.inviterUserId != user.uid) {
+        throw ValidationException('Only the inviter can cancel the invitation');
+      }
+
+      // Update invitation status (firestore already checked above)
+      await firestore
+          .collection('game_room_invitations')
+          .doc(invitationId)
+          .update({'status': 'cancelled'});
+
+      // Remove from room's invited friends list
+      await firestore.collection('game_rooms').doc(invitation.roomId).update({
+        'invitedFriends': FieldValue.arrayRemove([invitation.friendUserId]),
+      });
+    } catch (e) {
+      LoggerService.error('Error cancelling room invitation', error: e);
+      rethrow;
+    }
+  }
+
+  /// Validate if a user has access to a friend-only room
+  Future<bool> validateFriendAccess(String roomId, String userId) async {
+    try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException(
+          'Firebase not available',
+          errorCode: ErrorCode.networkServerError,
+        );
+      }
+      final roomDoc = await firestore.collection('game_rooms').doc(roomId).get();
+      if (!roomDoc.exists) {
+        return false;
+      }
+
+      final room = GameRoom.fromFirestore(roomDoc);
+
+      // If not friends-only, allow access
+      if (!room.friendsOnly) {
+        return true;
+      }
+
+      // Host always has access
+      if (room.hostId == userId) {
+        return true;
+      }
+
+      // Check if user is in allowedPlayers list
+      if (room.allowedPlayers != null &&
+          room.allowedPlayers!.contains(userId)) {
+        return true;
+      }
+
+      // Check if user is a friend of the host using FriendsService
+      if (_friendsService != null) {
+        try {
+          await _friendsService!.init();
+          final friends = _friendsService!.friends;
+          final isFriend = friends.any((f) => f.userId == room.hostId) ||
+              room.hostId == userId;
+          return isFriend;
+        } catch (e) {
+          LoggerService.warning(
+            'Failed to check friend status, denying access',
+            error: e,
+          );
+          return false;
+        }
+      }
+
+      // If FriendsService not available, check allowedPlayers only
+      return room.allowedPlayers?.contains(userId) ?? false;
+    } catch (e) {
+      LoggerService.error('Error validating friend access', error: e);
+      return false;
+    }
+  }
+
+  /// Process retry queue for failed operations
+  Future<void> _processRetryQueue() async {
+    try {
+      await _retryQueue.processQueue(
+        submitRoundAnswerFunction: ({
+          required roomId,
+          required userId,
+          required score,
+          required correctAnswers,
+          required wrongAnswers,
+        }) async {
+          // Re-execute the submit round answer logic
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
+          final doc = await docRef.get();
+          if (!doc.exists) {
+            throw ValidationException('Room not found');
+          }
+          final room = GameRoom.fromFirestore(doc);
+          if (!room.players.any((p) => p.userId == userId)) {
+            throw ValidationException('Player not in room');
+          }
+          final players = room.players.map((p) {
+            if (p.userId == userId) {
+              return p
+                  .copyWith(
+                    score: p.score + score,
+                    correctAnswers: p.correctAnswers + correctAnswers,
+                    wrongAnswers: p.wrongAnswers + wrongAnswers,
+                  )
+                  .toJson();
+            }
+            return p.toJson();
+          }).toList();
+          final updateData = <String, dynamic>{'players': players};
+          if (room.mode == MultiplayerMode.battleRoyale) {
+            final submissions =
+                Map<String, bool>.from(room.playerSubmissions ?? {});
+            submissions[userId] = true;
+            updateData['playerSubmissions'] = submissions;
+          }
+          await docRef.update(updateData);
+        },
+        setPlayerReadyFunction: ({
+          required roomId,
+          required userId,
+          required ready,
+        }) async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
+          final doc = await docRef.get();
+          if (!doc.exists) return;
+          final room = GameRoom.fromFirestore(doc);
+          final players = room.players.map((p) {
+            if (p.userId == userId) {
+              return p.copyWith(isReady: ready).toJson();
+            }
+            return p.toJson();
+          }).toList();
+          await docRef.update({'players': players});
+        },
+        sendPingFunction: ({
+          required roomId,
+          required userId,
+        }) async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
+          final doc = await docRef.get();
+          if (!doc.exists) return;
+          final room = GameRoom.fromFirestore(doc);
+          final players = room.players.map((p) {
+            if (p.userId == userId) {
+              return p.copyWith(lastPing: DateTime.now()).toJson();
+            }
+            return p.toJson();
+          }).toList();
+          await docRef.update({'players': players});
+        },
+        nextRoundFunction: ({
+          required roomId,
+          required userId,
+        }) async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
+          final doc = await docRef.get();
+          if (!doc.exists) return;
+          final room = GameRoom.fromFirestore(doc);
+          if (room.hostId != userId) return;
+          final currentRound = room.currentRound;
+          if (currentRound >= room.totalRounds) {
+            await docRef.update({
+              'status': RoomStatus.finished.name,
+              'finishedAt': DateTime.now().toIso8601String(),
+            });
+            return;
+          }
+          String? nextPlayerId;
+          Map<String, bool>? playerSubmissions;
+          if (room.mode == MultiplayerMode.battleRoyale) {
+            final currentIndex = room.players.indexWhere(
+              (p) => p.userId == room.currentPlayerId,
+            );
+            final nextIndex = (currentIndex + 1) % room.players.length;
+            nextPlayerId = room.players[nextIndex].userId;
+            playerSubmissions = {
+              for (final player in room.players) player.userId: false,
+            };
+          }
+          await docRef.update({
+            'currentRound': currentRound + 1,
+            'currentPlayerId': nextPlayerId,
+            if (playerSubmissions != null)
+              'playerSubmissions': playerSubmissions,
+          });
+        },
+        leaveRoomFunction: ({
+          required roomId,
+          required userId,
+        }) async {
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException(
+              'Firebase not available',
+              errorCode: ErrorCode.networkServerError,
+            );
+          }
+          final docRef = firestore.collection('game_rooms').doc(roomId);
+          final doc = await docRef.get();
+          if (!doc.exists) return;
+          final room = GameRoom.fromFirestore(doc);
+          final wasHost = room.hostId == userId;
+          await docRef.update({
+            'players': FieldValue.arrayRemove(
+              room.players
+                  .where((p) => p.userId == userId)
+                  .map((p) => p.toJson())
+                  .toList(),
+            ),
+          });
+          if (wasHost && room.players.length > 1) {
+            final updatedDoc = await docRef.get();
+            if (updatedDoc.exists) {
+              final updatedRoom = GameRoom.fromFirestore(updatedDoc);
+              if (updatedRoom.players.isNotEmpty) {
+                await docRef
+                    .update({'hostId': updatedRoom.players.first.userId});
+              }
+            }
+          }
+        },
+      );
+    } catch (e, stack) {
+      LoggerService.error(
+        'Error processing multiplayer retry queue',
+        error: e,
+        stack: stack,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _roomSubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _retryQueue.dispose();
     leaveRoom();
     super.dispose();
   }

@@ -43,8 +43,11 @@ void main() {
     test('service can be disposed', () {
       // Create a new service instance for this test since tearDown will dispose the main one
       final testService = NetworkService();
-      expect(() => testService.dispose(), returnsNormally);
+      try {
+        expect(() => testService.dispose(), returnsNormally);
+      } finally {
+        testService.dispose();
+      }
     });
   });
 }
-

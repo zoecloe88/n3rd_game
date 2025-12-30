@@ -1,12 +1,148 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/game_mode_extensions.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 
 /// Represents a single game history entry
 ///
 /// This model stores complete information about a finished game session,
 /// including all metrics, performance data, and trivia categories used.
 class GameHistoryEntry {
+
+  GameHistoryEntry({
+    required this.gameId,
+    required this.completedAt,
+    required this.mode,
+    this.difficulty,
+    required this.score,
+    required this.rounds,
+    required this.correctAnswers,
+    required this.wrongAnswers,
+    required this.durationSeconds,
+    required this.accuracy,
+    this.perfectStreak = 0,
+    this.livesRemaining = 0,
+    this.triviaCategories = const [],
+    this.isMultiplayer = false,
+    this.roomId,
+    this.isWon,
+    this.edition,
+    this.editionName,
+    this.isAIEdition = false,
+    this.additionalMetrics,
+  });
+
+  /// Create from Firestore document
+  factory GameHistoryEntry.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    // Parse GameMode from string
+    GameMode mode;
+    try {
+      mode = GameMode.values.firstWhere(
+        (m) => m.displayName == data['mode'],
+      );
+    } catch (e) {
+      LoggerService.warning(
+        'Failed to parse GameMode: ${data['mode']}, defaulting to classic',
+        error: e,
+      );
+      mode = GameMode.classic;
+    }
+
+    // Parse completedAt timestamp
+    DateTime completedAt;
+    try {
+      if (data['completedAt'] is Timestamp) {
+        completedAt = (data['completedAt'] as Timestamp).toDate();
+      } else if (data['completedAt'] is String) {
+        completedAt = DateTime.parse(data['completedAt'] as String);
+      } else {
+        completedAt = DateTime.now();
+      }
+    } catch (e) {
+      LoggerService.warning(
+        'Failed to parse completedAt timestamp, using current time',
+        error: e,
+      );
+      completedAt = DateTime.now();
+    }
+
+    return GameHistoryEntry(
+      gameId: doc.id,
+      completedAt: completedAt,
+      mode: mode,
+      difficulty: data['difficulty'] as String?,
+      score: (data['score'] as int?) ?? 0,
+      rounds: (data['rounds'] as int?) ?? 0,
+      correctAnswers: (data['correctAnswers'] as int?) ?? 0,
+      wrongAnswers: (data['wrongAnswers'] as int?) ?? 0,
+      durationSeconds: (data['durationSeconds'] as int?) ?? 0,
+      accuracy: (data['accuracy'] as num?)?.toDouble() ?? 0.0,
+      perfectStreak: (data['perfectStreak'] as int?) ?? 0,
+      livesRemaining: (data['livesRemaining'] as int?) ?? 0,
+      triviaCategories: List<String>.from(data['triviaCategories'] ?? []),
+      isMultiplayer: (data['isMultiplayer'] as bool?) ?? false,
+      roomId: data['roomId'] as String?,
+      isWon: data['isWon'] as bool?,
+      edition: data['edition'] as String?,
+      editionName: data['editionName'] as String?,
+      isAIEdition: (data['isAIEdition'] as bool?) ?? false,
+      additionalMetrics: data['additionalMetrics'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// Create from JSON (for local storage)
+  factory GameHistoryEntry.fromJson(Map<String, dynamic> json) {
+    // Parse GameMode from string
+    GameMode mode;
+    try {
+      mode = GameMode.values.firstWhere(
+        (m) => m.displayName == json['mode'],
+      );
+    } catch (e) {
+      LoggerService.warning(
+        'Failed to parse GameMode: ${json['mode']}, defaulting to classic',
+        error: e,
+      );
+      mode = GameMode.classic;
+    }
+
+    // Parse completedAt timestamp
+    DateTime completedAt;
+    try {
+      completedAt = DateTime.parse(json['completedAt'] as String);
+    } catch (e) {
+      LoggerService.warning(
+        'Failed to parse completedAt timestamp, using current time',
+        error: e,
+      );
+      completedAt = DateTime.now();
+    }
+
+    return GameHistoryEntry(
+      gameId: json['gameId'] as String,
+      completedAt: completedAt,
+      mode: mode,
+      difficulty: json['difficulty'] as String?,
+      score: (json['score'] as int?) ?? 0,
+      rounds: (json['rounds'] as int?) ?? 0,
+      correctAnswers: (json['correctAnswers'] as int?) ?? 0,
+      wrongAnswers: (json['wrongAnswers'] as int?) ?? 0,
+      durationSeconds: (json['durationSeconds'] as int?) ?? 0,
+      accuracy: (json['accuracy'] as num?)?.toDouble() ?? 0.0,
+      perfectStreak: (json['perfectStreak'] as int?) ?? 0,
+      livesRemaining: (json['livesRemaining'] as int?) ?? 0,
+      triviaCategories: List<String>.from(json['triviaCategories'] ?? []),
+      isMultiplayer: (json['isMultiplayer'] as bool?) ?? false,
+      roomId: json['roomId'] as String?,
+      isWon: json['isWon'] as bool?,
+      edition: json['edition'] as String?,
+      editionName: json['editionName'] as String?,
+      isAIEdition: (json['isAIEdition'] as bool?) ?? false,
+      additionalMetrics: json['additionalMetrics'] as Map<String, dynamic>?,
+    );
+  }
   /// Unique game ID (Firestore document ID)
   final String gameId;
 
@@ -55,91 +191,23 @@ class GameHistoryEntry {
   /// Whether the game was won (for modes with win conditions)
   final bool? isWon;
 
+  /// Edition ID if this was an edition game
+  final String? edition;
+
+  /// Edition display name
+  final String? editionName;
+
+  /// Whether this was an AI-generated edition
+  final bool isAIEdition;
+
   /// Additional performance metrics
   final Map<String, dynamic>? additionalMetrics;
-
-  GameHistoryEntry({
-    required this.gameId,
-    required this.completedAt,
-    required this.mode,
-    this.difficulty,
-    required this.score,
-    required this.rounds,
-    required this.correctAnswers,
-    required this.wrongAnswers,
-    required this.durationSeconds,
-    required this.accuracy,
-    this.perfectStreak = 0,
-    this.livesRemaining = 0,
-    this.triviaCategories = const [],
-    this.isMultiplayer = false,
-    this.roomId,
-    this.isWon,
-    this.additionalMetrics,
-  });
-
-  /// Create from Firestore document
-  factory GameHistoryEntry.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    
-    // Parse GameMode from string
-    GameMode mode;
-    try {
-      mode = GameMode.values.firstWhere(
-        (m) => m.toString().split('.').last == data['mode'],
-      );
-    } catch (e) {
-      LoggerService.warning(
-        'Failed to parse GameMode: ${data['mode']}, defaulting to classic',
-        error: e,
-      );
-      mode = GameMode.classic;
-    }
-
-    // Parse completedAt timestamp
-    DateTime completedAt;
-    try {
-      if (data['completedAt'] is Timestamp) {
-        completedAt = (data['completedAt'] as Timestamp).toDate();
-      } else if (data['completedAt'] is String) {
-        completedAt = DateTime.parse(data['completedAt'] as String);
-      } else {
-        completedAt = DateTime.now();
-      }
-    } catch (e) {
-      LoggerService.warning(
-        'Failed to parse completedAt timestamp, using current time',
-        error: e,
-      );
-      completedAt = DateTime.now();
-    }
-
-    return GameHistoryEntry(
-      gameId: doc.id,
-      completedAt: completedAt,
-      mode: mode,
-      difficulty: data['difficulty'] as String?,
-      score: (data['score'] as int?) ?? 0,
-      rounds: (data['rounds'] as int?) ?? 0,
-      correctAnswers: (data['correctAnswers'] as int?) ?? 0,
-      wrongAnswers: (data['wrongAnswers'] as int?) ?? 0,
-      durationSeconds: (data['durationSeconds'] as int?) ?? 0,
-      accuracy: (data['accuracy'] as num?)?.toDouble() ?? 0.0,
-      perfectStreak: (data['perfectStreak'] as int?) ?? 0,
-      livesRemaining: (data['livesRemaining'] as int?) ?? 0,
-      triviaCategories: List<String>.from(data['triviaCategories'] ?? []),
-      isMultiplayer: (data['isMultiplayer'] as bool?) ?? false,
-      roomId: data['roomId'] as String?,
-      isWon: data['isWon'] as bool?,
-      additionalMetrics: data['additionalMetrics'] as Map<String, dynamic>?,
-    );
-  }
 
   /// Convert to Firestore-compatible map
   Map<String, dynamic> toFirestore() {
     return {
       'completedAt': Timestamp.fromDate(completedAt),
-      'mode': mode.toString().split('.').last,
+      'mode': mode.toFirestoreString(),
       if (difficulty != null) 'difficulty': difficulty,
       'score': score,
       'rounds': rounds,
@@ -153,6 +221,9 @@ class GameHistoryEntry {
       'isMultiplayer': isMultiplayer,
       if (roomId != null) 'roomId': roomId,
       if (isWon != null) 'isWon': isWon,
+      if (edition != null) 'edition': edition,
+      if (editionName != null) 'editionName': editionName,
+      if (isAIEdition) 'isAIEdition': isAIEdition,
       if (additionalMetrics != null) 'additionalMetrics': additionalMetrics,
     };
   }
@@ -162,7 +233,7 @@ class GameHistoryEntry {
     return {
       'gameId': gameId,
       'completedAt': completedAt.toIso8601String(),
-      'mode': mode.toString().split('.').last,
+      'mode': mode.displayName,
       if (difficulty != null) 'difficulty': difficulty,
       'score': score,
       'rounds': rounds,
@@ -176,57 +247,11 @@ class GameHistoryEntry {
       'isMultiplayer': isMultiplayer,
       if (roomId != null) 'roomId': roomId,
       if (isWon != null) 'isWon': isWon,
+      if (edition != null) 'edition': edition,
+      if (editionName != null) 'editionName': editionName,
+      if (isAIEdition) 'isAIEdition': isAIEdition,
       if (additionalMetrics != null) 'additionalMetrics': additionalMetrics,
     };
-  }
-
-  /// Create from JSON (for local storage)
-  factory GameHistoryEntry.fromJson(Map<String, dynamic> json) {
-    // Parse GameMode from string
-    GameMode mode;
-    try {
-      mode = GameMode.values.firstWhere(
-        (m) => m.toString().split('.').last == json['mode'],
-      );
-    } catch (e) {
-      LoggerService.warning(
-        'Failed to parse GameMode: ${json['mode']}, defaulting to classic',
-        error: e,
-      );
-      mode = GameMode.classic;
-    }
-
-    // Parse completedAt timestamp
-    DateTime completedAt;
-    try {
-      completedAt = DateTime.parse(json['completedAt'] as String);
-    } catch (e) {
-      LoggerService.warning(
-        'Failed to parse completedAt timestamp, using current time',
-        error: e,
-      );
-      completedAt = DateTime.now();
-    }
-
-    return GameHistoryEntry(
-      gameId: json['gameId'] as String,
-      completedAt: completedAt,
-      mode: mode,
-      difficulty: json['difficulty'] as String?,
-      score: (json['score'] as int?) ?? 0,
-      rounds: (json['rounds'] as int?) ?? 0,
-      correctAnswers: (json['correctAnswers'] as int?) ?? 0,
-      wrongAnswers: (json['wrongAnswers'] as int?) ?? 0,
-      durationSeconds: (json['durationSeconds'] as int?) ?? 0,
-      accuracy: (json['accuracy'] as num?)?.toDouble() ?? 0.0,
-      perfectStreak: (json['perfectStreak'] as int?) ?? 0,
-      livesRemaining: (json['livesRemaining'] as int?) ?? 0,
-      triviaCategories: List<String>.from(json['triviaCategories'] ?? []),
-      isMultiplayer: (json['isMultiplayer'] as bool?) ?? false,
-      roomId: json['roomId'] as String?,
-      isWon: json['isWon'] as bool?,
-      additionalMetrics: json['additionalMetrics'] as Map<String, dynamic>?,
-    );
   }
 
   /// Create a copy with updated values
@@ -247,6 +272,9 @@ class GameHistoryEntry {
     bool? isMultiplayer,
     String? roomId,
     bool? isWon,
+    String? edition,
+    String? editionName,
+    bool? isAIEdition,
     Map<String, dynamic>? additionalMetrics,
   }) {
     return GameHistoryEntry(
@@ -266,9 +294,10 @@ class GameHistoryEntry {
       isMultiplayer: isMultiplayer ?? this.isMultiplayer,
       roomId: roomId ?? this.roomId,
       isWon: isWon ?? this.isWon,
+      edition: edition ?? this.edition,
+      editionName: editionName ?? this.editionName,
+      isAIEdition: isAIEdition ?? this.isAIEdition,
       additionalMetrics: additionalMetrics ?? this.additionalMetrics,
     );
   }
 }
-
-

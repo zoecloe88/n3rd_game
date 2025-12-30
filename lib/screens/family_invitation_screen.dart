@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
@@ -8,12 +9,13 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
 class FamilyInvitationScreen extends StatefulWidget {
-  final String? groupId;
 
   const FamilyInvitationScreen({super.key, this.groupId});
+  final String? groupId;
 
   @override
   State<FamilyInvitationScreen> createState() => _FamilyInvitationScreenState();
@@ -84,7 +86,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ErrorHandler.showError(context, 'Error checking invitation: $e');
+        unawaited(ErrorHandler.showError(context, null, error: e));
       }
     } finally {
       if (mounted) {
@@ -129,17 +131,27 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
           NavigationHelper.safeNavigate(context, '/family-management');
         }
       });
-    } on ValidationException catch (e) {
+    } on ValidationException {
       if (mounted) {
-        ErrorHandler.showSnackBar(context, e.toString());
+        final localizations = AppLocalizations.of(context);
+        ErrorHandler.showSnackBar(
+          context,
+          localizations?.familyInvitationError ??
+              'Failed to process invitation. Please try again.',
+        );
       }
-    } on NetworkException catch (e) {
+    } on NetworkException {
       if (mounted) {
-        ErrorHandler.showSnackBar(context, e.toString());
+        final localizations = AppLocalizations.of(context);
+        ErrorHandler.showSnackBar(
+          context,
+          localizations?.familyInvitationError ??
+              'Failed to process invitation. Please try again.',
+        );
       }
     } catch (e) {
       if (mounted) {
-        ErrorHandler.showError(context, 'Failed to accept invitation: $e');
+        unawaited(ErrorHandler.showError(context, null, error: e));
       }
     } finally {
       if (mounted) {
@@ -189,8 +201,11 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                               style: AppTypography.bodyMedium,
                             ),
                           ] else if (!authService.isAuthenticated) ...[
-                            const Icon(Icons.login,
-                                size: 64, color: Colors.orange,),
+                            const Icon(
+                              Icons.login,
+                              size: 64,
+                              color: Colors.orange,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Login Required',
@@ -206,23 +221,32 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                             const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  NavigationHelper.safeNavigate(
-                                      context, '/login',);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                              child: Semantics(
+                                label: 'Log In',
+                                button: true,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    NavigationHelper.safeNavigate(
+                                      context,
+                                      '/login',
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.success,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  child: const Text('Log In'),
                                 ),
-                                child: const Text('Log In'),
                               ),
                             ),
                           ] else if (groupId == null) ...[
-                            const Icon(Icons.error_outline,
-                                size: 64, color: Colors.red,),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.red,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Invalid Invitation',
@@ -236,8 +260,11 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                               style: AppTypography.bodyMedium,
                             ),
                           ] else ...[
-                            const Icon(Icons.group,
-                                size: 64, color: AppColors.success,),
+                            const Icon(
+                              Icons.group,
+                              size: 64,
+                              color: AppColors.success,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Family & Friends Invitation',
@@ -254,34 +281,44 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
                             const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _isAccepting ? null : _acceptInvitation,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                              child: Semantics(
+                                label: _isAccepting ? 'Accepting invitation...' : 'Accept Invitation',
+                                button: true,
+                                enabled: !_isAccepting,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      _isAccepting ? null : _acceptInvitation,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.success,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  child: _isAccepting
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const Text('Accept Invitation'),
                                 ),
-                                child: _isAccepting
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,),
-                                        ),
-                                      )
-                                    : const Text('Accept Invitation'),
                               ),
                             ),
                             const SizedBox(height: 12),
-                            TextButton(
-                              onPressed: () =>
-                                  NavigationHelper.safePop(context),
-                              child: const Text('Cancel'),
+                            Semantics(
+                              label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                              button: true,
+                              child: TextButton(
+                                onPressed: () =>
+                                    NavigationHelper.safePop(context),
+                                child: const Text('Cancel'),
+                              ),
                             ),
                           ],
                         ],

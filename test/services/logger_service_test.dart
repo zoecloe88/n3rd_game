@@ -12,7 +12,10 @@ void main() {
     });
 
     test('can log warning messages', () {
-      expect(() => LoggerService.warning('Test warning message'), returnsNormally);
+      expect(
+        () => LoggerService.warning('Test warning message'),
+        returnsNormally,
+      );
     });
 
     test('can log error messages', () {
@@ -41,11 +44,3 @@ void main() {
     });
   });
 }
-
-
-
-
-
-
-
-

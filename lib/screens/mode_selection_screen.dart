@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
-import 'package:n3rd_game/services/game_service.dart';
+// ignore: unused_import
+import 'package:n3rd_game/services/game_service.dart' as game_service;
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -10,6 +13,7 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/feature_tooltip_widget.dart';
 
@@ -23,6 +27,22 @@ class ModeSelectionScreen extends StatefulWidget {
 class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   int _currentPage = 0;
   final PageController _pageController = PageController();
+
+  /// Navigation patterns for game modes:
+  ///
+  /// Standard modes (14): Navigate directly to /mode-transition with GameMode argument
+  /// - Classic, Classic II, Speed, Regular, Challenge, Random, Time Attack,
+  ///   Streak, Blitz, Marathon, Perfect, Survival, Precision, AI Mode
+  ///
+  /// Shuffle mode: Shows difficulty dialog, then navigates to /mode-transition
+  ///   with Map containing 'mode' and 'difficulty' keys
+  ///
+  /// Flip mode: Shows reveal mode dialog, sets reveal mode in GameService,
+  ///   then navigates to /mode-transition with Map containing 'mode' and 'revealMode' keys
+  ///
+  /// Practice mode: Navigates directly to /practice screen (bypasses mode-transition)
+  ///
+  /// Learning mode: Navigates directly to /learning screen (bypasses mode-transition)
 
   // All game modes with clearer descriptions
   final List<Map<String, dynamic>> _gameModes = [
@@ -150,6 +170,171 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     return (_gameModes.length / cardsPerPage).ceil();
   }
 
+  /// Get localized title and description for a game mode
+  (String title, String description) _getLocalizedModeInfo(
+    BuildContext context,
+    GameMode mode,
+  ) {
+    final localizations = AppLocalizations.of(context);
+    switch (mode) {
+      case GameMode.classic:
+        return (
+          localizations?.classicMode ?? 'Classic',
+          localizations?.classicModeDescription ??
+              'Study words for 10 seconds, then select the correct answers in 20 seconds. Perfect for beginners.',
+        );
+      case GameMode.classicII:
+        return (
+          'Classic II',
+          localizations?.classicIIModeDescription ??
+              'Faster-paced version: Study for 5 seconds, select answers in 10 seconds. For experienced players.',
+        );
+      case GameMode.speed:
+        return (
+          localizations?.speedMode ?? 'Speed',
+          localizations?.speedModeDescription ??
+              'Words and question shown together. Answer quickly within 7 seconds. Test your reflexes!',
+        );
+      case GameMode.regular:
+        return (
+          'Regular',
+          localizations?.regularModeDescription ??
+              'Words and question shown together. Take your time with 15 seconds to answer. Great for learning.',
+        );
+      case GameMode.shuffle:
+        return (
+          localizations?.shuffleMode ?? 'Shuffle',
+          localizations?.shuffleModeDescription ??
+              'Tiles continuously shuffle during play. Stay focused and find the correct answers!',
+        );
+      case GameMode.challenge:
+        return (
+          'Challenge',
+          localizations?.challengeModeDescription ??
+              'Difficulty increases each round. Can you survive the escalating challenge?',
+        );
+      case GameMode.random:
+        return (
+          'Random',
+          localizations?.randomModeDescription ??
+              'Experience a different game mode each round. Never know what\'s coming next!',
+        );
+      case GameMode.timeAttack:
+        return (
+          localizations?.timeAttackMode ?? 'Time Attack',
+          localizations?.timeAttackModeDescription ??
+              'Score as many points as possible within 60 seconds. Race against the clock!',
+        );
+      case GameMode.streak:
+        return (
+          'Streak',
+          localizations?.streakModeDescription ??
+              'Score multiplier increases with each perfect round. Build your streak for maximum points!',
+        );
+      case GameMode.blitz:
+        return (
+          'Blitz',
+          localizations?.blitzModeDescription ??
+              'Ultra-fast mode: Study for 3 seconds, answer in 5 seconds. Only for the quickest minds!',
+        );
+      case GameMode.marathon:
+        return (
+          'Marathon',
+          localizations?.marathonModeDescription ??
+              'Infinite rounds with progressive difficulty. How long can you last?',
+        );
+      case GameMode.perfect:
+        return (
+          'Perfect',
+          localizations?.perfectModeDescription ??
+              'Must get all 3 answers correct. One wrong answer ends the game. Precision is key!',
+        );
+      case GameMode.survival:
+        return (
+          'Survival',
+          localizations?.survivalModeDescription ??
+              'Start with 1 life. Gain a life every 3 perfect rounds. Survive as long as possible!',
+        );
+      case GameMode.precision:
+        return (
+          'Precision',
+          localizations?.precisionModeDescription ??
+              'Wrong selection loses a life immediately. Perfect accuracy required to succeed!',
+        );
+      case GameMode.flip:
+        return (
+          localizations?.flipMode ?? 'Flip',
+          localizations?.flipModeDescription ??
+              'Study for 10 seconds (4s visible, 6s flipping), then play for 20 seconds with face-down tiles.',
+        );
+      case GameMode.ai:
+        return (
+          'AI Mode',
+          localizations?.aiModeDescription ??
+              'AI adapts difficulty based on your performance. Personalized challenge that learns from you.',
+        );
+      case GameMode.practice:
+        return (
+          localizations?.practiceMode ?? 'Practice',
+          localizations?.practiceModeDescription ??
+              'No scoring, unlimited hints. Learn at your own pace without pressure.',
+        );
+      case GameMode.learning:
+        return (
+          localizations?.learningMode ?? 'Learning',
+          localizations?.learningModeDescription ??
+              'Review questions you missed and improve your knowledge. Track your progress over time.',
+        );
+    }
+  }
+
+  /// Log mode selection analytics with optional modifiers (difficulty, revealMode)
+  Future<void> _logModeSelection(
+    BuildContext context,
+    GameMode mode, {
+    String? difficulty,
+    String? revealMode,
+  }) async {
+    final analyticsService = Provider.of<AnalyticsService>(
+      context,
+      listen: false,
+    );
+    final subscriptionService = Provider.of<SubscriptionService>(
+      context,
+      listen: false,
+    );
+
+    // Build mode identifier with optional modifiers
+    String modeIdentifier = mode.name;
+    final parameters = <String, Object>{
+      'tier': subscriptionService.tierName,
+    };
+
+    if (difficulty != null) {
+      modeIdentifier = '${mode.name}_$difficulty';
+      parameters['difficulty'] = difficulty;
+    } else if (revealMode != null) {
+      modeIdentifier = '${mode.name}_$revealMode';
+      parameters['reveal_mode'] = revealMode;
+    }
+
+    // Log standard game mode selected event
+    await analyticsService.logGameModeSelected(
+      modeIdentifier,
+      subscriptionService.tierName,
+    );
+
+    // Log additional custom event with full context
+    await analyticsService.logCustomEvent(
+      'mode_selection_navigation',
+      parameters: {
+        'mode': mode.name,
+        'mode_identifier': modeIdentifier,
+        ...parameters,
+      },
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -179,7 +364,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     // Check if widget is still mounted before using context
     if (!mounted || !context.mounted) return;
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
@@ -202,7 +387,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 source: 'locked_mode',
                 targetTier: 'premium',
               );
-              Navigator.pop(context);
+              NavigationHelper.safePop(context);
             },
             child: Text(
               localizations?.cancel ?? 'Cancel',
@@ -217,28 +402,31 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 source: 'locked_mode',
                 targetTier: 'premium',
               );
-              Navigator.pop(context);
+              NavigationHelper.safePop(context);
               NavigationHelper.safeNavigate(
                 context,
                 '/subscription-management',
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.of(context).primaryButton,
+              foregroundColor: AppColors.of(context).buttonText,
             ),
             child: Text(
               localizations?.viewPlans ?? 'View Plans',
-              style: AppTypography.labelLarge.copyWith(color: Colors.white),
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.of(context).buttonText,
+              ),
             ),
           ),
         ],
       ),
-    );
+    ),);
   }
 
   Future<void> _showShuffleDifficulty(BuildContext context) async {
     final colors = AppColors.of(context);
+    final localizations = AppLocalizations.of(context);
     final difficulty = await showDialog<String>(
       context: context,
       builder: (context) => Dialog(
@@ -251,7 +439,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Shuffle Difficulty',
+                localizations?.shuffleDifficulty ?? 'Shuffle Difficulty',
                 style: AppTypography.displayMedium.copyWith(
                   fontSize: ResponsiveHelper.isTablet(context)
                       ? 28 // Larger on tablets
@@ -300,11 +488,51 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     );
     if (difficulty != null) {
       if (context.mounted) {
-        NavigationHelper.safeNavigate(
-          context,
-          '/mode-transition',
-          arguments: {'mode': GameMode.shuffle, 'difficulty': difficulty},
-        );
+        await _logModeSelection(context, GameMode.shuffle,
+            difficulty: difficulty,);
+        if (!context.mounted) return;
+        try {
+          unawaited(NavigationHelper.safeNavigate(
+            context,
+            '/mode-transition',
+            arguments: {'mode': GameMode.shuffle, 'difficulty': difficulty},
+          ),);
+          // Log successful navigation
+          if (!context.mounted) return;
+          final analyticsService = Provider.of<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          await analyticsService.logCustomEvent(
+            'mode_navigation_success',
+            parameters: {
+              'mode': GameMode.shuffle.name,
+              'destination': 'mode-transition',
+              'difficulty': difficulty,
+            },
+          );
+        } catch (e) {
+          // Log error analytics
+          if (!context.mounted) return;
+          final analyticsService = Provider.of<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          await analyticsService.logCustomEvent(
+            'mode_navigation_error',
+            parameters: {
+              'mode': GameMode.shuffle.name,
+              'error_type': e.runtimeType.toString(),
+            },
+          );
+          if (!context.mounted) return;
+          final errorMessage =
+              ErrorHandler.getLocalizedErrorMessage(e, context);
+          ErrorHandler.showSnackBar(
+            context,
+            errorMessage,
+          );
+        }
       }
     }
   }
@@ -312,6 +540,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   Future<void> _showFlipRevealMode(BuildContext context) async {
     final gameService = Provider.of<GameService>(context, listen: false);
     final colors = AppColors.of(context);
+    final localizations = AppLocalizations.of(context);
 
     final revealMode = await showDialog<String>(
       context: context,
@@ -325,7 +554,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Flip Mode Reveal Setting',
+                localizations?.flipModeRevealSetting ??
+                    'Flip Mode Reveal Setting',
                 style: AppTypography.displayMedium.copyWith(
                   fontSize: ResponsiveHelper.isTablet(context)
                       ? 28 // Larger on tablets
@@ -336,20 +566,23 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               const SizedBox(height: AppSpacing.lg),
               _difficultyOption(
                 context,
-                'Instant',
-                'Tiles reveal immediately when selected',
+                localizations?.instantReveal ?? 'Instant',
+                localizations?.instantRevealDescription ??
+                    'Tiles reveal immediately when selected',
                 'instant',
               ),
               _difficultyOption(
                 context,
-                'Blind',
-                'Select all 3, then reveal results',
+                localizations?.blindReveal ?? 'Blind',
+                localizations?.blindRevealDescription ??
+                    'Select all 3, then reveal results',
                 'blind',
               ),
               _difficultyOption(
                 context,
-                'Random',
-                'Random reveal mode each round',
+                localizations?.randomReveal ?? 'Random',
+                localizations?.randomRevealDescription ??
+                    'Random reveal mode each round',
                 'random',
               ),
             ],
@@ -358,27 +591,57 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
       ),
     );
     if (revealMode != null) {
-      gameService.setFlipRevealMode(revealMode);
+      unawaited(gameService.setFlipRevealMode(revealMode));
       if (context.mounted) {
         // Log analytics for Flip Mode reveal mode selection
-        final analyticsService = Provider.of<AnalyticsService>(
-          context,
-          listen: false,
-        );
-        final subscriptionService = Provider.of<SubscriptionService>(
-          context,
-          listen: false,
-        );
-        analyticsService.logGameModeSelected(
-          'flip_$revealMode',
-          subscriptionService.tierName,
-        );
+        await _logModeSelection(context, GameMode.flip, revealMode: revealMode);
+        if (!context.mounted) return;
 
-        NavigationHelper.safeNavigate(
-          context,
-          '/mode-transition',
-          arguments: GameMode.flip,
-        );
+        try {
+          unawaited(NavigationHelper.safeNavigate(
+            context,
+            '/mode-transition',
+            arguments: {
+              'mode': GameMode.flip,
+              'revealMode': revealMode,
+            },
+          ),);
+          // Log successful navigation
+          if (!context.mounted) return;
+          final analyticsService = Provider.of<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          await analyticsService.logCustomEvent(
+            'mode_navigation_success',
+            parameters: {
+              'mode': GameMode.flip.name,
+              'destination': 'mode-transition',
+              'reveal_mode': revealMode,
+            },
+          );
+        } catch (e) {
+          // Log error analytics
+          if (!context.mounted) return;
+          final analyticsService = Provider.of<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          await analyticsService.logCustomEvent(
+            'mode_navigation_error',
+            parameters: {
+              'mode': GameMode.flip.name,
+              'error_type': e.runtimeType.toString(),
+            },
+          );
+          if (!context.mounted) return;
+          final errorMessage =
+              ErrorHandler.getLocalizedErrorMessage(e, context);
+          ErrorHandler.showSnackBar(
+            context,
+            errorMessage,
+          );
+        }
       }
     }
   }
@@ -425,6 +688,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                       : 13, // Standard size on phones
                   color: colors.secondaryText,
                 ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -455,8 +720,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   children: [
                     // Spacer to position tiles below animations (reduced to move tiles up to fit on screen)
                     SizedBox(
-                        height: ResponsiveHelper.responsiveHeight(context, 0.15)
-                            .clamp(100.0, 150.0),), // Reduced to move tiles up more
+                      height: ResponsiveHelper.responsiveHeight(context, 0.15)
+                          .clamp(100.0, 150.0),
+                    ), // Reduced to move tiles up more
 
                     // Page view with responsive cards per page
                     Expanded(
@@ -504,12 +770,21 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                       itemCount: pageModes.length,
                                       itemBuilder: (context, index) {
                                         final modeData = pageModes[index];
+                                        final mode =
+                                            modeData['mode'] as GameMode?;
+                                        final modeInfo = mode != null
+                                            ? _getLocalizedModeInfo(
+                                                context, mode,)
+                                            : (
+                                                modeData['title'] as String,
+                                                modeData['description']
+                                                    as String,
+                                              );
                                         return _buildModeCard(
                                           context,
-                                          title: modeData['title'] as String,
-                                          description:
-                                              modeData['description'] as String,
-                                          mode: modeData['mode'] as GameMode?,
+                                          title: modeInfo.$1,
+                                          description: modeInfo.$2,
+                                          mode: mode,
                                           isPremium:
                                               modeData['isPremium'] == true,
                                           onTap: modeData['mode'] ==
@@ -532,36 +807,45 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         ...pageModes.map(
-                                          (modeData) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 16,
-                                            ),
-                                            child: _buildModeCard(
-                                              context,
-                                              title:
-                                                  modeData['title'] as String,
-                                              description:
-                                                  modeData['description']
-                                                      as String,
-                                              mode:
-                                                  modeData['mode'] as GameMode?,
-                                              isPremium:
-                                                  modeData['isPremium'] == true,
-                                              onTap: modeData['mode'] ==
-                                                      GameMode.shuffle
-                                                  ? () =>
-                                                      _showShuffleDifficulty(
-                                                        context,
-                                                      )
-                                                  : modeData['mode'] ==
-                                                          GameMode.flip
-                                                      ? () =>
-                                                          _showFlipRevealMode(
-                                                            context,
-                                                          )
-                                                      : null,
-                                            ),
-                                          ),
+                                          (modeData) {
+                                            final mode =
+                                                modeData['mode'] as GameMode?;
+                                            final modeInfo = mode != null
+                                                ? _getLocalizedModeInfo(
+                                                    context, mode,)
+                                                : (
+                                                    modeData['title'] as String,
+                                                    modeData['description']
+                                                        as String,
+                                                  );
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 16,
+                                              ),
+                                              child: _buildModeCard(
+                                                context,
+                                                title: modeInfo.$1,
+                                                description: modeInfo.$2,
+                                                mode: mode,
+                                                isPremium:
+                                                    modeData['isPremium'] ==
+                                                        true,
+                                                onTap: modeData['mode'] ==
+                                                        GameMode.shuffle
+                                                    ? () =>
+                                                        _showShuffleDifficulty(
+                                                          context,
+                                                        )
+                                                    : modeData['mode'] ==
+                                                            GameMode.flip
+                                                        ? () =>
+                                                            _showFlipRevealMode(
+                                                              context,
+                                                            )
+                                                        : null,
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
@@ -588,8 +872,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               icon: Icon(
                                 Icons.arrow_back_ios,
                                 color: _currentPage > 0
-                                    ? Colors.white
-                                    : Colors.white.withValues(alpha: 0.3),
+                                    ? AppColors.of(context).onDarkText
+                                    : AppColors.of(context)
+                                        .onDarkText
+                                        .withValues(alpha: 0.3),
                               ),
                               onPressed: _currentPage > 0
                                   ? () {
@@ -620,8 +906,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: index == _currentPage
-                                        ? Colors.white
-                                        : Colors.white.withValues(alpha: 0.3),
+                                        ? AppColors.of(context).onDarkText
+                                        : AppColors.of(context)
+                                            .onDarkText
+                                            .withValues(alpha: 0.3),
                                   ),
                                 ),
                               ),
@@ -636,8 +924,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               icon: Icon(
                                 Icons.arrow_forward_ios,
                                 color: _currentPage < _totalPages(context) - 1
-                                    ? Colors.white
-                                    : Colors.white.withValues(alpha: 0.3),
+                                    ? AppColors.of(context).onDarkText
+                                    : AppColors.of(context)
+                                        .onDarkText
+                                        .withValues(alpha: 0.3),
                               ),
                               onPressed: _currentPage < _totalPages(context) - 1
                                   ? () {
@@ -698,17 +988,23 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         case GameMode.challenge:
           return Colors.amber.withValues(alpha: 0.3); // Ultralight amber
         case GameMode.streak:
-          return Colors.deepOrange.withValues(alpha: 0.3); // Ultralight deep orange
+          return Colors.deepOrange
+              .withValues(alpha: 0.3); // Ultralight deep orange
         case GameMode.blitz:
-          return Colors.deepPurple.withValues(alpha: 0.3); // Ultralight deep purple
+          return Colors.deepPurple
+              .withValues(alpha: 0.3); // Ultralight deep purple
         case GameMode.marathon:
           return Colors.brown.withValues(alpha: 0.3); // Ultralight brown
         case GameMode.perfect:
           return Colors.lime.withValues(alpha: 0.3); // Ultralight lime
         case GameMode.survival:
-          return Colors.red.withValues(alpha: 0.3); // Ultralight red (same as timeAttack but different font color)
+          return Colors.red.withValues(
+              alpha:
+                  0.3,); // Ultralight red (same as timeAttack but different font color)
         case GameMode.precision:
-          return Colors.deepOrange.withValues(alpha: 0.3); // Ultralight deep orange (same as streak but different font color)
+          return Colors.deepOrange.withValues(
+              alpha:
+                  0.3,); // Ultralight deep orange (same as streak but different font color)
         case GameMode.flip:
           return Colors.cyan.withValues(
             alpha: 0.3,
@@ -796,36 +1092,109 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         onTap: isLocked
             ? () => _showUpgradeDialog(context)
             : (onTap ??
-                () {
+                () async {
                   if (mode != null) {
                     try {
                       // Practice and Learning modes go directly to their screens
                       if (mode == GameMode.practice) {
+                        await _logModeSelection(context, mode);
                         if (context.mounted) {
-                          NavigationHelper.safeNavigate(context, '/practice');
+                          try {
+                            unawaited(NavigationHelper.safeNavigate(context, '/practice'));
+                            // Log successful navigation
+                            if (!context.mounted) return;
+                            final analyticsService =
+                                Provider.of<AnalyticsService>(
+                              context,
+                              listen: false,
+                            );
+                            await analyticsService.logCustomEvent(
+                              'mode_navigation_success',
+                              parameters: {
+                                'mode': mode.name,
+                                'destination': 'practice',
+                              },
+                            );
+                          } catch (e) {
+                            rethrow;
+                          }
                         }
                       } else if (mode == GameMode.learning) {
+                        await _logModeSelection(context, mode);
                         if (context.mounted) {
-                          NavigationHelper.safeNavigate(context, '/learning');
+                          try {
+                            unawaited(NavigationHelper.safeNavigate(context, '/learning'));
+                            // Log successful navigation
+                            if (!context.mounted) return;
+                            final analyticsService =
+                                Provider.of<AnalyticsService>(
+                              context,
+                              listen: false,
+                            );
+                            await analyticsService.logCustomEvent(
+                              'mode_navigation_success',
+                              parameters: {
+                                'mode': mode.name,
+                                'destination': 'learning',
+                              },
+                            );
+                          } catch (e) {
+                            rethrow;
+                          }
                         }
                       } else {
                         // Other modes go through mode-transition
+                        // Log analytics before navigation
+                        await _logModeSelection(context, mode);
+                        if (!context.mounted) return;
+
                         if (context.mounted) {
-                          NavigationHelper.safeNavigate(
-                            context,
-                            '/mode-transition',
-                            arguments: mode,
-                          );
+                          try {
+                            unawaited(NavigationHelper.safeNavigate(
+                              context,
+                              '/mode-transition',
+                              arguments: mode,
+                            ),);
+                            // Log successful navigation
+                            if (!context.mounted) return;
+                            final analyticsService =
+                                Provider.of<AnalyticsService>(
+                              context,
+                              listen: false,
+                            );
+                            await analyticsService.logCustomEvent(
+                              'mode_navigation_success',
+                              parameters: {
+                                'mode': mode.name,
+                                'destination': 'mode-transition',
+                              },
+                            );
+                          } catch (e) {
+                            rethrow;
+                          }
                         }
                       }
                     } catch (e) {
                       // Handle navigation error gracefully
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error starting game: ${e.toString()}'),
-                            backgroundColor: Colors.red,
-                          ),
+                        // Log error analytics
+                        final analyticsService = Provider.of<AnalyticsService>(
+                          context,
+                          listen: false,
+                        );
+                        await analyticsService.logCustomEvent(
+                          'mode_navigation_error',
+                          parameters: {
+                            'mode': mode.name,
+                            'error_type': e.runtimeType.toString(),
+                          },
+                        );
+                        if (!context.mounted) return;
+                        final errorMessage =
+                            ErrorHandler.getLocalizedErrorMessage(e, context);
+                        ErrorHandler.showSnackBar(
+                          context,
+                          errorMessage,
                         );
                       }
                     }
@@ -923,7 +1292,6 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                     ? 'Premium'
                                     : 'Locked',
                                 style: AppTypography.labelSmall.copyWith(
-                                  fontSize: 12,
                                   color: AppColors.error,
                                 ),
                               ),

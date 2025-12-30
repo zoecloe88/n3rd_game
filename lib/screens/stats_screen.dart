@@ -24,7 +24,8 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
@@ -38,9 +39,15 @@ class _StatsScreenState extends State<StatsScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => NavigationHelper.safePop(context),
+                        Semantics(
+                          label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                          button: true,
+                          child: IconButton(
+                            icon:
+                                const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () => NavigationHelper.safePop(context),
+                            tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Text(
@@ -110,8 +117,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
                   // Spacer to position content below animations (reduced to move tiles up slightly)
                   SizedBox(
-                      height: ResponsiveHelper.responsiveHeight(context, 0.03)
-                          .clamp(20.0, 40.0),), // Further reduced to move tiles up without blocking animation
+                    height: ResponsiveHelper.responsiveHeight(context, 0.03)
+                        .clamp(20.0, 40.0),
+                  ), // Further reduced to move tiles up without blocking animation
 
                   // Stats Cards
                   Expanded(

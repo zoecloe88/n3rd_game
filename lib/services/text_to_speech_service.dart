@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class TextToSpeechService extends ChangeNotifier {
   FlutterTts? _flutterTts;
@@ -33,7 +34,11 @@ class TextToSpeechService extends ChangeNotifier {
     });
 
     _flutterTts!.setErrorHandler((msg) {
-      debugPrint('TTS Error: $msg');
+      LoggerService.error(
+        'TextToSpeechService: TTS Error',
+        error: msg,
+        fatal: false,
+      );
       _isSpeaking = false;
       notifyListeners();
     });
@@ -66,7 +71,12 @@ class TextToSpeechService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to load TTS preferences: $e');
+      LoggerService.error(
+        'TextToSpeechService: Failed to load TTS preferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -79,7 +89,12 @@ class TextToSpeechService extends ChangeNotifier {
       await prefs.setDouble('tts_pitch', _pitch);
       await prefs.setString('tts_language', _selectedLanguage);
     } catch (e) {
-      debugPrint('Failed to save TTS preferences: $e');
+      LoggerService.error(
+        'TextToSpeechService: Failed to save TTS preferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -132,7 +147,12 @@ class TextToSpeechService extends ChangeNotifier {
     try {
       await _flutterTts!.speak(text);
     } catch (e) {
-      debugPrint('Failed to speak text: $e');
+      LoggerService.error(
+        'TextToSpeechService: Failed to speak text',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -158,7 +178,12 @@ class TextToSpeechService extends ChangeNotifier {
     try {
       return await _flutterTts!.getLanguages ?? [];
     } catch (e) {
-      debugPrint('Failed to get available languages: $e');
+      LoggerService.error(
+        'TextToSpeechService: Failed to get available languages',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
       return [];
     }
   }
@@ -169,7 +194,12 @@ class TextToSpeechService extends ChangeNotifier {
     try {
       return await _flutterTts!.getVoices ?? [];
     } catch (e) {
-      debugPrint('Failed to get available voices: $e');
+      LoggerService.error(
+        'TextToSpeechService: Failed to get available voices',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
       return [];
     }
   }

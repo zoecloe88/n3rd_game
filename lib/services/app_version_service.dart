@@ -1,8 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for checking app version and forcing updates
 class AppVersionService {
@@ -54,7 +55,7 @@ class AppVersionService {
 
       return _updateRequired;
     } catch (e) {
-      debugPrint('Failed to check for updates: $e');
+      LoggerService.error('Failed to check for updates', error: e);
       // Don't block app usage if version check fails
       return false;
     }
@@ -84,7 +85,7 @@ class AppVersionService {
 
       return false; // Versions are equal
     } catch (e) {
-      debugPrint('Version comparison error: $e');
+      LoggerService.error('Version comparison error', error: e);
       return false;
     }
   }

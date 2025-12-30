@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// RevenueCat service for managing subscriptions and in-app purchases
 ///
@@ -42,7 +43,7 @@ class RevenueCatService extends ChangeNotifier {
       } else if (defaultTargetPlatform == TargetPlatform.android) {
         configuration = PurchasesConfiguration(apiKey);
       } else {
-        debugPrint('RevenueCat: Platform not supported');
+        LoggerService.debug('RevenueCat: Platform not supported');
         return;
       }
 
@@ -63,10 +64,10 @@ class RevenueCatService extends ChangeNotifier {
       _initialized = true;
       notifyListeners();
 
-      debugPrint('RevenueCat initialized successfully');
+      LoggerService.info('RevenueCat initialized successfully');
     } catch (e, stackTrace) {
-      debugPrint('RevenueCat initialization error: $e');
-      debugPrint('Stack trace: $stackTrace');
+      LoggerService.error('RevenueCat initialization error', error: e);
+      LoggerService.debug('Stack trace: $stackTrace');
       // Continue without RevenueCat - app will use local storage fallback
     }
   }
@@ -78,7 +79,7 @@ class RevenueCatService extends ChangeNotifier {
       _updateTierStatus();
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading customer info: $e');
+      LoggerService.error('Error loading customer info', error: e);
     }
   }
 
@@ -145,9 +146,7 @@ class RevenueCatService extends ChangeNotifier {
   /// Returns empty list if RevenueCat is not initialized
   Future<List<Package>> getAvailablePackages() async {
     if (!_initialized) {
-      if (kDebugMode) {
-        debugPrint('RevenueCat not initialized, cannot get packages');
-      }
+      LoggerService.debug('RevenueCat not initialized, cannot get packages');
       return [];
     }
 
@@ -158,7 +157,7 @@ class RevenueCatService extends ChangeNotifier {
       }
       return [];
     } catch (e) {
-      debugPrint('Error getting available packages: $e');
+      LoggerService.error('Error getting available packages', error: e);
       return [];
     }
   }
@@ -167,44 +166,42 @@ class RevenueCatService extends ChangeNotifier {
   /// Returns false if RevenueCat is not initialized or if purchase is already in progress
   Future<bool> purchasePackage(Package package) async {
     if (!_initialized) {
-      if (kDebugMode) {
-        debugPrint('RevenueCat not initialized, cannot purchase package');
-      }
+      LoggerService.debug('RevenueCat not initialized, cannot purchase package');
       return false;
     }
 
     // CRITICAL: Prevent concurrent purchase attempts (race condition protection)
     if (_isPurchasing) {
-      if (kDebugMode) {
-        debugPrint('Purchase already in progress - ignoring duplicate request');
-      }
+      LoggerService.debug('Purchase already in progress - ignoring duplicate request');
       return false;
     }
 
     _isPurchasing = true;
     try {
-      final customerInfo = await Purchases.purchasePackage(package);
-      _customerInfo = customerInfo;
+      final purchaseResult = await Purchases.purchase(
+        PurchaseParams.package(package),
+      );
+      _customerInfo = purchaseResult.customerInfo;
       _updateTierStatus();
       notifyListeners();
       return true;
     } on PlatformException catch (e) {
       final errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint('User cancelled purchase');
+        LoggerService.debug('User cancelled purchase');
         return false;
       } else if (errorCode == PurchasesErrorCode.purchaseNotAllowedError) {
-        debugPrint('Purchase not allowed');
+        LoggerService.debug('Purchase not allowed');
         return false;
       } else if (errorCode == PurchasesErrorCode.purchaseInvalidError) {
-        debugPrint('Purchase invalid');
+        LoggerService.debug('Purchase invalid');
         return false;
       } else {
-        debugPrint('Purchase error: ${e.message}');
+        LoggerService.error('Purchase error: ${e.message}');
         return false;
       }
     } catch (e) {
-      debugPrint('Unexpected purchase error: $e');
+      LoggerService.error('Unexpected purchase error', error: e);
       return false;
     } finally {
       // CRITICAL: Always reset mutex flag, even if purchase fails or throws
@@ -216,9 +213,7 @@ class RevenueCatService extends ChangeNotifier {
   /// Returns false if RevenueCat is not initialized
   Future<bool> restorePurchases() async {
     if (!_initialized) {
-      if (kDebugMode) {
-        debugPrint('RevenueCat not initialized, cannot restore purchases');
-      }
+      LoggerService.debug('RevenueCat not initialized, cannot restore purchases');
       return false;
     }
 
@@ -228,7 +223,7 @@ class RevenueCatService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Error restoring purchases: $e');
+      LoggerService.error('Error restoring purchases', error: e);
       return false;
     }
   }
@@ -244,7 +239,7 @@ class RevenueCatService extends ChangeNotifier {
         await _loadCustomerInfo();
       }
     } catch (e) {
-      debugPrint('Error syncing Firebase user: $e');
+      LoggerService.error('Error syncing Firebase user', error: e);
     }
   }
 
@@ -260,7 +255,7 @@ class RevenueCatService extends ChangeNotifier {
       _hasFamilyFriendsTier = false;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error logging out: $e');
+      LoggerService.error('Error logging out', error: e);
     }
   }
 
@@ -271,7 +266,7 @@ class RevenueCatService extends ChangeNotifier {
       return customerInfo.entitlements.all.isNotEmpty ||
           await Purchases.canMakePayments();
     } catch (e) {
-      debugPrint('Error checking purchase capability: $e');
+      LoggerService.error('Error checking purchase capability', error: e);
       return false;
     }
   }

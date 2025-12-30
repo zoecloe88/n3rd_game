@@ -8,13 +8,13 @@ import 'package:n3rd_game/theme/app_typography.dart';
 
 /// Floating upgrade shortcut button for free users
 /// Provides quick access to subscription management
-class UpgradeShortcutButton extends StatelessWidget {
-  final bool persistent; // Always show, or only show for free users
+class UpgradeShortcutButton extends StatelessWidget { // Always show, or only show for free users
 
   const UpgradeShortcutButton({
     super.key,
     this.persistent = false,
   });
+  final bool persistent;
 
   @override
   Widget build(BuildContext context) {

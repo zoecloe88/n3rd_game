@@ -1,13 +1,4 @@
 class AccessibilitySettings {
-  final bool highContrastMode;
-  final String
-      colorblindPalette; // 'none', 'protanopia', 'deuteranopia', 'tritanopia'
-  final double fontSizeMultiplier; // 1.0 = normal, 1.2 = 20% larger, etc.
-  final bool largerTouchTargets;
-  final bool screenReaderEnabled;
-  final bool reducedMotion;
-  final bool extendedTimeLimits;
-  final bool visualAudioIndicators;
 
   AccessibilitySettings({
     this.highContrastMode = false,
@@ -16,20 +7,10 @@ class AccessibilitySettings {
     this.largerTouchTargets = false,
     this.screenReaderEnabled = false,
     this.reducedMotion = false,
+    this.disableBackgroundVideos = false,
     this.extendedTimeLimits = false,
     this.visualAudioIndicators = true,
   });
-
-  Map<String, dynamic> toJson() => {
-        'highContrastMode': highContrastMode,
-        'colorblindPalette': colorblindPalette,
-        'fontSizeMultiplier': fontSizeMultiplier,
-        'largerTouchTargets': largerTouchTargets,
-        'screenReaderEnabled': screenReaderEnabled,
-        'reducedMotion': reducedMotion,
-        'extendedTimeLimits': extendedTimeLimits,
-        'visualAudioIndicators': visualAudioIndicators,
-      };
 
   factory AccessibilitySettings.fromJson(Map<String, dynamic> json) =>
       AccessibilitySettings(
@@ -40,9 +21,33 @@ class AccessibilitySettings {
         largerTouchTargets: json['largerTouchTargets'] as bool? ?? false,
         screenReaderEnabled: json['screenReaderEnabled'] as bool? ?? false,
         reducedMotion: json['reducedMotion'] as bool? ?? false,
+        disableBackgroundVideos:
+            json['disableBackgroundVideos'] as bool? ?? false,
         extendedTimeLimits: json['extendedTimeLimits'] as bool? ?? false,
         visualAudioIndicators: json['visualAudioIndicators'] as bool? ?? true,
       );
+  final bool highContrastMode;
+  final String
+      colorblindPalette; // 'none', 'protanopia', 'deuteranopia', 'tritanopia'
+  final double fontSizeMultiplier; // 1.0 = normal, 1.2 = 20% larger, etc.
+  final bool largerTouchTargets;
+  final bool screenReaderEnabled;
+  final bool reducedMotion;
+  final bool disableBackgroundVideos; // Disable video backgrounds for accessibility
+  final bool extendedTimeLimits;
+  final bool visualAudioIndicators;
+
+  Map<String, dynamic> toJson() => {
+        'highContrastMode': highContrastMode,
+        'colorblindPalette': colorblindPalette,
+        'fontSizeMultiplier': fontSizeMultiplier,
+        'largerTouchTargets': largerTouchTargets,
+        'screenReaderEnabled': screenReaderEnabled,
+        'reducedMotion': reducedMotion,
+        'disableBackgroundVideos': disableBackgroundVideos,
+        'extendedTimeLimits': extendedTimeLimits,
+        'visualAudioIndicators': visualAudioIndicators,
+      };
 
   AccessibilitySettings copyWith({
     bool? highContrastMode,
@@ -51,6 +56,7 @@ class AccessibilitySettings {
     bool? largerTouchTargets,
     bool? screenReaderEnabled,
     bool? reducedMotion,
+    bool? disableBackgroundVideos,
     bool? extendedTimeLimits,
     bool? visualAudioIndicators,
   }) {
@@ -61,6 +67,8 @@ class AccessibilitySettings {
       largerTouchTargets: largerTouchTargets ?? this.largerTouchTargets,
       screenReaderEnabled: screenReaderEnabled ?? this.screenReaderEnabled,
       reducedMotion: reducedMotion ?? this.reducedMotion,
+      disableBackgroundVideos:
+          disableBackgroundVideos ?? this.disableBackgroundVideos,
       extendedTimeLimits: extendedTimeLimits ?? this.extendedTimeLimits,
       visualAudioIndicators:
           visualAudioIndicators ?? this.visualAudioIndicators,

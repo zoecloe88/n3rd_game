@@ -7,29 +7,6 @@
 ///
 /// The state is immutable - use `copyWith()` to create modified versions.
 class GameState {
-  /// Current player score
-  final int score;
-
-  /// Number of lives remaining
-  final int lives;
-
-  /// Current round number (1-based)
-  final int round;
-
-  /// Whether the game has ended
-  final bool isGameOver;
-
-  /// Count of correct answers in the last round
-  final int correctCount;
-
-  /// List of correct answers from the last round
-  final List<String> lastCorrectAnswers;
-
-  /// List of answers selected by the player in the last round
-  final List<String> lastSelectedAnswers;
-
-  /// Consecutive perfect rounds streak
-  final int perfectStreak;
 
   /// Creates a new GameState instance
   ///
@@ -54,6 +31,29 @@ class GameState {
     this.lastSelectedAnswers = const [],
     this.perfectStreak = 0, // ADD THIS LINE
   });
+  /// Current player score
+  final int score;
+
+  /// Number of lives remaining
+  final int lives;
+
+  /// Current round number (1-based)
+  final int round;
+
+  /// Whether the game has ended
+  final bool isGameOver;
+
+  /// Count of correct answers in the last round
+  final int correctCount;
+
+  /// List of correct answers from the last round
+  final List<String> lastCorrectAnswers;
+
+  /// List of answers selected by the player in the last round
+  final List<String> lastSelectedAnswers;
+
+  /// Consecutive perfect rounds streak
+  final int perfectStreak;
 
   /// Checks if the current round was perfect (all correct answers selected)
   ///

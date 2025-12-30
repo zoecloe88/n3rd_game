@@ -12,7 +12,8 @@ plugins {
 android {
     namespace = "com.clairsaint.wordn3rd"  // Matches Firebase config
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // NDK version managed by Flutter - comment out if NDK installation issues occur
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

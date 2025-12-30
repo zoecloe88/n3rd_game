@@ -3,18 +3,20 @@ import 'package:flutter/services.dart';
 import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import '../utils/test_helpers.dart';
 
 /// Integration tests for network recovery scenarios
 /// These tests verify robust network error handling and recovery
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() {
+  setUpAll(() async {
+    await TestHelpers.setupAllTestInfrastructure();
     // Mock connectivity_plus MethodChannel
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-      (MethodCall methodCall) async {
+      (methodCall) async {
         if (methodCall.method == 'check') {
           // Return WiFi connectivity for testing
           return ['wifi'];
@@ -25,6 +27,7 @@ void main() {
   });
 
   tearDownAll(() {
+    TestHelpers.tearDownAllTestInfrastructure();
     // Clear mock handler
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -37,11 +40,15 @@ void main() {
     late NetworkService networkService;
 
     setUp(() {
+      TestHelpers.setupMockSharedPreferences();
+      TestHelpers.setupMockConnectivity(isConnected: true);
       networkService = NetworkService();
     });
 
     tearDown(() {
       networkService.dispose();
+      TestHelpers.clearMockSharedPreferences();
+      TestHelpers.clearMockConnectivity();
     });
 
     test('NetworkService initializes correctly', () async {
@@ -54,11 +61,11 @@ void main() {
 
     test('NetworkService handles connectivity changes', () async {
       await networkService.init();
-      
+
       // Service should track connectivity state
       final initialConnected = networkService.isConnected;
       expect(initialConnected, isA<bool>());
-      
+
       // Service should support force refresh
       await networkService.checkInternetReachability();
       expect(networkService.hasInternetReachability, isA<bool>());
@@ -66,13 +73,13 @@ void main() {
 
     test('NetworkService caches reachability results', () async {
       await networkService.init();
-      
+
       // First check
       final firstCheck = await networkService.checkInternetReachability();
-      
+
       // Second check should use cache (within 30 seconds)
       final secondCheck = await networkService.checkInternetReachability();
-      
+
       // Both should return same result (cached)
       expect(secondCheck, firstCheck);
     });
@@ -102,14 +109,14 @@ void main() {
 
     test('NetworkService provides connection type information', () async {
       await networkService.init();
-      
+
       // Service should provide connection type
       expect(networkService.connectionType, isA<dynamic>());
     });
 
     test('NetworkService retry logic works correctly', () async {
       await networkService.init();
-      
+
       // Service should have retry mechanism for reachability checks
       // The implementation uses maxRetries = 2 with exponential backoff
       final hasInternet = await networkService.checkInternetReachability();
@@ -125,7 +132,7 @@ void main() {
         service = MultiplayerService();
         // Service should track reconnection state
         expect(service.isReconnecting, isFalse);
-        
+
         // Reconnection logic should prevent concurrent attempts
         // This is verified by _isAttemptingReconnection mutex
         expect(service, isNotNull);
@@ -182,21 +189,22 @@ void main() {
       // All services should handle network unavailability
       // without crashing the app
       final networkService = NetworkService();
-      
-      expect(networkService, isNotNull);
-      
-      // MultiplayerService requires Firebase, so handle gracefully
-      MultiplayerService? multiplayerService;
       try {
-        multiplayerService = MultiplayerService();
-        expect(multiplayerService, isNotNull);
-        multiplayerService.dispose();
-      } catch (e) {
-        // Firebase not available - expected in test environment
-        expect(e.toString(), contains('Firebase'));
+        expect(networkService, isNotNull);
+
+        // MultiplayerService requires Firebase, so handle gracefully
+        MultiplayerService? multiplayerService;
+        try {
+          multiplayerService = MultiplayerService();
+          expect(multiplayerService, isNotNull);
+          multiplayerService.dispose();
+        } catch (e) {
+          // Firebase not available - expected in test environment
+          expect(e.toString(), contains('Firebase'));
+        }
+      } finally {
+        networkService.dispose();
       }
-      
-      networkService.dispose();
     });
 
     test('Retry logic uses exponential backoff', () {
@@ -216,5 +224,3 @@ void main() {
     });
   });
 }
-
-

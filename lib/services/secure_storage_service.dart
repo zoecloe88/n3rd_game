@@ -1,11 +1,11 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for securely storing sensitive data using encrypted storage
 /// Uses Keychain on iOS and EncryptedSharedPreferences on Android
 class SecureStorageService {
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions.defaultOptions,
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -16,7 +16,7 @@ class SecureStorageService {
     try {
       await _storage.write(key: 'user_email', value: email);
     } catch (e) {
-      debugPrint('Failed to save email securely: $e');
+      LoggerService.error('Failed to save email securely', error: e);
       // Fallback to regular storage if secure storage fails
     }
   }
@@ -26,7 +26,7 @@ class SecureStorageService {
     try {
       return await _storage.read(key: 'user_email');
     } catch (e) {
-      debugPrint('Failed to read email securely: $e');
+      LoggerService.error('Failed to read email securely', error: e);
       return null;
     }
   }
@@ -36,7 +36,7 @@ class SecureStorageService {
     try {
       await _storage.write(key: 'auth_token', value: token);
     } catch (e) {
-      debugPrint('Failed to save auth token: $e');
+      LoggerService.error('Failed to save auth token', error: e);
     }
   }
 
@@ -45,7 +45,7 @@ class SecureStorageService {
     try {
       return await _storage.read(key: 'auth_token');
     } catch (e) {
-      debugPrint('Failed to read auth token: $e');
+      LoggerService.error('Failed to read auth token', error: e);
       return null;
     }
   }
@@ -55,7 +55,7 @@ class SecureStorageService {
     try {
       await _storage.deleteAll();
     } catch (e) {
-      debugPrint('Failed to clear secure storage: $e');
+      LoggerService.error('Failed to clear secure storage', error: e);
     }
   }
 
@@ -64,7 +64,26 @@ class SecureStorageService {
     try {
       await _storage.delete(key: key);
     } catch (e) {
-      debugPrint('Failed to delete key $key: $e');
+      LoggerService.error('Failed to delete key $key', error: e);
+    }
+  }
+
+  /// Save a generic string value securely
+  Future<void> saveString(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (e) {
+      LoggerService.error('Failed to save string securely', error: e);
+    }
+  }
+
+  /// Get a generic string value securely
+  Future<String?> getString(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (e) {
+      LoggerService.error('Failed to read string securely', error: e);
+      return null;
     }
   }
 }

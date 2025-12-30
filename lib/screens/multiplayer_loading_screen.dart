@@ -5,9 +5,9 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 
 class MultiplayerLoadingScreen extends StatefulWidget {
-  final MultiplayerMode mode;
 
   const MultiplayerLoadingScreen({super.key, required this.mode});
+  final MultiplayerMode mode;
 
   @override
   State<MultiplayerLoadingScreen> createState() =>

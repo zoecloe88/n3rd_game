@@ -1,5 +1,8 @@
 /// Game constants for consistent configuration across the codebase
 class GameConstants {
+  // Prevent instantiation
+  GameConstants._();
+
   // Trivia validation constants
   static const int expectedCorrectAnswers =
       3; // Expected number of correct answers per trivia item
@@ -64,7 +67,4 @@ class GameConstants {
       999999; // Effectively infinite lives for marathon mode
   static const int maxLoadedScore =
       999999999; // Maximum score value when loading from storage
-
-  // Prevent instantiation
-  GameConstants._();
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/services/leaderboard_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
@@ -10,6 +12,10 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/widgets/view_toggle_widget.dart';
+import 'package:n3rd_game/widgets/personal_stats_view.dart';
+import 'package:n3rd_game/utils/stats_preferences.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -21,10 +27,17 @@ class LeaderboardScreen extends StatefulWidget {
 class _LeaderboardScreenState extends State<LeaderboardScreen>
     with SingleTickerProviderStateMixin {
   final LeaderboardService _leaderboardService = LeaderboardService();
+  final ScrollController _scrollController = ScrollController();
   List<dynamic> _entries = [];
   int _userRank = 0;
   bool _loading = true;
+  bool _loadingMore = false;
   String _error = '';
+
+  // Pagination state
+  DocumentSnapshot? _lastDocument;
+  bool _hasMore = true;
+  static const int _pageSize = 20;
 
   // Filters
   String _selectedCategory = 'All';
@@ -32,27 +45,81 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   String _selectedRegion = 'Global';
   bool _friendsOnly = false;
 
+  // View toggle state
+  bool _showPersonalStats = false;
+
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadLeaderboard();
+    _scrollController.addListener(_onScroll);
+    _loadPreferences();
+    _loadLeaderboard(reset: true);
+  }
+
+  Future<void> _loadPreferences() async {
+    final viewType = await StatsPreferences.getViewType();
+    if (mounted) {
+      setState(() {
+        _showPersonalStats = viewType == 'personal_stats';
+      });
+    }
+  }
+
+  Future<void> _onViewToggleChanged(bool showPersonalStats) async {
+    final viewType = showPersonalStats ? 'personal_stats' : 'leaderboard';
+    await StatsPreferences.setViewType(viewType);
+
+    // Track analytics - capture context before async
+    if (!mounted) return;
+    final analyticsService =
+        Provider.of<AnalyticsService>(context, listen: false);
+    await analyticsService.logCustomEvent(
+      'leaderboard_view_toggled',
+      parameters: {
+        'view_type': viewType,
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _showPersonalStats = showPersonalStats;
+      });
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadLeaderboard() async {
+  void _onScroll() {
+    // Load more when user scrolls to 80% of the list
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent * 0.8 &&
+        !_loadingMore &&
+        _hasMore &&
+        !_loading) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadLeaderboard({bool reset = false}) async {
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
+
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = '';
+        _entries = [];
+        _lastDocument = null;
+        _hasMore = true;
+      });
+    }
 
     try {
       // CRITICAL: Capture context before async operations to avoid BuildContext async gap
@@ -60,9 +127,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       final authService = Provider.of<AuthService>(context, listen: false);
       final userId = authService.currentUser?.uid;
 
-      // Apply filters
-      final entries = await _leaderboardService.getGlobalLeaderboard(
-        limit: 100,
+      // Use pagination method
+      final result =
+          await _leaderboardService.getGlobalLeaderboardWithPagination(
+        limit: _pageSize,
+        startAfter: reset ? null : _lastDocument,
         category: _selectedCategory == 'All' ? null : _selectedCategory,
         timePeriod:
             _selectedTimePeriod == 'All Time' ? null : _selectedTimePeriod,
@@ -70,7 +139,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         friendsOnly: _friendsOnly,
       );
 
+      final entries = result['entries'] as List<LeaderboardEntry>;
+      _lastDocument = result['lastDocument'] as DocumentSnapshot?;
+      final hasMore = result['hasMore'] as bool;
+
       // Convert LeaderboardEntry to Map for compatibility
+      // Calculate correct global rank based on pagination offset
+      final baseRank = reset ? 0 : _entries.length;
       final entriesList = entries
           .map(
             (e) => {
@@ -78,12 +153,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               'displayName': e.displayName,
               'email': e.email,
               'score': e.score,
-              'rank': e.rank,
+              'rank': baseRank + e.rank, // Adjust rank for pagination
             },
           )
           .toList();
 
-      if (userId != null && mounted) {
+      if (userId != null && mounted && reset) {
         final rank = await _leaderboardService.getUserRank(userId);
         if (mounted) {
           setState(() {
@@ -94,29 +169,76 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
       if (mounted) {
         setState(() {
-          _entries = entriesList;
+          if (reset) {
+            _entries = entriesList;
+          } else {
+            _entries.addAll(entriesList);
+          }
+          _hasMore = hasMore;
           _loading = false;
+          _loadingMore = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to load leaderboard';
+          _error = AppLocalizations.of(context)?.leaderboardLoadError ??
+              'Failed to load leaderboard';
           _loading = false;
+          _loadingMore = false;
         });
       }
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _loading) return;
+
+    setState(() {
+      _loadingMore = true;
+    });
+
+    await _loadLeaderboard(reset: false);
+  }
+
   Future<void> _refreshLeaderboard() async {
-    HapticService().lightImpact();
-    await _loadLeaderboard();
+    unawaited(HapticService().lightImpact());
+    await _loadLeaderboard(reset: true);
+  }
+
+  Widget _buildLoadMoreButton() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: _loadingMore
+          ? const CircularProgressIndicator(color: Colors.white)
+          : ElevatedButton(
+              onPressed: _hasMore
+                  ? () {
+                      HapticService().lightImpact();
+                      _loadMore();
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00D9FF),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
+              ),
+              child: Text(
+                AppLocalizations.of(context)?.loadMore ?? 'Load More',
+              ),
+            ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
@@ -127,11 +249,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => NavigationHelper.safePop(context),
-                      tooltip:
-                          AppLocalizations.of(context)?.backButton ?? 'Back',
+                    Semantics(
+                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => NavigationHelper.safePop(context),
+                        tooltip:
+                            AppLocalizations.of(context)?.backButton ?? 'Back',
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -142,6 +268,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         ),
                       ),
                     ),
+                    ViewToggleWidget(
+                      showPersonalStats: _showPersonalStats,
+                      onChanged: _onViewToggleChanged,
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.filter_list, color: Colors.white),
                       onPressed: () => _showFilterDialog(),
@@ -151,31 +282,32 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
               ),
 
-              // Tabs for time period
-              TabBar(
-                controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-                indicatorColor: const Color(0xFF00D9FF),
-                onTap: (index) {
-                  setState(() {
-                    _selectedTimePeriod = [
-                      'All Time',
-                      'Weekly',
-                      'Monthly',
-                    ][index];
-                    _loadLeaderboard();
-                  });
-                },
-                tabs: const [
-                  Tab(text: 'All Time'),
-                  Tab(text: 'Weekly'),
-                  Tab(text: 'Monthly'),
-                ],
-              ),
+              // Tabs for time period (only show for leaderboard view)
+              if (!_showPersonalStats)
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
+                  indicatorColor: const Color(0xFF00D9FF),
+                  onTap: (index) {
+                    setState(() {
+                      _selectedTimePeriod = [
+                        'All Time',
+                        'Weekly',
+                        'Monthly',
+                      ][index];
+                      _loadLeaderboard(reset: true);
+                    });
+                  },
+                  tabs: const [
+                    Tab(text: 'All Time'),
+                    Tab(text: 'Weekly'),
+                    Tab(text: 'Monthly'),
+                  ],
+                ),
 
-              // User rank card
-              if (_userRank > 0 && !_loading)
+              // User rank card (only show for leaderboard view)
+              if (_userRank > 0 && !_loading && !_showPersonalStats)
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
@@ -207,77 +339,93 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   ),
                 ),
 
-              // Leaderboard content
+              // Content: Leaderboard or Personal Stats
               Expanded(
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : _error.isNotEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _error,
-                                  style:
-                                      AppTypography.inter(color: Colors.white),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    HapticService().lightImpact();
-                                    _loadLeaderboard();
-                                  },
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
+                child: _showPersonalStats
+                    ? const PersonalStatsView()
+                    : _loading
+                        ? const Center(
+                            child:
+                                CircularProgressIndicator(color: Colors.white),
                           )
-                        : _entries.isEmpty
-                            ? RefreshIndicator(
-                                onRefresh: _refreshLeaderboard,
-                                child: SingleChildScrollView(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  child: SizedBox(
-                                    height: MediaQuery.of(context).size.height *
-                                        0.6,
-                                    child: EmptyStateWidget(
-                                      icon: Icons.emoji_events_outlined,
-                                      title: AppLocalizations.of(context)
-                                              ?.noLeaderboard ??
-                                          'No leaderboard data',
-                                      description: AppLocalizations.of(
-                                            context,
-                                          )?.noLeaderboardDescription ??
-                                          'Be the first to play and set a record!',
+                        : _error.isNotEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _error,
+                                      style: AppTypography.inter(
+                                          color: Colors.white,),
                                     ),
-                                  ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        HapticService().lightImpact();
+                                        _loadLeaderboard();
+                                      },
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
                                 ),
                               )
-                            : RefreshIndicator(
-                                onRefresh: _refreshLeaderboard,
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,),
-                                  itemCount: _entries.length,
-                                  itemBuilder: (context, index) {
-                                    final entry = _entries[index] as dynamic;
-                                    final isCurrentUser = entry.userId ==
-                                        Provider.of<AuthService>(
-                                          context,
-                                          listen: false,
-                                        ).currentUser?.uid;
+                            : _entries.isEmpty
+                                ? RefreshIndicator(
+                                    onRefresh: _refreshLeaderboard,
+                                    child: SingleChildScrollView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      child: SizedBox(
+                                        height:
+                                            MediaQuery.of(context).size.height *
+                                                0.6,
+                                        child: EmptyStateWidget(
+                                          icon: Icons.emoji_events_outlined,
+                                          title: AppLocalizations.of(context)
+                                                  ?.noLeaderboard ??
+                                              'No leaderboard data',
+                                          description: AppLocalizations.of(
+                                                context,
+                                              )?.noLeaderboardDescription ??
+                                              'Be the first to play and set a record!',
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : RefreshIndicator(
+                                    onRefresh: _refreshLeaderboard,
+                                    child: ListView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      // Performance optimization: Use lazy loading
+                                      itemCount:
+                                          _entries.length + (_hasMore ? 1 : 0),
+                                      // Cache extent for better scroll performance
+                                      cacheExtent: 500.0,
+                                      itemBuilder: (context, index) {
+                                        // Show Load More button at the end
+                                        if (index == _entries.length) {
+                                          return _buildLoadMoreButton();
+                                        }
 
-                                    return _buildLeaderboardItem(
-                                      context,
-                                      entry,
-                                      isCurrentUser,
-                                    );
-                                  },
-                                ),
-                              ),
+                                        final entry =
+                                            _entries[index] as dynamic;
+                                        final isCurrentUser = entry.userId ==
+                                            Provider.of<AuthService>(
+                                              context,
+                                              listen: false,
+                                            ).currentUser?.uid;
+
+                                        return _buildLeaderboardItem(
+                                          context,
+                                          entry,
+                                          isCurrentUser,
+                                        );
+                                      },
+                                    ),
+                                  ),
               ),
             ],
           ),
@@ -352,6 +500,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.normal,
                 color: AppColors.of(context).primaryText,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
 
@@ -403,23 +553,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                           DropdownMenuItem(value: 'All', child: Text('All')),
                           DropdownMenuItem(
                             value: 'History',
-                            child: Text('History', overflow: TextOverflow.visible, softWrap: true),
+                            child: Text('History',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
                             value: 'Science',
-                            child: Text('Science', overflow: TextOverflow.visible, softWrap: true),
+                            child: Text('Science',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
                             value: 'Geography',
-                            child: Text('Geography', overflow: TextOverflow.visible, softWrap: true),
+                            child: Text('Geography',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
-                            value: 'Sports', 
-                            child: Text('Sports', overflow: TextOverflow.visible, softWrap: true),
+                            value: 'Sports',
+                            child: Text('Sports',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
                             value: 'Entertainment',
-                            child: Text('Entertainment', overflow: TextOverflow.visible, softWrap: true),
+                            child: Text('Entertainment',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                         ],
                         onChanged: (value) {
@@ -446,24 +601,29 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         isExpanded: true, // Allow dropdown to expand
                         items: const [
                           DropdownMenuItem(
-                            value: 'Global', 
-                            child: Text('Global', overflow: TextOverflow.visible, softWrap: true),
+                            value: 'Global',
+                            child: Text('Global',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
                             value: 'North America',
-                            child: Text('North America', overflow: TextOverflow.visible, softWrap: true),
+                            child: Text('North America',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
-                            value: 'Europe', 
-                            child: Text('Europe', overflow: TextOverflow.visible, softWrap: true),
+                            value: 'Europe',
+                            child: Text('Europe',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
-                            value: 'Asia', 
-                            child: Text('Asia', overflow: TextOverflow.visible, softWrap: true),
+                            value: 'Asia',
+                            child: Text('Asia',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                           DropdownMenuItem(
-                            value: 'Other', 
-                            child: Text('Other', overflow: TextOverflow.visible, softWrap: true),
+                            value: 'Other',
+                            child: Text('Other',
+                                overflow: TextOverflow.visible, softWrap: true,),
                           ),
                         ],
                         onChanged: (value) {
@@ -477,7 +637,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
                   // Friends only
                   SwitchListTile(
-                    title: Text('Friends Only', style: AppTypography.bodyMedium),
+                    title:
+                        Text('Friends Only', style: AppTypography.bodyMedium),
                     value: _friendsOnly,
                     onChanged: (value) {
                       setState(() {
@@ -490,12 +651,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => NavigationHelper.safePop(context),
                 child: Text('Cancel', style: AppTypography.bodyMedium),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  NavigationHelper.safePop(context);
                   _loadLeaderboard();
                 },
                 child: Text(

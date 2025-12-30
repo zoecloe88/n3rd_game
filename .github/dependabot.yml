@@ -1,0 +1,46 @@
+version: 2
+updates:
+  # Enable version updates for Dart/Flutter
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "dart"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group updates for related packages
+    groups:
+      flutter-packages:
+        patterns:
+          - "flutter*"
+          - "firebase*"
+      dev-dependencies:
+        dependency-type: "development"
+    # Ignore major version updates (require manual review)
+    ignore:
+      - dependency-name: "flutter"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dart"
+        update-types: ["version-update:semver-major"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

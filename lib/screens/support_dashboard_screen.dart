@@ -5,6 +5,9 @@ import 'package:n3rd_game/services/user_survey_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 class SupportDashboardScreen extends StatefulWidget {
   const SupportDashboardScreen({super.key});
@@ -68,7 +71,7 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = ErrorHandler.getLocalizedErrorMessage(e, context);
           _isLoading = false;
         });
       }
@@ -78,83 +81,92 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Semantics(
+                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        onPressed: () => NavigationHelper.safePop(context),
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Support Dashboard',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: Colors.white,
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Support Dashboard',
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: Colors.white,
                       ),
-                      const Spacer(),
-                      IconButton(
+                    ),
+                    const Spacer(),
+                    Semantics(
+                      label: 'Refresh',
+                      button: true,
+                      child: IconButton(
                         onPressed: _loadDashboardData,
                         icon: const Icon(Icons.refresh, color: Colors.white),
                         tooltip: 'Refresh',
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
 
-                // Content
-                Expanded(
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        )
-                      : _error != null
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline,
-                                    size: 64,
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : _error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error loading dashboard',
+                                  style: AppTypography.headlineLarge.copyWith(
                                     color: Colors.white,
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Error loading dashboard',
-                                    style: AppTypography.headlineLarge.copyWith(
-                                      color: Colors.white,
-                                    ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _error!,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _error!,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.7),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: _loadDashboardData,
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : _buildDashboard(),
-                ),
-              ],
-            ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _loadDashboardData,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _buildDashboard(),
+              ),
+            ],
           ),
+        ),
       ),
     );
   }
@@ -208,8 +220,8 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
         Expanded(
           child: _buildStatCard(
             'Avg Rating',
-            _surveyAnalytics != null && _surveyAnalytics!.totalSurveys > 0
-                ? '${_surveyAnalytics!.averageRating.toStringAsFixed(1)}/5'
+            _surveyAnalytics != null && _surveyAnalytics.totalSurveys > 0
+                ? '${_surveyAnalytics.averageRating.toStringAsFixed(1)}/5'
                 : 'N/A',
             Icons.star,
             AppColors.warning,
@@ -348,16 +360,37 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
             // CRITICAL: Safe type casting with proper validation
             // Check if intentsCount is a Map before casting to prevent type errors
             ...(() {
-              final intentsCount = aiData['intentsCount'];
-              if (intentsCount is Map) {
-                // Convert to Map<String, dynamic> safely
-                final typedMap = Map<String, dynamic>.from(intentsCount);
-                return typedMap.entries.map((entry) {
-                  return _buildStatRow(entry.key, entry.value, AppColors.info);
-                });
+              try {
+                final intentsCount = aiData['intentsCount'];
+                if (intentsCount != null && intentsCount is Map) {
+                  // Convert to Map<String, dynamic> safely with validation
+                  final typedMap = Map<String, dynamic>.from(
+                    intentsCount.map(
+                      (key, value) => MapEntry(
+                        key.toString(),
+                        value,
+                      ),
+                    ),
+                  );
+                  return typedMap.entries.map((entry) {
+                    return _buildStatRow(
+                      entry.key,
+                      entry.value.toString(),
+                      AppColors.info,
+                    );
+                  });
+                }
+                // Return empty list if type is incorrect or null
+                return <Widget>[];
+              } catch (e) {
+                // Log error and return empty list to prevent crash
+                ErrorHandler.showSnackBar(
+                  context,
+                  'Failed to load intent distribution data',
+                  error: e,
+                );
+                return <Widget>[];
               }
-              // Return empty list if type is incorrect
-              return <Widget>[];
             })(),
           ],
         ],

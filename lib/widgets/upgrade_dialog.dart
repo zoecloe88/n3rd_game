@@ -9,14 +9,7 @@ import 'package:n3rd_game/utils/navigation_helper.dart';
 /// Reusable upgrade dialog component
 /// Displays upgrade prompt with features and call-to-action
 /// Enhanced with feature comparison tooltips
-class UpgradeDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String targetTier; // 'basic', 'premium', or 'family_friends'
-  final String
-      source; // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
-  final List<String> features;
-  final bool showComparison; // Show tier comparison
+class UpgradeDialog extends StatelessWidget { // Show tier comparison
 
   const UpgradeDialog({
     super.key,
@@ -27,6 +20,13 @@ class UpgradeDialog extends StatelessWidget {
     required this.features,
     this.showComparison = false,
   });
+  final String title;
+  final String message;
+  final String targetTier; // 'basic', 'premium', or 'family_friends'
+  final String
+      source; // 'daily_limit', 'locked_mode', 'editions', 'multiplayer'
+  final List<String> features;
+  final bool showComparison;
 
   @override
   Widget build(BuildContext context) {
@@ -122,9 +122,9 @@ class UpgradeDialog extends StatelessWidget {
 
 /// Tier comparison widget showing feature differences
 class _TierComparisonWidget extends StatelessWidget {
-  final String targetTier;
 
   const _TierComparisonWidget({required this.targetTier});
+  final String targetTier;
 
   @override
   Widget build(BuildContext context) {
@@ -197,15 +197,15 @@ class _TierComparisonWidget extends StatelessWidget {
 }
 
 class _TierRow extends StatelessWidget {
-  final String tierName;
-  final List<String> features;
-  final bool isHighlighted;
 
   const _TierRow({
     required this.tierName,
     required this.features,
     required this.isHighlighted,
   });
+  final String tierName;
+  final List<String> features;
+  final bool isHighlighted;
 
   @override
   Widget build(BuildContext context) {

@@ -8,9 +8,9 @@ import 'package:n3rd_game/utils/navigation_helper.dart';
 /// Subscription status badge widget
 /// Displays current tier and allows navigation to subscription management
 class SubscriptionBadge extends StatelessWidget {
-  final bool showUpgradeButton;
 
   const SubscriptionBadge({super.key, this.showUpgradeButton = true});
+  final bool showUpgradeButton;
 
   @override
   Widget build(BuildContext context) {

@@ -4,24 +4,19 @@ import 'package:n3rd_game/services/content_moderation_service.dart';
 
 /// Validation result
 class ValidationResult {
-  final bool isValid;
-  final List<String> errors;
-  final List<String> warnings;
 
   ValidationResult({
     required this.isValid,
     required this.errors,
     required this.warnings,
   });
+  final bool isValid;
+  final List<String> errors;
+  final List<String> warnings;
 }
 
 /// Configuration for tuning validation aggressiveness
 class ContentValidationConfig {
-  final int minCorrectItems;
-  final int recommendedCorrectItems;
-  final int minTierItems;
-  final int recommendedTierItems;
-  final bool strictRelevanceChecks;
 
   const ContentValidationConfig({
     this.minCorrectItems = 15,
@@ -30,14 +25,19 @@ class ContentValidationConfig {
     this.recommendedTierItems = 6,
     this.strictRelevanceChecks = false,
   });
+  final int minCorrectItems;
+  final int recommendedCorrectItems;
+  final int minTierItems;
+  final int recommendedTierItems;
+  final bool strictRelevanceChecks;
 }
 
 /// Service for validating trivia content quality
 class ContentValidationService {
-  final ContentValidationConfig _config;
 
   ContentValidationService({ContentValidationConfig? config})
       : _config = config ?? const ContentValidationConfig();
+  final ContentValidationConfig _config;
 
   /// Validate a trivia template
   ValidationResult validateTemplate(TriviaTemplate template) {

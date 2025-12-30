@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for gamification features: streaks, badges, unlockables
 class TriviaGamificationService extends ChangeNotifier {
+
+  TriviaGamificationService() {
+    _loadPreferences();
+  }
   static const String _currentStreakKey = 'current_streak';
   static const String _bestStreakKey = 'best_streak';
   static const String _categoryStreaksKey = 'category_streaks';
@@ -22,10 +27,6 @@ class TriviaGamificationService extends ChangeNotifier {
   int get bestStreak => _bestStreak;
   Set<String> get unlockedBadges => Set.unmodifiable(_unlockedBadges);
   Set<String> get unlockedContent => Set.unmodifiable(_unlockedContent);
-
-  TriviaGamificationService() {
-    _loadPreferences();
-  }
 
   /// Load gamification data from SharedPreferences
   Future<void> _loadPreferences() async {
@@ -48,9 +49,7 @@ class TriviaGamificationService extends ChangeNotifier {
             }
           });
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing category streaks: $e');
-          }
+          LoggerService.error('Error parsing category streaks', error: e);
         }
       }
 
@@ -67,9 +66,7 @@ class TriviaGamificationService extends ChangeNotifier {
             }
           });
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing category mastery: $e');
-          }
+          LoggerService.error('Error parsing category mastery', error: e);
         }
       }
 
@@ -87,9 +84,7 @@ class TriviaGamificationService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error loading gamification preferences: $e');
-      }
+      LoggerService.error('Error loading gamification preferences', error: e);
     }
   }
 
@@ -112,9 +107,7 @@ class TriviaGamificationService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error saving gamification preferences: $e');
-      }
+      LoggerService.error('Error saving gamification preferences', error: e);
     }
   }
 
@@ -185,9 +178,7 @@ class TriviaGamificationService extends ChangeNotifier {
   /// Unlock a badge
   void _unlockBadge(String badgeId, String badgeName) {
     _unlockedBadges.add(badgeId);
-    if (kDebugMode) {
-      debugPrint('Badge unlocked: $badgeName ($badgeId)');
-    }
+    LoggerService.debug('Badge unlocked: $badgeName ($badgeId);');
     _savePreferences();
     notifyListeners();
   }

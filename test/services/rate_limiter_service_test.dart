@@ -71,25 +71,40 @@ void main() {
 
       // key1 should be blocked
       expect(
-        await service.isAllowed('key1', maxAttempts: maxAttempts, window: window),
+        await service.isAllowed(
+          'key1',
+          maxAttempts: maxAttempts,
+          window: window,
+        ),
         false,
       );
 
       // key2 should still be allowed
       expect(
-        await service.isAllowed('key2', maxAttempts: maxAttempts, window: window),
+        await service.isAllowed(
+          'key2',
+          maxAttempts: maxAttempts,
+          window: window,
+        ),
         true,
       );
     });
 
     test('service can reset rate limits', () async {
       const key = 'test_reset';
-      await service.isAllowed(key, maxAttempts: 2, window: const Duration(seconds: 60));
+      await service.isAllowed(
+        key,
+        maxAttempts: 2,
+        window: const Duration(seconds: 60),
+      );
       await service.reset(key);
       // After reset, should be allowed again
-      final isAllowed = await service.isAllowed(key, maxAttempts: 2, window: const Duration(seconds: 60));
+      final isAllowed = await service.isAllowed(
+        key,
+        maxAttempts: 2,
+        window: const Duration(seconds: 60),
+      );
       expect(isAllowed, true);
     });
   });
 }
-

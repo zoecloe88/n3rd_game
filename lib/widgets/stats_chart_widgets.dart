@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/services/stats_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Line chart showing score trends over time
-class ScoreTrendChart extends StatelessWidget {
-  final List<DailyStats> dailyStats;
-  final int daysToShow;
+class ScoreTrendChart extends StatelessWidget { // 'line', 'bar', or 'area'
 
   const ScoreTrendChart({
     super.key,
     required this.dailyStats,
     this.daysToShow = 30,
+    this.chartType = 'line',
   });
+  final List<DailyStats> dailyStats;
+  final int daysToShow;
+  final String chartType;
 
   @override
   Widget build(BuildContext context) {
@@ -64,132 +67,305 @@ class ScoreTrendChart extends StatelessWidget {
             const SizedBox(height: 20),
             SizedBox(
               height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: colors.secondaryText.withValues(alpha: 0.1),
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        interval: recentStats.length > 7
-                            ? (recentStats.length / 7).ceilToDouble()
-                            : 1,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= recentStats.length) {
-                            return const Text('');
-                          }
-                          final date = recentStats[value.toInt()].date;
-                          return Text(
-                            '${date.month}/${date.day}',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
-                              fontSize: 10,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 50,
-                        interval: maxScore > 0 ? maxScore / 5 : 20,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: colors.secondaryText,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(
-                      color: colors.secondaryText.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  minX: 0,
-                  maxX: (recentStats.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: maxScore * 1.1,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: colors.info,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        getDotPainter: (spot, percent, barData, index) =>
-                            FlDotCirclePainter(
-                          radius: 4,
-                          color: colors.info,
-                          strokeWidth: 2,
-                          strokeColor: colors.cardBackground,
-                        ),
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: colors.info.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (touchedSpot) => colors.cardBackground,
-                      tooltipRoundedRadius: 8,
-                      tooltipPadding: const EdgeInsets.all(8),
-                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                        return touchedSpots.map((spot) {
-                          final stat = recentStats[spot.x.toInt()];
-                          return LineTooltipItem(
-                            '${DateFormat('MMM d').format(stat.date)}\nScore: ${stat.score}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%',
-                            AppTypography.bodyMedium.copyWith(
-                              color: colors.primaryText,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        }).toList();
-                      },
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildChart(context, colors, recentStats, maxScore, spots),
             ),
           ],
         ),
       );
     } catch (e, stackTrace) {
-      // Log error to Crashlytics
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        stackTrace,
-        reason: 'ScoreTrendChart rendering error',
-        fatal: false,
-      );
-      if (kDebugMode) {
-        debugPrint('ScoreTrendChart error: $e');
+      // Log error to Crashlytics if Firebase is initialized
+      try {
+        Firebase.app(); // Check if Firebase is initialized
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'ScoreTrendChart rendering error',
+          fatal: false,
+        );
+      } catch (_) {
+        // Firebase not initialized (e.g., in tests) - skip Crashlytics logging
       }
+      LoggerService.error('ScoreTrendChart error', error: e);
       return _buildEmptyState(context, 'Unable to display chart');
     }
+  }
+
+  Widget _buildChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    double maxScore,
+    List<FlSpot> spots,
+  ) {
+    switch (chartType) {
+      case 'bar':
+        return _buildBarChart(context, colors, recentStats, maxScore);
+      case 'area':
+        return _buildAreaChart(context, colors, recentStats, maxScore, spots);
+      case 'line':
+      default:
+        return _buildLineChart(context, colors, recentStats, maxScore, spots);
+    }
+  }
+
+  Widget _buildLineChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    double maxScore,
+    List<FlSpot> spots,
+  ) {
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: _buildScoreTitlesData(colors, recentStats, maxScore),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        minX: 0,
+        maxX: (recentStats.length - 1).toDouble(),
+        minY: 0,
+        maxY: maxScore * 1.1,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: colors.info,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) =>
+                  FlDotCirclePainter(
+                radius: 4,
+                color: colors.info,
+                strokeWidth: 2,
+                strokeColor: colors.cardBackground,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: false,
+              color: colors.info.withValues(alpha: 0.1),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final stat = recentStats[spot.x.toInt()];
+                return LineTooltipItem(
+                  '${DateFormat('MMM d').format(stat.date)}\nScore: ${stat.score}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%',
+                  AppTypography.bodyMedium.copyWith(
+                    color: colors.primaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    double maxScore,
+  ) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxScore * 1.1,
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final stat = recentStats[groupIndex];
+              return BarTooltipItem(
+                '${DateFormat('MMM d').format(stat.date)}\nScore: ${stat.score}',
+                AppTypography.bodyMedium.copyWith(
+                  color: colors.primaryText,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
+          ),
+        ),
+        titlesData: _buildScoreTitlesData(colors, recentStats, maxScore),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        barGroups: recentStats.asMap().entries.map((entry) {
+          final index = entry.key;
+          final stat = entry.value;
+          return BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: stat.score.toDouble(),
+                color: colors.info,
+                width: 16,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAreaChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    double maxScore,
+    List<FlSpot> spots,
+  ) {
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: _buildScoreTitlesData(colors, recentStats, maxScore),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        minX: 0,
+        maxX: (recentStats.length - 1).toDouble(),
+        minY: 0,
+        maxY: maxScore * 1.1,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: colors.info,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) =>
+                  FlDotCirclePainter(
+                radius: 4,
+                color: colors.info,
+                strokeWidth: 2,
+                strokeColor: colors.cardBackground,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: colors.info.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final stat = recentStats[spot.x.toInt()];
+                return LineTooltipItem(
+                  '${DateFormat('MMM d').format(stat.date)}\nScore: ${stat.score}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%',
+                  AppTypography.bodyMedium.copyWith(
+                    color: colors.primaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  FlTitlesData _buildScoreTitlesData(
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    double maxScore,
+  ) {
+    return FlTitlesData(
+      show: true,
+      rightTitles: const AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      topTitles: const AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 30,
+          interval: recentStats.length > 7
+              ? (recentStats.length / 7).ceilToDouble()
+              : 1,
+          getTitlesWidget: (value, meta) {
+            if (value.toInt() >= recentStats.length) {
+              return const Text('');
+            }
+            final date = recentStats[value.toInt()].date;
+            return Text(
+              '${date.month}/${date.day}',
+              style: AppTypography.bodyMedium.copyWith(
+                color: colors.secondaryText,
+                fontSize: 10,
+              ),
+            );
+          },
+        ),
+      ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 50,
+          interval: maxScore > 0 ? maxScore / 5 : 20,
+          getTitlesWidget: (value, meta) => Text(
+            value.toInt().toString(),
+            style: AppTypography.bodyMedium.copyWith(
+              color: colors.secondaryText,
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context, String message) {
@@ -212,15 +388,17 @@ class ScoreTrendChart extends StatelessWidget {
 }
 
 /// Line chart showing accuracy trends
-class AccuracyTrendChart extends StatelessWidget {
-  final List<DailyStats> dailyStats;
-  final int daysToShow;
+class AccuracyTrendChart extends StatelessWidget { // 'line', 'bar', or 'area'
 
   const AccuracyTrendChart({
     super.key,
     required this.dailyStats,
     this.daysToShow = 30,
+    this.chartType = 'line',
   });
+  final List<DailyStats> dailyStats;
+  final int daysToShow;
+  final String chartType;
 
   @override
   Widget build(BuildContext context) {
@@ -264,132 +442,300 @@ class AccuracyTrendChart extends StatelessWidget {
             const SizedBox(height: 20),
             SizedBox(
               height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: colors.secondaryText.withValues(alpha: 0.1),
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        interval: recentStats.length > 7
-                            ? (recentStats.length / 7).ceilToDouble()
-                            : 1,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= recentStats.length) {
-                            return const Text('');
-                          }
-                          final date = recentStats[value.toInt()].date;
-                          return Text(
-                            '${date.month}/${date.day}',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
-                              fontSize: 10,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 50,
-                        interval: 20,
-                        getTitlesWidget: (value, meta) => Text(
-                          '${value.toInt()}%',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: colors.secondaryText,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(
-                      color: colors.secondaryText.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  minX: 0,
-                  maxX: (recentStats.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: 100,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: colors.success,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        getDotPainter: (spot, percent, barData, index) =>
-                            FlDotCirclePainter(
-                          radius: 4,
-                          color: colors.success,
-                          strokeWidth: 2,
-                          strokeColor: colors.cardBackground,
-                        ),
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: colors.success.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (touchedSpot) => colors.cardBackground,
-                      tooltipRoundedRadius: 8,
-                      tooltipPadding: const EdgeInsets.all(8),
-                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                        return touchedSpots.map((spot) {
-                          final stat = recentStats[spot.x.toInt()];
-                          return LineTooltipItem(
-                            '${DateFormat('MMM d').format(stat.date)}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%\nCorrect: ${stat.correctAnswers}\nWrong: ${stat.wrongAnswers}',
-                            AppTypography.bodyMedium.copyWith(
-                              color: colors.primaryText,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        }).toList();
-                      },
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildAccuracyChart(context, colors, recentStats, spots),
             ),
           ],
         ),
       );
     } catch (e, stackTrace) {
-      // Log error to Crashlytics
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        stackTrace,
-        reason: 'AccuracyTrendChart rendering error',
-        fatal: false,
-      );
-      if (kDebugMode) {
-        debugPrint('AccuracyTrendChart error: $e');
+      // Log error to Crashlytics if Firebase is initialized
+      try {
+        Firebase.app(); // Check if Firebase is initialized
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'AccuracyTrendChart rendering error',
+          fatal: false,
+        );
+      } catch (_) {
+        // Firebase not initialized (e.g., in tests) - skip Crashlytics logging
       }
+      LoggerService.error('AccuracyTrendChart error', error: e);
       return _buildEmptyState(context, 'Unable to display chart');
     }
+  }
+
+  Widget _buildAccuracyChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    List<FlSpot> spots,
+  ) {
+    switch (chartType) {
+      case 'bar':
+        return _buildAccuracyBarChart(context, colors, recentStats);
+      case 'area':
+        return _buildAccuracyAreaChart(context, colors, recentStats, spots);
+      case 'line':
+      default:
+        return _buildAccuracyLineChart(context, colors, recentStats, spots);
+    }
+  }
+
+  Widget _buildAccuracyLineChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    List<FlSpot> spots,
+  ) {
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: _buildAccuracyTitlesData(colors, recentStats),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        minX: 0,
+        maxX: (recentStats.length - 1).toDouble(),
+        minY: 0,
+        maxY: 100,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: colors.success,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) =>
+                  FlDotCirclePainter(
+                radius: 4,
+                color: colors.success,
+                strokeWidth: 2,
+                strokeColor: colors.cardBackground,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: false,
+              color: colors.success.withValues(alpha: 0.1),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final stat = recentStats[spot.x.toInt()];
+                return LineTooltipItem(
+                  '${DateFormat('MMM d').format(stat.date)}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%\nCorrect: ${stat.correctAnswers}\nWrong: ${stat.wrongAnswers}',
+                  AppTypography.bodyMedium.copyWith(
+                    color: colors.primaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccuracyBarChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+  ) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 100,
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final stat = recentStats[groupIndex];
+              return BarTooltipItem(
+                '${DateFormat('MMM d').format(stat.date)}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%',
+                AppTypography.bodyMedium.copyWith(
+                  color: colors.primaryText,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
+          ),
+        ),
+        titlesData: _buildAccuracyTitlesData(colors, recentStats),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        barGroups: recentStats.asMap().entries.map((entry) {
+          final index = entry.key;
+          final stat = entry.value;
+          return BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: stat.accuracy,
+                color: colors.success,
+                width: 16,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAccuracyAreaChart(
+    BuildContext context,
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+    List<FlSpot> spots,
+  ) {
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: colors.secondaryText.withValues(alpha: 0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: _buildAccuracyTitlesData(colors, recentStats),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: colors.secondaryText.withValues(alpha: 0.2),
+          ),
+        ),
+        minX: 0,
+        maxX: (recentStats.length - 1).toDouble(),
+        minY: 0,
+        maxY: 100,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: colors.success,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) =>
+                  FlDotCirclePainter(
+                radius: 4,
+                color: colors.success,
+                strokeWidth: 2,
+                strokeColor: colors.cardBackground,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: colors.success.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => colors.cardBackground,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final stat = recentStats[spot.x.toInt()];
+                return LineTooltipItem(
+                  '${DateFormat('MMM d').format(stat.date)}\nAccuracy: ${stat.accuracy.toStringAsFixed(1)}%\nCorrect: ${stat.correctAnswers}\nWrong: ${stat.wrongAnswers}',
+                  AppTypography.bodyMedium.copyWith(
+                    color: colors.primaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  FlTitlesData _buildAccuracyTitlesData(
+    AppColorScheme colors,
+    List<DailyStats> recentStats,
+  ) {
+    return FlTitlesData(
+      show: true,
+      rightTitles: const AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      topTitles: const AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 30,
+          interval: recentStats.length > 7
+              ? (recentStats.length / 7).ceilToDouble()
+              : 1,
+          getTitlesWidget: (value, meta) {
+            if (value.toInt() >= recentStats.length) {
+              return const Text('');
+            }
+            final date = recentStats[value.toInt()].date;
+            return Text(
+              '${date.month}/${date.day}',
+              style: AppTypography.bodyMedium.copyWith(
+                color: colors.secondaryText,
+                fontSize: 10,
+              ),
+            );
+          },
+        ),
+      ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 50,
+          interval: 20,
+          getTitlesWidget: (value, meta) => Text(
+            '${value.toInt()}%',
+            style: AppTypography.bodyMedium.copyWith(
+              color: colors.secondaryText,
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context, String message) {
@@ -413,9 +759,9 @@ class AccuracyTrendChart extends StatelessWidget {
 
 /// Bar chart comparing mode performance
 class ModePerformanceChart extends StatelessWidget {
-  final Map<String, int> modePlayCounts;
 
   const ModePerformanceChart({super.key, required this.modePlayCounts});
+  final Map<String, int> modePlayCounts;
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +810,6 @@ class ModePerformanceChart extends StatelessWidget {
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (group) => colors.cardBackground,
-                      tooltipRoundedRadius: 8,
                       tooltipPadding: const EdgeInsets.all(8),
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final mode = sortedModes[groupIndex].key;
@@ -558,16 +903,19 @@ class ModePerformanceChart extends StatelessWidget {
         ),
       );
     } catch (e, stackTrace) {
-      // Log error to Crashlytics
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        stackTrace,
-        reason: 'ModePerformanceChart rendering error',
-        fatal: false,
-      );
-      if (kDebugMode) {
-        debugPrint('ModePerformanceChart error: $e');
+      // Log error to Crashlytics if Firebase is initialized
+      try {
+        Firebase.app(); // Check if Firebase is initialized
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'ModePerformanceChart rendering error',
+          fatal: false,
+        );
+      } catch (_) {
+        // Firebase not initialized (e.g., in tests) - skip Crashlytics logging
       }
+      LoggerService.error('ModePerformanceChart error', error: e);
       return _buildEmptyState(context, 'Unable to display chart');
     }
   }
@@ -605,14 +953,14 @@ class ModePerformanceChart extends StatelessWidget {
 
 /// Pie chart showing success/failure distribution
 class AccuracyDistributionChart extends StatelessWidget {
-  final int correctAnswers;
-  final int wrongAnswers;
 
   const AccuracyDistributionChart({
     super.key,
     required this.correctAnswers,
     required this.wrongAnswers,
   });
+  final int correctAnswers;
+  final int wrongAnswers;
 
   @override
   Widget build(BuildContext context) {
@@ -680,7 +1028,7 @@ class AccuracyDistributionChart extends StatelessWidget {
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
                   pieTouchData: PieTouchData(
-                    touchCallback: (FlTouchEvent event, pieTouchResponse) {},
+                    touchCallback: (event, pieTouchResponse) {},
                   ),
                 ),
               ),
@@ -698,16 +1046,19 @@ class AccuracyDistributionChart extends StatelessWidget {
         ),
       );
     } catch (e, stackTrace) {
-      // Log error to Crashlytics
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        stackTrace,
-        reason: 'AccuracyDistributionChart rendering error',
-        fatal: false,
-      );
-      if (kDebugMode) {
-        debugPrint('AccuracyDistributionChart error: $e');
+      // Log error to Crashlytics if Firebase is initialized
+      try {
+        Firebase.app(); // Check if Firebase is initialized
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'AccuracyDistributionChart rendering error',
+          fatal: false,
+        );
+      } catch (_) {
+        // Firebase not initialized (e.g., in tests) - skip Crashlytics logging
       }
+      LoggerService.error('AccuracyDistributionChart error', error: e);
       return _buildEmptyState(context, 'Unable to display chart');
     }
   }
@@ -747,14 +1098,14 @@ class AccuracyDistributionChart extends StatelessWidget {
 
 /// Streak visualization widget
 class StreakWidget extends StatelessWidget {
-  final int currentStreak;
-  final int longestStreak;
 
   const StreakWidget({
     super.key,
     required this.currentStreak,
     required this.longestStreak,
   });
+  final int currentStreak;
+  final int longestStreak;
 
   @override
   Widget build(BuildContext context) {
@@ -855,14 +1206,14 @@ class StreakWidget extends StatelessWidget {
 
 /// Time period selector widget
 class TimePeriodSelector extends StatelessWidget {
-  final int selectedDays;
-  final Function(int) onChanged;
 
   const TimePeriodSelector({
     super.key,
     required this.selectedDays,
     required this.onChanged,
   });
+  final int selectedDays;
+  final Function(int) onChanged;
 
   @override
   Widget build(BuildContext context) {

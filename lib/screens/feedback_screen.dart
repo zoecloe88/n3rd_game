@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:n3rd_game/services/feedback_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/utils/error_helper.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'dart:io' as io;
 
 class FeedbackScreen extends StatefulWidget {
@@ -43,10 +47,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           _selectedImages.add(File(image.path));
         });
         if (_controller.text.isNotEmpty) {
-          _getAISuggestion();
+          unawaited(_getAISuggestion());
         }
       }
     } catch (e) {
+      LoggerService.warning(
+        'Failed to pick image from gallery in FeedbackScreen',
+        error: e,
+      );
       if (mounted) {
         ErrorHelper.showErrorSnackBar(context, e);
       }
@@ -66,10 +74,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           _selectedImages.add(File(image.path));
         });
         if (_controller.text.isNotEmpty) {
-          _getAISuggestion();
+          unawaited(_getAISuggestion());
         }
       }
     } catch (e) {
+      LoggerService.warning(
+        'Failed to take photo in FeedbackScreen',
+        error: e,
+      );
       if (mounted) {
         ErrorHelper.showErrorSnackBar(context, e);
       }
@@ -95,6 +107,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         });
       }
     } catch (e) {
+      LoggerService.warning(
+        'Failed to get AI suggestion in FeedbackScreen',
+        error: e,
+      );
       if (mounted) {
         setState(() {
           _isLoadingSuggestion = false;
@@ -133,7 +149,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       );
 
       if (mounted) {
-        Navigator.pop(context);
+        NavigationHelper.safePop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Thank you! Your feedback has been submitted.'),
@@ -143,6 +159,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         );
       }
     } catch (e) {
+      LoggerService.warning(
+        'Failed to submit feedback in FeedbackScreen',
+        error: e,
+      );
       if (mounted) {
         ErrorHelper.showErrorSnackBar(context, e);
       }
@@ -181,10 +201,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                    color: feedbackColors.secondaryText,
+                  Semantics(
+                    label: AppLocalizations.of(context)?.close ?? 'Close',
+                    button: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => NavigationHelper.safePop(context),
+                      color: feedbackColors.secondaryText,
+                      tooltip: AppLocalizations.of(context)?.close ?? 'Close',
+                    ),
                   ),
                 ],
               ),
@@ -206,30 +231,39 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       children: ['bug', 'feature', 'error', 'question'].map((
                         type,
                       ) {
-                        return ChoiceChip(
-                          label: Text(type),
+                        return Semantics(
+                          label: 'Select feedback type: $type',
                           selected: _selectedType == type,
-                          onSelected: (selected) {
-                            setState(() => _selectedType = type);
-                          },
+                          child: ChoiceChip(
+                            label: Text(type),
+                            selected: _selectedType == type,
+                            onSelected: (selected) {
+                              setState(() => _selectedType = type);
+                            },
+                          ),
                         );
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
 
                     // Description
-                    TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        labelText: 'Describe your issue or suggestion',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    Semantics(
+                      label: 'Feedback description',
+                      hint: 'Describe your issue or suggestion',
+                      textField: true,
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          labelText: 'Describe your issue or suggestion',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: feedbackColors.cardBackgroundAlt,
                         ),
-                        filled: true,
-                        fillColor: feedbackColors.cardBackgroundAlt,
+                        maxLines: 5,
+                        onChanged: (_) => _getAISuggestion(),
                       ),
-                      maxLines: 5,
-                      onChanged: (_) => _getAISuggestion(),
                     ),
 
                     // AI Suggestion
@@ -238,10 +272,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                         padding: const EdgeInsets.only(top: 12),
                         child: Row(
                           children: [
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                            Semantics(
+                              label: 'Analyzing feedback',
+                              child: const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -384,8 +421,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed:
-                        _isSubmitting ? null : () => Navigator.pop(context),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => NavigationHelper.safePop(context),
                     child: Text('Cancel', style: AppTypography.labelLarge),
                   ),
                   const SizedBox(width: 8),
@@ -396,13 +434,16 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       foregroundColor: feedbackColors.buttonText,
                     ),
                     child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                        ? Semantics(
+                            label: 'Submitting feedback',
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             ),
                           )

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for randomly selecting animation MP4 files from categories
 ///
@@ -59,9 +60,7 @@ class AnimationRandomizerService extends ChangeNotifier {
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('⚠️ AnimationRandomizerService: Failed to initialize: $e');
-      }
+      LoggerService.error('⚠️ AnimationRandomizerService: Failed to initialize', error: e);
       // Continue - will fail gracefully when accessing animations
     }
   }
@@ -85,9 +84,7 @@ class AnimationRandomizerService extends ChangeNotifier {
   Future<List<String>> getAllAnimations(String category) async {
     // Validate category is not empty
     if (category.isEmpty) {
-      if (kDebugMode) {
-        debugPrint('⚠️ AnimationRandomizerService: Empty category provided');
-      }
+      LoggerService.warning('AnimationRandomizerService: Empty category provided');
       return [];
     }
 
@@ -103,7 +100,7 @@ class AnimationRandomizerService extends ChangeNotifier {
       final categoryPath = 'assets/animations/$category/';
       final animations = manifestMap.keys
           .where(
-            (String key) =>
+            (key) =>
                 key.startsWith(categoryPath) && key.endsWith('.mp4'),
           )
           .toList();

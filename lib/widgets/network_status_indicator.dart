@@ -8,12 +8,12 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 /// Widget to display network connectivity status
 /// Shows online/offline indicator with icon
 class NetworkStatusIndicator extends StatelessWidget {
-  final bool compact;
 
   const NetworkStatusIndicator({
     super.key,
     this.compact = false,
   });
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -78,4 +78,16 @@ class NetworkStatusIndicator extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 

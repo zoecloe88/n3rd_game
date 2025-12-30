@@ -8,14 +8,14 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 /// Widget to display current subscription tier status
 /// Shows tier badge with icon and name
 class SubscriptionTierIndicator extends StatelessWidget {
-  final bool showIcon;
-  final bool compact;
 
   const SubscriptionTierIndicator({
     super.key,
     this.showIcon = true,
     this.compact = false,
   });
+  final bool showIcon;
+  final bool compact;
 
   String _getTierName(SubscriptionTier tier) {
     switch (tier) {

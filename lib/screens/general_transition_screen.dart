@@ -1,22 +1,35 @@
 import 'dart:async';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/config/app_config.dart';
+import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
+/// General purpose transition screen for navigation between screens
+///
+/// Displays a transition video and navigates to the specified route after
+/// a minimum delay. Checks onboarding status for protected routes.
+///
+/// Features:
+/// - Random video selection
+/// - Onboarding check for protected routes
+/// - Minimum delay enforcement
+/// - Error handling with fail-open approach
 class GeneralTransitionScreen extends StatefulWidget {
-  final String routeAfter;
-  final Object? routeArgs;
 
   const GeneralTransitionScreen({
     super.key,
     required this.routeAfter,
     this.routeArgs,
   });
+  final String routeAfter;
+  final Object? routeArgs;
 
   @override
   State<GeneralTransitionScreen> createState() =>
@@ -29,6 +42,13 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
   final OnboardingService _onboardingService = OnboardingService();
   DateTime? _startTime;
 
+  // Constants
+  static const List<String> _transitionVideos = [
+    'assets/modeselectiontransitionscreen.mp4',
+    'assets/modeselection2.mp4',
+    'assets/modeselection3.mp4',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -39,16 +59,24 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
     // But ensure minimum 3 seconds
   }
 
+  /// Navigate to target route with onboarding check
+  ///
+  /// Ensures minimum delay has passed and checks onboarding status
+  /// for protected routes. Uses fail-open approach for onboarding check.
   Future<void> _navigateWithOnboardingCheck() async {
     if (!mounted || !context.mounted) return;
 
-    // Ensure minimum 3 seconds have passed
+    // Ensure minimum delay has passed (use AppConfig for consistency)
     if (_startTime != null) {
       final elapsed = DateTime.now().difference(_startTime!);
-      if (elapsed.inSeconds < 3) {
-        // Wait for remaining time to reach 3 seconds
-        await Future.delayed(Duration(seconds: 3 - elapsed.inSeconds));
+      final remaining = AppConfig.minModeTransitionDelay - elapsed;
+      if (remaining.inMilliseconds > 0) {
+        // Wait for remaining time to reach minimum delay
+        await Future.delayed(remaining);
       }
+    } else {
+      // If start time is null, wait full minimum delay
+      await Future.delayed(AppConfig.minModeTransitionDelay);
     }
 
     if (!mounted || !context.mounted) return;
@@ -58,49 +86,42 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
       final hasCompletedOnboarding =
           await _onboardingService.hasCompletedOnboarding();
 
-      // List of routes that require onboarding
-      const protectedRoutes = [
-        '/title',
-        '/modes',
-        '/game',
-        '/stats',
-        '/leaderboard',
-        '/editions',
-      ];
+      // Use AppConfig protected routes constant
+      final protectedRoutes = AppConfig.protectedRoutes;
 
       final needsOnboarding = protectedRoutes.contains(widget.routeAfter) &&
           !hasCompletedOnboarding;
 
       if (needsOnboarding && mounted && context.mounted) {
         // Redirect to onboarding if accessing protected route without completing it
-        NavigationHelper.safeNavigate(context, '/onboarding', replace: true);
+        unawaited(NavigationHelper.safeNavigate(context, '/onboarding', replace: true));
         return;
       }
     } catch (e) {
       // Onboarding check failed - log error but allow access (fail-open to prevent blocking users)
-      if (kDebugMode) {
-        debugPrint('⚠️ Onboarding check failed in GeneralTransitionScreen: $e');
-      }
+      LoggerService.warning(
+        'GeneralTransitionScreen: Onboarding check failed',
+        error: e,
+      );
       // Continue with normal flow - don't block navigation if onboarding check fails
     }
 
     // Safe to navigate
     if (mounted && context.mounted) {
-      Navigator.of(
+      unawaited(NavigationHelper.safePushReplacementNamed(
         context,
-      ).pushReplacementNamed(widget.routeAfter, arguments: widget.routeArgs);
+        widget.routeAfter,
+        arguments: widget.routeArgs,
+      ),);
     }
   }
 
+  /// Get a random transition video from available options
+  ///
+  /// Returns one of the predefined transition video paths
   String _getRandomTransitionVideo() {
-    // Randomize between available transition videos
     final random = Random();
-    final videos = [
-      'assets/modeselectiontransitionscreen.mp4',
-      'assets/modeselection2.mp4',
-      'assets/modeselection3.mp4',
-    ];
-    return videos[random.nextInt(videos.length)];
+    return _transitionVideos[random.nextInt(_transitionVideos.length)];
   }
 
   @override
@@ -113,17 +134,22 @@ class _GeneralTransitionScreenState extends State<GeneralTransitionScreen>
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     return Scaffold(
-      body: VideoBackgroundWidget(
-        videoPath: _randomVideoPath,
-        fit: BoxFit.cover,
-        alignment: Alignment.topCenter, // Characters/logos in upper portion
-        loop: false,
-        autoplay: true,
-        onVideoCompleted: _navigateWithOnboardingCheck, // Navigate when video completes
-        child: const SizedBox.shrink(), // No content overlay needed
+      backgroundColor: AppColors.of(context).background,
+      body: Semantics(
+        label: 'Transition video playing',
+        child: VideoBackgroundWidget(
+          videoPath: _randomVideoPath,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter, // Characters/logos in upper portion
+          loop: false,
+          autoplay: true,
+          onVideoCompleted:
+              _navigateWithOnboardingCheck, // Navigate when video completes
+          child: const SizedBox.shrink(), // No content overlay needed
+        ),
       ),
     );
   }

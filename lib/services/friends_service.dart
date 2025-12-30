@@ -32,9 +32,18 @@ class FriendsService extends ChangeNotifier {
   final List<Friend> _friends = [];
   final List<FriendRequest> _pendingRequests = [];
 
+  // Pagination state
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastFriendDocument;
+  static const int _pageSize = 20;
+
   List<Friend> get friends => List.unmodifiable(_friends);
   List<FriendRequest> get pendingRequests =>
       List.unmodifiable(_pendingRequests);
+
+  bool get isLoadingMoreFriends => _isLoadingMore;
+  bool get hasMoreFriends => _hasMore;
 
   Future<void> init() async {
     final userId = _userId;
@@ -64,17 +73,23 @@ class FriendsService extends ChangeNotifier {
     if (userId == null || firestore == null) return;
 
     _friendsSubscription?.cancel();
-    _friendsSubscription = firestore
+    _lastFriendDocument = null;
+    _hasMore = true;
+
+    final Query query = firestore
         .collection('friends')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'accepted')
-        .snapshots()
-        .listen(
+        .orderBy('addedAt', descending: true)
+        .limit(_pageSize);
+
+    _friendsSubscription = query.snapshots().listen(
       (snapshot) {
         _friends.clear();
         for (final doc in snapshot.docs) {
           try {
-            final data = doc.data();
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
             _friends.add(
               Friend(
                 userId: data['friendId'] as String,
@@ -87,11 +102,18 @@ class FriendsService extends ChangeNotifier {
               ),
             );
           } catch (e) {
-            if (kDebugMode) {
-              debugPrint('Error parsing friend: $e');
-            }
+            LoggerService.error('Error parsing friend', error: e);
           }
         }
+
+        // Update pagination state
+        if (snapshot.docs.isNotEmpty) {
+          _lastFriendDocument = snapshot.docs.last;
+          _hasMore = snapshot.docs.length >= _pageSize;
+        } else {
+          _hasMore = false;
+        }
+
         notifyListeners();
       },
       onError: (error) {
@@ -105,6 +127,7 @@ class FriendsService extends ChangeNotifier {
           );
           // Clear friends and notify listeners
           _friends.clear();
+          _hasMore = false;
           notifyListeners();
         } else {
           LoggerService.error(
@@ -116,6 +139,71 @@ class FriendsService extends ChangeNotifier {
         }
       },
     );
+  }
+
+  /// Load more friends using pagination
+  Future<void> loadMoreFriends() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null || _lastFriendDocument == null) {
+      _hasMore = false;
+      return;
+    }
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final Query query = firestore
+          .collection('friends')
+          .where('userId', isEqualTo: userId)
+          .where('status', isEqualTo: 'accepted')
+          .orderBy('addedAt', descending: true)
+          .startAfterDocument(_lastFriendDocument!)
+          .limit(_pageSize);
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.isEmpty) {
+        _hasMore = false;
+      } else {
+        for (final doc in snapshot.docs) {
+          try {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _friends.add(
+              Friend(
+                userId: data['friendId'] as String,
+                displayName: data['friendDisplayName'] as String?,
+                email: data['friendEmail'] as String?,
+                addedAt: data['addedAt'] != null
+                    ? (data['addedAt'] as Timestamp).toDate()
+                    : null,
+                isOnline: data['isOnline'] as bool? ?? false,
+              ),
+            );
+          } catch (e) {
+            LoggerService.error('Error parsing friend', error: e);
+          }
+        }
+
+        _lastFriendDocument = snapshot.docs.last;
+        _hasMore = snapshot.docs.length >= _pageSize;
+      }
+    } catch (e) {
+      LoggerService.error(
+        'FriendsService: Error loading more friends',
+        error: e,
+        reason: 'Pagination query error',
+        fatal: false,
+      );
+      _hasMore = false;
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
   }
 
   void _loadPendingRequests() {
@@ -138,9 +226,7 @@ class FriendsService extends ChangeNotifier {
               FriendRequest.fromJson({'id': doc.id, ...doc.data()}),
             );
           } catch (e) {
-            if (kDebugMode) {
-              debugPrint('Error parsing friend request: $e');
-            }
+            LoggerService.error('Error parsing friend request', error: e);
           }
         }
         notifyListeners();
@@ -194,9 +280,7 @@ class FriendsService extends ChangeNotifier {
 
       return results;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error searching users: $e');
-      }
+      LoggerService.error('Error searching users', error: e);
       return [];
     }
   }
@@ -454,9 +538,7 @@ class FriendsService extends ChangeNotifier {
 
       return suggestions;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error getting friend suggestions: $e');
-      }
+      LoggerService.error('Error getting friend suggestions', error: e);
       return [];
     }
   }
@@ -524,9 +606,7 @@ class FriendsService extends ChangeNotifier {
 
       return contacts;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error getting contacts: $e');
-      }
+      LoggerService.error('Error getting contacts', error: e);
       LoggerService.error(
         'FriendsService: Error getting contacts',
         error: e,
@@ -548,7 +628,8 @@ class FriendsService extends ChangeNotifier {
       // Filter contacts by query
       final matchingContacts = contacts.where((contact) {
         final name = contact.displayName.toLowerCase();
-        final emails = contact.emails.map((e) => e.address.toLowerCase()).toList();
+        final emails =
+            contact.emails.map((e) => e.address.toLowerCase()).toList();
         final phones = contact.phones.map((p) => p.number).toList();
         final queryLower = query.toLowerCase();
 
@@ -577,7 +658,8 @@ class FriendsService extends ChangeNotifier {
                   results.add({
                     'userId': doc.id,
                     'email': email.address,
-                    'displayName': (userData['displayName'] as String?) ?? contact.displayName,
+                    'displayName': (userData['displayName'] as String?) ??
+                        contact.displayName,
                     'contactName': contact.displayName,
                     'isContact': true,
                   });
@@ -585,9 +667,7 @@ class FriendsService extends ChangeNotifier {
                 }
               } catch (e) {
                 // Continue to next email if search fails
-                if (kDebugMode) {
-                  debugPrint('Error searching user by email: $e');
-                }
+                LoggerService.error('Error searching user by email', error: e);
               }
             }
           }
@@ -596,11 +676,9 @@ class FriendsService extends ChangeNotifier {
 
       return results;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error searching contacts and users: $e');
-      }
+      LoggerService.error('Error searching contacts and users', error: e);
       // Fallback to regular user search
-      return await searchUsers(query);
+      return searchUsers(query);
     }
   }
 

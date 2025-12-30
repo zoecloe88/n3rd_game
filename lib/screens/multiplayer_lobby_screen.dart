@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -11,6 +12,12 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/services/friends_service.dart';
+import 'package:n3rd_game/models/friend.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:n3rd_game/services/newsfeed_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class MultiplayerLobbyScreen extends StatefulWidget {
   const MultiplayerLobbyScreen({super.key});
@@ -26,6 +33,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   final _roomCodeController = TextEditingController();
   String? _selectedGameMode;
   String? _selectedDifficulty;
+  List<Friend> _invitedFriends = [];
+  final bool _friendsOnly = false;
 
   @override
   void initState() {
@@ -45,6 +54,29 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is MultiplayerMode) {
       _mode = args;
+    } else if (args is Map<String, dynamic> && args.containsKey('joinRoom')) {
+      // Handle deep link - auto-populate room code and join
+      final roomCode = args['joinRoom'] as String?;
+      if (roomCode != null && roomCode.isNotEmpty) {
+        _roomCodeController.text = roomCode;
+        // Auto-join after short delay
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            unawaited(_joinRoom());
+          }
+        });
+      }
+    } else if (args is String && args.isNotEmpty) {
+      // Direct room code as argument
+      _roomCodeController.text = args;
+      // Auto-join after short delay
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          unawaited(_joinRoom());
+        }
+      });
     }
   }
 
@@ -155,7 +187,40 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       final room = await multiplayerService.createRoom(
         mode: _mode!,
         maxPlayers: maxPlayers,
+        friendsOnly: _friendsOnly,
       );
+
+      // Log newsfeed activity for room creation
+      if (mounted) {
+        final newsfeedService =
+            Provider.of<NewsfeedService>(context, listen: false);
+        unawaited(
+          newsfeedService.logMultiplayerActivity(
+            activityType: NewsfeedActivityType.roomCreated,
+            metadata: {
+              'roomId': room.id,
+              'mode': _mode!.name,
+              'maxPlayers': maxPlayers,
+              'friendsOnly': _friendsOnly,
+            },
+          ),
+        );
+
+        // Log analytics for friend-only room creation
+        if (_friendsOnly) {
+          unawaited(
+            analyticsService.logCustomEvent(
+              'friend_only_room_created',
+              parameters: {'roomId': room.id},
+            ),
+          );
+        }
+      }
+
+      // Load invited friends after room creation
+      if (mounted) {
+        await _loadInvitedFriends(room.id);
+      }
 
       // Log analytics (fire-and-forget)
       unawaited(analyticsService.logRoomCreated());
@@ -169,7 +234,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isCreating = false);
-        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        final localizations = AppLocalizations.of(context);
+        final errorMessage = localizations?.multiplayerLobbyError ??
+            'Lobby operation failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error creating room: $errorMessage'),
@@ -182,7 +249,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           context,
           listen: false,
         );
-        analyticsService.logError('room_creation_failed', errorMessage);
+        unawaited(analyticsService.logError('room_creation_failed', errorMessage));
       }
     }
   }
@@ -228,16 +295,18 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       unawaited(analyticsService.logRoomJoined());
 
       if (mounted) {
-        NavigationHelper.safeNavigate(
+        unawaited(NavigationHelper.safeNavigate(
           context,
           '/multiplayer-game',
           replace: true,
-        );
+        ),);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isJoining = false);
-        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        final localizations = AppLocalizations.of(context);
+        final errorMessage = localizations?.multiplayerLobbyError ??
+            'Lobby operation failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error joining room: $errorMessage'),
@@ -250,7 +319,287 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           context,
           listen: false,
         );
-        analyticsService.logError('room_join_failed', errorMessage);
+        unawaited(analyticsService.logError('room_join_failed', errorMessage));
+      }
+    }
+  }
+
+  Future<void> _loadInvitedFriends(String roomId) async {
+    try {
+      final multiplayerService = Provider.of<MultiplayerService>(
+        context,
+        listen: false,
+      );
+      final invitations = await multiplayerService.getRoomInvitations(roomId);
+      if (!mounted) return;
+
+      // Get FriendsService to get friend details
+      final friendsService = Provider.of<FriendsService>(
+        context,
+        listen: false,
+      );
+      await friendsService.init();
+      if (!mounted) return;
+      final allFriends = friendsService.friends;
+
+      final invitedFriendIds =
+          invitations.map((inv) => inv.friendUserId).toList();
+      final invitedFriendsList = allFriends
+          .where((friend) => invitedFriendIds.contains(friend.userId))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _invitedFriends = invitedFriendsList;
+        });
+      }
+    } catch (e) {
+      LoggerService.warning('Failed to load invited friends', error: e);
+    }
+  }
+
+  Future<void> _showFriendInviteDialog() async {
+    try {
+      final friendsService = Provider.of<FriendsService>(
+        context,
+        listen: false,
+      );
+      await friendsService.init();
+      final friends = friendsService.friends;
+
+      // Filter to only online friends
+      final onlineFriends = friends.where((f) => f.isOnline).toList();
+
+      if (!mounted) return;
+
+      unawaited(showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            'Invite Friends',
+            style: AppTypography.headlineLarge,
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: onlineFriends.isEmpty
+                ? const Text(
+                    'No online friends available',
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: onlineFriends.length,
+                    itemBuilder: (context, index) {
+                      final friend = onlineFriends[index];
+                      final isInvited =
+                          _invitedFriends.any((f) => f.userId == friend.userId);
+
+                      return ListTile(
+                        title: Text(
+                          friend.displayName ??
+                              friend.email?.split('@').first ??
+                              'Unknown',
+                          style: AppTypography.bodyLarge,
+                        ),
+                        trailing: isInvited
+                            ? const Icon(Icons.check, color: Colors.green)
+                            : ElevatedButton(
+                                onPressed: isInvited
+                                    ? null
+                                    : () {
+                                        NavigationHelper.safePop(dialogContext);
+                                        _inviteFriend(friend);
+                                      },
+                                child: const Text(
+                                  'Invite',
+                                ),
+                              ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => NavigationHelper.safePop(dialogContext),
+              child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+            ),
+          ],
+        ),
+      ),);
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          ErrorHandler.getLocalizedErrorMessage(e, context),
+        );
+      }
+    }
+  }
+
+  Future<void> _inviteFriend(Friend friend) async {
+    if (_roomCode == null) return;
+
+    try {
+      final multiplayerService = Provider.of<MultiplayerService>(
+        context,
+        listen: false,
+      );
+      final analyticsService = Provider.of<AnalyticsService>(
+        context,
+        listen: false,
+      );
+
+      await multiplayerService.sendRoomInvitation(_roomCode!, friend.userId);
+      if (!mounted) return;
+
+      // Log newsfeed activity
+      final newsfeedService =
+          Provider.of<NewsfeedService>(context, listen: false);
+      unawaited(
+        newsfeedService.logMultiplayerActivity(
+          activityType: NewsfeedActivityType.friendInvitedToGame,
+          metadata: {
+            'roomId': _roomCode!,
+            'friendUserId': friend.userId,
+          },
+        ),
+      );
+
+      // Log analytics
+      unawaited(
+        analyticsService.logCustomEvent(
+          'room_invitation_sent',
+          parameters: {
+            'roomId': _roomCode!,
+            'friendUserId': friend.userId,
+          },
+        ),
+      );
+
+      if (mounted) {
+        setState(() {
+          _invitedFriends.add(friend);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Invited ${friend.displayName ?? friend.email?.split("@").first ?? "friend"}',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          ErrorHandler.getLocalizedErrorMessage(e, context),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelInvite(String friendUserId) async {
+    if (_roomCode == null) return;
+
+    try {
+      final multiplayerService = Provider.of<MultiplayerService>(
+        context,
+        listen: false,
+      );
+      final invitations =
+          await multiplayerService.getRoomInvitations(_roomCode!);
+      final invitation = invitations.firstWhere(
+        (inv) => inv.friendUserId == friendUserId,
+      );
+
+      await multiplayerService.cancelRoomInvitation(invitation.id);
+
+      if (mounted) {
+        setState(() {
+          _invitedFriends.removeWhere((f) => f.userId == friendUserId);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          ErrorHandler.getLocalizedErrorMessage(e, context),
+        );
+      }
+    }
+  }
+
+  Future<void> _addFriendFromLobby(String userId) async {
+    try {
+      final friendsService = Provider.of<FriendsService>(
+        context,
+        listen: false,
+      );
+      await friendsService.sendFriendRequest(userId);
+      if (!mounted) return;
+
+      // Log analytics
+      final analyticsService = Provider.of<AnalyticsService>(
+        context,
+        listen: false,
+      );
+      unawaited(
+        analyticsService.logCustomEvent(
+          'friend_added_from_lobby',
+          parameters: {'userId': userId},
+        ),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Friend request sent'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          ErrorHandler.getLocalizedErrorMessage(e, context),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareRoomCode(String roomCode) async {
+    try {
+      final deepLink = 'n3rdgame://multiplayer/join?room=$roomCode';
+      final shareText =
+          'Join my N3RD Trivia game! Room Code: $roomCode\n\n$deepLink';
+
+      await Share.share(shareText);
+      if (!mounted) return;
+
+      // Log analytics
+      final analyticsService = Provider.of<AnalyticsService>(
+        context,
+        listen: false,
+      );
+      unawaited(
+        analyticsService.logCustomEvent(
+          'room_code_shared',
+          parameters: {
+            'roomId': roomCode,
+            'method': 'native_share',
+          },
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          ErrorHandler.getLocalizedErrorMessage(e, context),
+        );
       }
     }
   }
@@ -480,9 +829,105 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                         letterSpacing: 4,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    // Share Code Button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _shareRoomCode(room.id),
+                          icon: const Icon(Icons.share),
+                          label: const Text(
+                            'Share',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: lobbyColors.primaryButton,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
+
+              const SizedBox(height: 24),
+
+              // Friend Invite Section (Host only)
+              if (isHost)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: AppShadows.medium,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Invite Friends',
+                        style: AppTypography.headlineLarge.copyWith(
+                          fontSize: 18,
+                          color: lobbyColors.primaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _showFriendInviteDialog,
+                              icon: const Icon(Icons.person_add),
+                              label: const Text(
+                                'Friends List',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: lobbyColors.primaryButton,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _shareRoomCode(room.id),
+                              icon: const Icon(Icons.share),
+                              label: const Text(
+                                'Share Code',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: lobbyColors.primaryButton
+                                    .withValues(alpha: 0.7),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_invitedFriends.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _invitedFriends.map((friend) {
+                            return Chip(
+                              label: Text(
+                                friend.displayName ??
+                                    friend.email?.split('@').first ??
+                                    'Unknown',
+                              ),
+                              onDeleted: () => _cancelInvite(friend.userId),
+                              deleteIcon: const Icon(Icons.cancel, size: 18),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
 
               const SizedBox(height: 24),
 
@@ -514,6 +959,15 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             final player = room.players[index];
                             final isCurrentUser = player.userId ==
                                 multiplayerService.currentUserId;
+
+                            // Check if player is a friend
+                            final friendsService = Provider.of<FriendsService>(
+                              context,
+                              listen: false,
+                            );
+                            final isFriend = friendsService.friends
+                                .any((f) => f.userId == player.userId);
+
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
@@ -541,6 +995,14 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                                         : lobbyColors.tertiaryText,
                                   ),
                                   const SizedBox(width: 12),
+                                  if (isFriend && !isCurrentUser)
+                                    const Icon(
+                                      Icons.favorite,
+                                      color: Colors.red,
+                                      size: 16,
+                                    ),
+                                  if (isFriend && !isCurrentUser)
+                                    const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       player.displayName ??
@@ -569,6 +1031,16 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                                           color: Colors.white,
                                         ),
                                       ),
+                                    ),
+                                  if (!isFriend &&
+                                      !isCurrentUser &&
+                                      player.userId != room.hostId)
+                                    IconButton(
+                                      icon: const Icon(Icons.person_add,
+                                          size: 18,),
+                                      onPressed: () =>
+                                          _addFriendFromLobby(player.userId),
+                                      tooltip: 'Add Friend',
                                     ),
                                 ],
                               ),
@@ -831,30 +1303,23 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                               if (!mounted) return;
                               final navigatorContext = context;
                               if (!navigatorContext.mounted) return;
-                              NavigationHelper.safeNavigate(
+                              unawaited(NavigationHelper.safeNavigate(
                                 navigatorContext,
                                 '/multiplayer-game',
                                 replace: true,
-                              );
+                              ),);
                             } catch (e) {
                               if (!mounted) return;
-                              final errorMessage = e.toString().replaceAll(
-                                    'Exception: ',
-                                    '',
-                                  );
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error starting game: $errorMessage',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                  duration: const Duration(seconds: 3),
-                                ),
-                              );
-                              // Log error to analytics
-                              analyticsService.logError(
-                                'game_start_failed',
-                                errorMessage,
+                              // Log error to analytics (use technical error)
+                              unawaited(analyticsService.logError(
+                                'multiplayer_game_start_failed',
+                                e.toString().replaceAll('Exception: ', ''),
+                              ),);
+                              // Show localized error to user
+                              ErrorHandler.showSnackBar(
+                                context,
+                                null,
+                                error: e,
                               );
                             }
                           }

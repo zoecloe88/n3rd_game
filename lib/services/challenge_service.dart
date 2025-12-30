@@ -1,18 +1,57 @@
-import 'dart:math';
+import 'dart:async' hide unawaited;
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
+import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/models/daily_challenge.dart';
+import 'package:n3rd_game/services/challenge/challenge_repository.dart';
+import 'package:n3rd_game/services/challenge/firestore_challenge_repository.dart';
+import 'package:n3rd_game/services/challenge/local_challenge_repository.dart';
+import 'package:n3rd_game/services/challenge/challenge_retry_queue.dart';
+import 'package:n3rd_game/services/challenge/challenge_validator.dart';
+import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/exceptions/error_codes.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+/// Service for managing daily challenges
+///
+/// Handles generating, loading, saving, and updating daily challenges with:
+/// - Repository pattern for storage abstraction
+/// - Firestore integration for cloud storage
+/// - Local storage for offline support
+/// - Error handling and retry logic
+/// - Rate limiting
+/// - Proper disposal of resources
 class ChallengeService extends ChangeNotifier {
-  static const String _storageKey = 'daily_challenges';
-  List<DailyChallenge> _challenges = [];
-  bool _firebaseAvailable = false;
+  static const int _maxChallengeGenerationPerDay = 10;
+  static const int _maxProgressUpdatesPerMinute = 20;
+  static const Duration _rateLimitWindow = Duration(minutes: 1);
 
-  List<DailyChallenge> get challenges => _challenges;
+  ChallengeRepository? _firestoreRepository;
+  final LocalChallengeRepository _localRepository = LocalChallengeRepository();
+  final ChallengeRetryQueue _retryQueue = ChallengeRetryQueue();
+
+  List<DailyChallenge> _challenges = [];
+  bool _isInitialized = false;
+  bool _isInitializing = false; // Mutex to prevent concurrent initialization
+  bool _disposed = false;
+
+  // Rate limiting
+  final List<DateTime> _generationTimestamps = [];
+  final List<DateTime> _progressUpdateTimestamps = [];
+
+  // Cache for challenges
+  DateTime? _lastCacheUpdate;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+
+  // Cached challenges (for offline access)
+  List<DailyChallenge> get challenges => List.unmodifiable(_challenges);
+  bool get isInitialized => _isInitialized;
+
   List<DailyChallenge> get todayChallenges => _challenges.where((c) {
         // Use UTC for consistency with leaderboard service
         final today = DateTime.now().toUtc();
@@ -22,17 +61,7 @@ class ChallengeService extends ChangeNotifier {
             challengeDate.day == today.day;
       }).toList();
 
-  FirebaseFirestore? get _firestore {
-    if (!_firebaseAvailable) return null;
-    try {
-      Firebase.app();
-      return FirebaseFirestore.instance;
-    } catch (e) {
-      _firebaseAvailable = false;
-      return null;
-    }
-  }
-
+  /// Get current user ID for Firestore
   String? get _userId {
     try {
       return FirebaseAuth.instance.currentUser?.uid;
@@ -41,91 +70,223 @@ class ChallengeService extends ChangeNotifier {
     }
   }
 
+  /// Initialize the service
   Future<void> init() async {
-    try {
-      Firebase.app();
-      _firebaseAvailable = true;
+    if (_isInitialized || _isInitializing || _disposed) return;
 
+    _isInitializing = true;
+
+    try {
+      // Try to initialize Firebase
+      try {
+        Firebase.app();
+        _firestoreRepository =
+            FirestoreChallengeRepository(FirebaseFirestore.instance);
+      } catch (e) {
+        LoggerService.warning('Firebase not available for challenges',
+            error: e,);
+      }
+
+      // Load cached challenges from local storage
+      await _loadLocal();
+
+      // Load retry queue
+      await _retryQueue.loadQueue();
+
+      // If user is logged in and Firebase is available, try to sync from Firestore
       final userId = _userId;
-      if (userId != null) {
-        try {
-          final doc =
-              await _firestore!.collection('user_challenges').doc(userId).get();
-          if (doc.exists && doc.data() != null) {
-            final data = doc.data();
-            if (data == null) return;
-            _challenges = (data['challenges'] as List?)
-                    ?.map(
-                      (c) => DailyChallenge.fromJson(c as Map<String, dynamic>),
-                    )
-                    .toList() ??
-                [];
-            notifyListeners();
-            await _saveLocal();
-            return;
+      if (userId != null &&
+          _firestoreRepository != null &&
+          _firestoreRepository!.isAvailable) {
+        // Check cache first
+        if (_lastCacheUpdate != null &&
+            DateTime.now().difference(_lastCacheUpdate!) < _cacheExpiry &&
+            _challenges.isNotEmpty) {
+          // Use cached data
+          LoggerService.debug('Using cached challenges');
+        } else {
+          try {
+            final firestoreChallenges =
+                await _firestoreRepository!.loadChallenges(userId);
+            if (firestoreChallenges.isNotEmpty) {
+              _challenges = firestoreChallenges;
+              _lastCacheUpdate = DateTime.now();
+              notifyListeners();
+              await _localRepository.saveChallenges(
+                  userId: userId, challenges: _challenges,);
+            }
+          } on NetworkException catch (e) {
+            LoggerService.warning(
+                'Failed to load challenges from Firestore, using local cache',
+                error: e,);
+          } on StorageException catch (e) {
+            LoggerService.warning(
+                'Failed to load challenges from Firestore, using local cache',
+                error: e,);
+          } catch (e, stack) {
+            LoggerService.error(
+                'Unexpected error loading challenges from Firestore',
+                error: e,
+                stack: stack,);
           }
-        } catch (e) {
-          debugPrint('Failed to load challenges from Firestore: $e');
         }
       }
-    } catch (e) {
-      _firebaseAvailable = false;
-      debugPrint('Firebase not available for challenges: $e');
-    }
 
-    await _loadLocal();
-    await _generateDailyChallenges();
+      // Generate daily challenges if needed
+      await _generateDailyChallenges();
+
+      // Process retry queue in background
+      unawaited(_processRetryQueue());
+
+      _isInitialized = true;
+    } catch (e, stack) {
+      LoggerService.error('Failed to initialize ChallengeService',
+          error: e, stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'ChallengeService init failed',
+        fatal: false,
+      ) as Future<dynamic>,);
+    } finally {
+      _isInitializing = false;
+    }
   }
 
+  /// Load challenges from local storage
   Future<void> _loadLocal() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = prefs.getString(_storageKey);
-      if (jsonString != null) {
-        final data = jsonDecode(jsonString) as Map<String, dynamic>;
-        _challenges = (data['challenges'] as List?)
-                ?.map((c) => DailyChallenge.fromJson(c as Map<String, dynamic>))
-                .toList() ??
-            [];
+      final userId = _userId ?? 'anonymous';
+      final localChallenges = await _localRepository.loadChallenges(userId);
+      if (localChallenges.isNotEmpty) {
+        _challenges = localChallenges;
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('Failed to load challenges from local storage: $e');
+    } catch (e, stack) {
+      LoggerService.error('Failed to load challenges from local storage',
+          error: e, stack: stack,);
     }
   }
 
-  Future<void> _saveLocal() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final data = {'challenges': _challenges.map((c) => c.toJson()).toList()};
-      await prefs.setString(_storageKey, jsonEncode(data));
-    } catch (e) {
-      debugPrint('Failed to save challenges to local storage: $e');
-    }
-  }
-
-  Future<void> _saveToFirestore() async {
-    if (!_firebaseAvailable) return;
+  /// Save challenges to both local and Firestore
+  Future<void> _saveChallenges() async {
     final userId = _userId;
-    if (userId == null) return;
+    if (userId == null) {
+      LoggerService.warning('Cannot save challenges: user not logged in');
+      return;
+    }
 
     try {
-      await _firestore!.collection('user_challenges').doc(userId).set(
-        {
-          'challenges': _challenges.map((c) => c.toJson()).toList(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
-    } catch (e) {
-      debugPrint('Failed to save challenges to Firestore: $e');
+      // Validate all challenges before saving
+      for (final challenge in _challenges) {
+        ChallengeValidator.validateChallenge(challenge);
+      }
+
+      // Save to local storage first (faster, always available)
+      await _localRepository.saveChallenges(
+          userId: userId, challenges: _challenges,);
+
+      // Try to save to Firestore if available
+      if (_firestoreRepository != null && _firestoreRepository!.isAvailable) {
+        try {
+          await _firestoreRepository!.saveChallenges(
+            userId: userId,
+            challenges: _challenges,
+          );
+        } on NetworkException catch (e) {
+          LoggerService.warning(
+              'Failed to save challenges to Firestore, queuing for retry',
+              error: e,);
+          // Queue for retry
+          await _retryQueue.enqueue(userId: userId, challenges: _challenges);
+        } on StorageException catch (e) {
+          LoggerService.warning(
+              'Failed to save challenges to Firestore, queuing for retry',
+              error: e,);
+          // Queue for retry
+          await _retryQueue.enqueue(userId: userId, challenges: _challenges);
+        } catch (e, stack) {
+          LoggerService.error('Unexpected error saving challenges to Firestore',
+              error: e, stack: stack,);
+          // Queue for retry
+          await _retryQueue.enqueue(userId: userId, challenges: _challenges);
+        }
+      } else {
+        // Firebase not available, queue for retry
+        await _retryQueue.enqueue(userId: userId, challenges: _challenges);
+      }
+    } catch (e, stack) {
+      LoggerService.error('Failed to save challenges', error: e, stack: stack);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'ChallengeService save failed',
+        fatal: false,
+      ) as Future<dynamic>,);
+      rethrow;
     }
+  }
+
+  /// Process retry queue
+  Future<void> _processRetryQueue() async {
+    if (_firestoreRepository == null || !_firestoreRepository!.isAvailable) {
+      return;
+    }
+
+    try {
+      await _retryQueue.processQueue((userId, challenges) async {
+        await _firestoreRepository!.saveChallenges(
+          userId: userId,
+          challenges: challenges,
+        );
+      });
+    } catch (e, stack) {
+      LoggerService.error('Error processing retry queue',
+          error: e, stack: stack,);
+    }
+  }
+
+  /// Check rate limit for challenge generation
+  bool _checkGenerationRateLimit() {
+    final now = DateTime.now();
+    _generationTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > _rateLimitWindow,
+    );
+
+    if (_generationTimestamps.length >= _maxChallengeGenerationPerDay) {
+      LoggerService.warning('Challenge generation rate limit exceeded');
+      return false;
+    }
+
+    _generationTimestamps.add(now);
+    return true;
+  }
+
+  /// Check rate limit for progress updates
+  bool _checkProgressUpdateRateLimit() {
+    final now = DateTime.now();
+    _progressUpdateTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > _rateLimitWindow,
+    );
+
+    if (_progressUpdateTimestamps.length >= _maxProgressUpdatesPerMinute) {
+      LoggerService.warning('Progress update rate limit exceeded');
+      return false;
+    }
+
+    _progressUpdateTimestamps.add(now);
+    return true;
   }
 
   /// Generate daily challenges for today
   Future<void> _generateDailyChallenges() async {
+    // Check rate limit
+    if (!_checkGenerationRateLimit()) {
+      LoggerService.warning(
+          'Challenge generation rate limit exceeded, skipping',);
+      return;
+    }
+
     // Use UTC for consistency with leaderboard service
     final today = DateTime.now().toUtc();
     final todayChallenges = _challenges.where((c) {
@@ -140,24 +301,40 @@ class ChallengeService extends ChangeNotifier {
       return;
     }
 
-    // Generate 3-5 random challenges for today + 1 competitive challenge
-    final random = Random();
-    final challengeCount = 3 + random.nextInt(3); // 3-5 challenges
-    final newChallenges = <DailyChallenge>[];
+    try {
+      // Generate 3-5 random challenges for today + 1 competitive challenge
+      final random = Random();
+      final challengeCount = 3 + random.nextInt(3); // 3-5 challenges
+      final newChallenges = <DailyChallenge>[];
 
-    // Add one competitive challenge first
-    newChallenges.add(_generateDailyCompetitiveChallenge(today));
+      // Add one competitive challenge first
+      newChallenges.add(_generateDailyCompetitiveChallenge(today));
 
-    // Generate regular challenges (exclude competitive from random pool)
-    for (int i = 0; i < challengeCount; i++) {
-      final challenge = _generateRandomChallenge(today);
-      newChallenges.add(challenge);
+      // Generate regular challenges (exclude competitive from random pool)
+      for (int i = 0; i < challengeCount; i++) {
+        final challenge = _generateRandomChallenge(today);
+        newChallenges.add(challenge);
+      }
+
+      // Validate all new challenges
+      for (final challenge in newChallenges) {
+        ChallengeValidator.validateChallenge(challenge);
+      }
+
+      _challenges.addAll(newChallenges);
+      _lastCacheUpdate = DateTime.now(); // Update cache timestamp
+      notifyListeners();
+      await _saveChallenges();
+    } catch (e, stack) {
+      LoggerService.error('Failed to generate daily challenges',
+          error: e, stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'Challenge generation failed',
+        fatal: false,
+      ) as Future<dynamic>,);
     }
-
-    _challenges.addAll(newChallenges);
-    notifyListeners();
-    await _saveLocal();
-    await _saveToFirestore();
   }
 
   /// Generate daily competitive challenge (one per day)
@@ -281,8 +458,36 @@ class ChallengeService extends ChangeNotifier {
 
   /// Update challenge progress
   Future<void> updateChallengeProgress(String challengeId, int progress) async {
-    final index = _challenges.indexWhere((c) => c.id == challengeId);
-    if (index != -1) {
+    if (_disposed) return;
+
+    // Sanitize and validate inputs
+    final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+    if (sanitizedChallengeId.isEmpty) {
+      throw ValidationException(
+        'Challenge ID cannot be empty',
+        errorCode: ErrorCode.validationEmptyField,
+      );
+    }
+
+    ChallengeValidator.validateProgress(progress);
+
+    // Check rate limit
+    if (!_checkProgressUpdateRateLimit()) {
+      throw ValidationException(
+        'Too many progress updates. Please wait a moment.',
+        errorCode: ErrorCode.authTooManyRequests,
+      );
+    }
+
+    try {
+      final index = _challenges.indexWhere((c) => c.id == sanitizedChallengeId);
+      if (index == -1) {
+        throw ValidationException(
+          'Challenge not found: $sanitizedChallengeId',
+          errorCode: ErrorCode.validationMissingRequired,
+        );
+      }
+
       final challenge = _challenges[index];
       final newProgress = challenge.progress + progress;
       final targetValue = challenge.target['count'] ??
@@ -296,20 +501,78 @@ class ChallengeService extends ChangeNotifier {
         isCompleted: isCompleted,
       );
 
+      _lastCacheUpdate = DateTime.now(); // Invalidate cache
       notifyListeners();
-      await _saveLocal();
-      await _saveToFirestore();
+      await _saveChallenges();
+    } on ValidationException {
+      rethrow;
+    } catch (e, stack) {
+      LoggerService.error('Failed to update challenge progress',
+          error: e, stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'Challenge progress update failed',
+        fatal: false,
+      ) as Future<dynamic>,);
+      throw StorageException(
+        'Failed to update challenge progress',
+        errorCode: ErrorCode.storageWriteFailed,
+        recoverySuggestion: 'Please try again later.',
+      );
     }
   }
 
   /// Mark challenge as completed
   Future<void> completeChallenge(String challengeId) async {
-    final index = _challenges.indexWhere((c) => c.id == challengeId);
-    if (index != -1) {
-      _challenges[index] = _challenges[index].copyWith(isCompleted: true);
-      notifyListeners();
-      await _saveLocal();
-      await _saveToFirestore();
+    if (_disposed) return;
+
+    // Sanitize and validate inputs
+    final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+    if (sanitizedChallengeId.isEmpty) {
+      throw ValidationException(
+        'Challenge ID cannot be empty',
+        errorCode: ErrorCode.validationEmptyField,
+      );
     }
+
+    try {
+      final index = _challenges.indexWhere((c) => c.id == sanitizedChallengeId);
+      if (index == -1) {
+        throw ValidationException(
+          'Challenge not found: $sanitizedChallengeId',
+          errorCode: ErrorCode.validationMissingRequired,
+        );
+      }
+
+      _challenges[index] = _challenges[index].copyWith(isCompleted: true);
+      _lastCacheUpdate = DateTime.now(); // Invalidate cache
+      notifyListeners();
+      await _saveChallenges();
+    } on ValidationException {
+      rethrow;
+    } catch (e, stack) {
+      LoggerService.error('Failed to complete challenge',
+          error: e, stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'Challenge completion failed',
+        fatal: false,
+      ) as Future<dynamic>,);
+      throw StorageException(
+        'Failed to complete challenge',
+        errorCode: ErrorCode.storageWriteFailed,
+        recoverySuggestion: 'Please try again later.',
+      );
+    }
+  }
+
+  /// Dispose resources
+  @override
+  void dispose() {
+    _disposed = true;
+    _retryQueue.dispose();
+    super.dispose();
   }
 }

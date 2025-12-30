@@ -9,11 +9,11 @@ class LoggerService {
   /// Log debug messages (only in debug mode)
   static void debug(String message, {Object? error, StackTrace? stack}) {
     if (kDebugMode) {
-      debugPrint('[DEBUG] $message');
+      LoggerService.debug('[DEBUG] $message');
       if (error != null) {
-        debugPrint('Error: $error');
+        LoggerService.error('Error: $error');
         if (stack != null) {
-          debugPrint('Stack: $stack');
+          LoggerService.debug('Stack: $stack');
         }
       }
     }
@@ -21,17 +21,15 @@ class LoggerService {
 
   /// Log informational messages (only in debug mode)
   static void info(String message) {
-    if (kDebugMode) {
-      debugPrint('[INFO] $message');
-    }
+    LoggerService.debug('[INFO] $message');
   }
 
   /// Log warning messages (only in debug mode)
   static void warning(String message, {Object? error}) {
     if (kDebugMode) {
-      debugPrint('[WARN] $message');
+      LoggerService.debug('[WARN] $message');
       if (error != null) {
-        debugPrint('Error: $error');
+        LoggerService.error('Error: $error');
       }
     }
   }
@@ -45,11 +43,11 @@ class LoggerService {
     String? reason,
   }) {
     // Always print errors
-    debugPrint('[ERROR] $message');
+    LoggerService.error('[ERROR] $message');
     if (error != null) {
-      debugPrint('Error: $error');
+      LoggerService.error('Error: $error');
       if (stack != null) {
-        debugPrint('Stack: $stack');
+        LoggerService.debug('Stack: $stack');
       }
     }
 
@@ -64,9 +62,7 @@ class LoggerService {
         );
       } catch (e) {
         // Ignore Crashlytics errors (e.g., if Firebase not initialized)
-        if (kDebugMode) {
-          debugPrint('Failed to log to Crashlytics: $e');
-        }
+        LoggerService.error('Failed to log to Crashlytics: $e');
       }
     }
   }
@@ -79,10 +75,10 @@ class LoggerService {
   }) {
     if (kDebugMode) {
       final ms = duration.inMilliseconds;
-      debugPrint('[PERF] $operation: ${ms}ms');
+      LoggerService.debug('[PERF] $operation: ${ms}ms');
       if (metadata != null) {
         for (final entry in metadata.entries) {
-          debugPrint('  ${entry.key}: ${entry.value}');
+          LoggerService.debug('  ${entry.key}: ${entry.value}');
         }
       }
     }

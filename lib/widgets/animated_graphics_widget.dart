@@ -5,14 +5,6 @@ import 'package:n3rd_game/services/animation_randomizer_service.dart';
 /// Widget that displays animated MP4 graphics (1024x1012) with proper sizing and placement
 /// Ensures no content overlap by using constrained sizing and positioning
 class AnimatedGraphicsWidget extends StatefulWidget {
-  final String? category;
-  final String? specificPath;
-  final double? width;
-  final double? height;
-  final Alignment alignment;
-  final EdgeInsets? padding;
-  final bool loop;
-  final bool autoplay;
 
   const AnimatedGraphicsWidget({
     super.key,
@@ -28,6 +20,14 @@ class AnimatedGraphicsWidget extends StatefulWidget {
           category != null || specificPath != null,
           'Either category or specificPath must be provided',
         );
+  final String? category;
+  final String? specificPath;
+  final double? width;
+  final double? height;
+  final Alignment alignment;
+  final EdgeInsets? padding;
+  final bool loop;
+  final bool autoplay;
 
   @override
   State<AnimatedGraphicsWidget> createState() => _AnimatedGraphicsWidgetState();

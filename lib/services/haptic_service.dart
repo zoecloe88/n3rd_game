@@ -1,12 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Haptic feedback service for tactile user feedback
 /// Provides subtle, professional haptic responses matching the app's aesthetic
 class HapticService {
-  static final HapticService _instance = HapticService._internal();
   factory HapticService() => _instance;
   HapticService._internal();
+  static final HapticService _instance = HapticService._internal();
 
   bool _hapticsEnabled = true;
 
@@ -22,7 +22,7 @@ class HapticService {
     try {
       await HapticFeedback.lightImpact();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 
@@ -32,7 +32,7 @@ class HapticService {
     try {
       await HapticFeedback.mediumImpact();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 
@@ -42,7 +42,7 @@ class HapticService {
     try {
       await HapticFeedback.heavyImpact();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 
@@ -52,7 +52,7 @@ class HapticService {
     try {
       await HapticFeedback.selectionClick();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 
@@ -62,7 +62,7 @@ class HapticService {
     try {
       await HapticFeedback.mediumImpact();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 
@@ -72,7 +72,7 @@ class HapticService {
     try {
       await HapticFeedback.heavyImpact();
     } catch (e) {
-      debugPrint('Error with haptic feedback: $e');
+      LoggerService.error('Error with haptic feedback', error: e);
     }
   }
 }

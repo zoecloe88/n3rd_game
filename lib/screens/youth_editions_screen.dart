@@ -8,6 +8,8 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class YouthEditionsScreen extends StatefulWidget {
   const YouthEditionsScreen({super.key});
@@ -88,9 +90,14 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => NavigationHelper.safePop(context),
+                    Semantics(
+                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => NavigationHelper.safePop(context),
+                        tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      ),
                     ),
                     const Spacer(),
                   ],
@@ -110,13 +117,16 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
 
                     // Page view with responsive cards per page
                     Expanded(
-                      child: PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _currentPage = index;
-                          });
-                        },
+                      child: Semantics(
+                        liveRegion: true,
+                        label: 'Page ${_currentPage + 1} of ${_totalPages(context)}',
+                        child: PageView.builder(
+                          controller: _pageController,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentPage = index;
+                            });
+                          },
                         itemCount: _totalPages(context),
                         itemBuilder: (context, pageIndex) {
                           final cardsPerPage = _cardsPerPage(context);
@@ -154,7 +164,8 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                                       itemCount: pageEditions.length,
                                       itemBuilder: (context, index) {
                                         final edition = pageEditions[index];
-                                        return _buildEditionCard(context, edition);
+                                        return _buildEditionCard(
+                                            context, edition,);
                                       },
                                     )
                                   : Column(
@@ -167,7 +178,8 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                                             padding: const EdgeInsets.only(
                                               bottom: 16,
                                             ),
-                                            child: _buildEditionCard(context, edition),
+                                            child: _buildEditionCard(
+                                                context, edition,),
                                           ),
                                         ),
                                       ],
@@ -175,6 +187,7 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                             ),
                           );
                         },
+                        ),
                       ),
                     ),
                     // Navigation arrows and page indicators
@@ -332,9 +345,18 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
       );
     } catch (e) {
       // Handle navigation error gracefully
+      LoggerService.warning(
+        'Failed to navigate to AI edition input screen in YouthEditionsScreen',
+        error: e,
+      );
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.youthEditionError ??
+                  'Failed to load youth edition. Please try again.',
+            ),
+          ),
         );
       }
     }
@@ -376,8 +398,7 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                     color: Color(0xFF6366F1),
                     size: 20,
                   ),
-                if (edition.isAI)
-                  const SizedBox(width: AppSpacing.sm),
+                if (edition.isAI) const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     edition.title,
@@ -422,12 +443,18 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
               NavigationHelper.safePop(context); // Pop transition screen
               // Navigate to game screen with edition info
               if (!context.mounted) return;
+              // Use consistent edition ID format
+              // Normalize edition ID: lowercase, replace spaces with underscores, remove invalid characters
+              final editionId = edition.title
+                  .toLowerCase()
+                  .replaceAll(' ', '_')
+                  .replaceAll(RegExp(r'[^a-z0-9_-]'), '');
               NavigationHelper.safeNavigate(
                 context,
                 '/game',
                 arguments: {
                   'mode': null,
-                  'edition': edition.title.toLowerCase().replaceAll(' ', '_'),
+                  'edition': editionId,
                   'editionName': edition.title,
                 },
               );
@@ -437,9 +464,18 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
       );
     } catch (e) {
       // Handle navigation error gracefully
+      LoggerService.warning(
+        'Failed to navigate to challenge in YouthEditionsScreen',
+        error: e,
+      );
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error navigating to game: ${e.toString()}')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.challengeNavigationError ??
+                  'Failed to start challenge. Please try again.',
+            ),
+          ),
         );
       }
     }
@@ -516,13 +552,13 @@ class _YouthMascotState extends State<YouthMascot>
 }
 
 class YouthEdition {
-  final String title;
-  final String tagline;
-  final bool isAI;
 
   const YouthEdition({
     required this.title,
     required this.tagline,
     this.isAI = false,
   });
+  final String title;
+  final String tagline;
+  final bool isAI;
 }

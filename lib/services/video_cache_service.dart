@@ -1,16 +1,17 @@
 import 'package:video_player/video_player.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for managing video preloading and caching
 /// Improves performance by preloading frequently used videos
 class VideoCacheService {
-  static final VideoCacheService _instance = VideoCacheService._internal();
   factory VideoCacheService() => _instance;
   VideoCacheService._internal();
+  static final VideoCacheService _instance = VideoCacheService._internal();
 
   // Cache of preloaded video controllers
   final Map<String, VideoPlayerController> _cachedControllers = {};
-  
+
   // Videos that should be preloaded on app start
   static const List<String> _preloadVideos = [
     'assets/logoloadingscreen.mp4', // First screen - highest priority
@@ -34,7 +35,7 @@ class VideoCacheService {
           // Controller exists but not initialized - remove and reinitialize
           _cachedControllers.remove(videoPath);
           try {
-            controller.dispose();
+            unawaited(controller.dispose());
           } catch (e) {
             // Controller already disposed - ignore
           }
@@ -42,20 +43,21 @@ class VideoCacheService {
       } catch (e) {
         // Controller was disposed - remove from cache
         _cachedControllers.remove(videoPath);
-        LoggerService.debug('Removed disposed controller during preload: $videoPath');
+        LoggerService.debug(
+            'Removed disposed controller during preload: $videoPath',);
       }
     }
 
     try {
       final controller = VideoPlayerController.asset(videoPath);
       await controller.initialize();
-      
+
       // Cache the controller
       _cachedControllers[videoPath] = controller;
-      
+
       // Enforce cache size limit
       _enforceCacheLimit();
-      
+
       LoggerService.debug('Video preloaded: $videoPath');
       return controller;
     } catch (e) {
@@ -69,18 +71,32 @@ class VideoCacheService {
 
   /// Get a cached video controller or return null if not cached
   /// Returns null if controller is disposed or not initialized
+  /// Validates controller state before returning to ensure safe reuse
   VideoPlayerController? getCachedController(String videoPath) {
     final controller = _cachedControllers[videoPath];
     if (controller == null) {
       return null;
     }
-    
+
     // CRITICAL: Validate controller is still valid and initialized
     // Check if controller is initialized and can be safely used
     try {
       // Accessing value will throw if controller is disposed
-      if (controller.value.isInitialized) {
+      final value = controller.value;
+      if (value.isInitialized && value.duration.inMilliseconds > 0) {
+        // Controller is valid - return it
         return controller;
+      } else {
+        // Controller exists but not properly initialized - remove from cache
+        _cachedControllers.remove(videoPath);
+        LoggerService.debug(
+            'Removed uninitialized controller from cache: $videoPath',);
+        try {
+          controller.dispose();
+        } catch (e) {
+          // Controller already disposed - ignore
+        }
+        return null;
       }
     } catch (e) {
       // Controller was disposed - remove from cache
@@ -88,10 +104,6 @@ class VideoCacheService {
       LoggerService.debug('Removed disposed controller from cache: $videoPath');
       return null;
     }
-    
-    // Controller exists but not initialized - remove from cache
-    _cachedControllers.remove(videoPath);
-    return null;
   }
 
   /// Preload all priority videos
@@ -158,5 +170,10 @@ class VideoCacheService {
       'cachedPaths': _cachedControllers.keys.toList(),
     };
   }
+  
+  /// Reset service state for testing
+  /// Clears all cached controllers and resets internal state
+  static void resetForTesting() {
+    _instance.clearCache();
+  }
 }
-

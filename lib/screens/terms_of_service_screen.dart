@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
@@ -20,10 +21,14 @@ class TermsOfServiceScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => NavigationHelper.safePop(context),
-                      tooltip: 'Back',
+                    Semantics(
+                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => NavigationHelper.safePop(context),
+                        tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(

@@ -3,12 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service to manage app language settings
 class LanguageService extends ChangeNotifier {
-  static const String _languageKey = 'app_language_code';
-  Locale _currentLocale = const Locale('en', '');
 
   LanguageService() {
     _loadLanguage();
   }
+  static const String _languageKey = 'app_language_code';
+  Locale _currentLocale = const Locale('en', '');
 
   Locale get currentLocale => _currentLocale;
 
@@ -56,6 +56,4 @@ class LanguageService extends ChangeNotifier {
         return const Locale('en', '');
     }
   }
-
 }
-

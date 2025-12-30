@@ -10,32 +10,6 @@ import 'package:n3rd_game/models/difficulty_level.dart';
 ///
 /// This is the core data structure for all trivia questions in the game.
 class TriviaItem {
-  /// The category/question prompt (e.g., "These are capital cities")
-  final String category;
-
-  /// All available words (correct answers + distractors, typically 6 total)
-  final List<String> words;
-
-  /// The subset of words that are correct answers (typically 3)
-  final List<String> correctAnswers;
-
-  /// Optional difficulty level for adaptive gameplay
-  final DifficultyLevel? difficulty;
-
-  /// Optional theme for content personalization (e.g., 'geography', 'science', 'arts')
-  final String? theme;
-
-  /// Timestamp when this trivia item was generated/created
-  /// Used for content freshness tracking
-  final DateTime? createdAt;
-
-  /// Timestamp when this trivia item was last used
-  /// Used for content rotation and freshness tracking
-  final DateTime? lastUsedAt;
-
-  /// Usage count - how many times this trivia item has been used
-  /// Used for content rotation and freshness tracking
-  final int usageCount;
 
   /// Creates a new TriviaItem
   ///
@@ -60,21 +34,6 @@ class TriviaItem {
     this.lastUsedAt,
     this.usageCount = 0,
   });
-
-  /// Serializes this TriviaItem to JSON
-  ///
-  /// Returns a Map suitable for JSON encoding.
-  /// Used for persistence and data transfer.
-  Map<String, dynamic> toJson() => {
-        'category': category,
-        'words': words,
-        'correctAnswers': correctAnswers,
-        if (difficulty != null) 'difficulty': difficulty!.name,
-        if (theme != null) 'theme': theme,
-        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-        if (lastUsedAt != null) 'lastUsedAt': lastUsedAt!.toIso8601String(),
-        'usageCount': usageCount,
-      };
 
   /// Deserializes a TriviaItem from JSON
   ///
@@ -150,6 +109,47 @@ class TriviaItem {
       usageCount: (json['usageCount'] as int?) ?? 0,
     );
   }
+  /// The category/question prompt (e.g., "These are capital cities")
+  final String category;
+
+  /// All available words (correct answers + distractors, typically 6 total)
+  final List<String> words;
+
+  /// The subset of words that are correct answers (typically 3)
+  final List<String> correctAnswers;
+
+  /// Optional difficulty level for adaptive gameplay
+  final DifficultyLevel? difficulty;
+
+  /// Optional theme for content personalization (e.g., 'geography', 'science', 'arts')
+  final String? theme;
+
+  /// Timestamp when this trivia item was generated/created
+  /// Used for content freshness tracking
+  final DateTime? createdAt;
+
+  /// Timestamp when this trivia item was last used
+  /// Used for content rotation and freshness tracking
+  final DateTime? lastUsedAt;
+
+  /// Usage count - how many times this trivia item has been used
+  /// Used for content rotation and freshness tracking
+  final int usageCount;
+
+  /// Serializes this TriviaItem to JSON
+  ///
+  /// Returns a Map suitable for JSON encoding.
+  /// Used for persistence and data transfer.
+  Map<String, dynamic> toJson() => {
+        'category': category,
+        'words': words,
+        'correctAnswers': correctAnswers,
+        if (difficulty != null) 'difficulty': difficulty!.name,
+        if (theme != null) 'theme': theme,
+        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+        if (lastUsedAt != null) 'lastUsedAt': lastUsedAt!.toIso8601String(),
+        'usageCount': usageCount,
+      };
 
   /// Creates a copy of this TriviaItem with updated freshness tracking
   TriviaItem copyWith({

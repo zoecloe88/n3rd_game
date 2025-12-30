@@ -1,17 +1,45 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/chat_message.dart';
 import 'package:n3rd_game/services/content_moderation_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class ChatService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore? _firestore;
+  FirebaseAuth? _auth;
   final ContentModerationService _moderationService =
       ContentModerationService();
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for ChatService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    if (_auth != null) return _auth;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _auth = FirebaseAuth.instance;
+      return _auth;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for ChatService', error: e);
+      return null;
+    }
+  }
 
   StreamSubscription<QuerySnapshot>? _messagesSubscription;
   final List<ChatMessage> _messages = [];
@@ -42,7 +70,12 @@ class ChatService extends ChangeNotifier {
     _currentRoomId = roomId;
     _messages.clear();
 
-    _messagesSubscription = _firestore
+    final firestore = _firestoreInstance;
+    if (firestore == null) {
+      LoggerService.debug('Firebase not available, cannot listen to messages');
+      return;
+    }
+    _messagesSubscription = firestore
         .collection('game_rooms')
         .doc(roomId)
         .collection('messages')
@@ -66,7 +99,7 @@ class ChatService extends ChangeNotifier {
           );
           _messages.add(message);
         } catch (e) {
-          debugPrint('Error parsing chat message: $e');
+          LoggerService.error('Error parsing chat message', error: e);
         }
       }
       // Only notify if service is still active (not disposed)
@@ -129,7 +162,8 @@ class ChatService extends ChangeNotifier {
       throw ValidationException('No active room');
     }
 
-    final user = _auth.currentUser;
+    final auth = _authInstance;
+    final user = auth?.currentUser;
     if (user == null) {
       throw AuthenticationException('User must be logged in to send messages');
     }
@@ -179,7 +213,11 @@ class ChatService extends ChangeNotifier {
     try {
       await _executeWithTimeout(
         () async {
-          await _firestore
+          final firestore = _firestoreInstance;
+          if (firestore == null) {
+            throw NetworkException('Firebase not available');
+          }
+          await firestore
               .collection('game_rooms')
               .doc(_currentRoomId!)
               .collection('messages')
@@ -280,11 +318,6 @@ class ChatService extends ChangeNotifier {
 
 /// Internal class for tracking pending messages
 class _PendingMessage {
-  final String message;
-  final String userId;
-  final String userName;
-  final int attempt;
-  final DateTime timestamp;
 
   _PendingMessage({
     required this.message,
@@ -293,4 +326,9 @@ class _PendingMessage {
     required this.attempt,
     required this.timestamp,
   });
+  final String message;
+  final String userId;
+  final String userName;
+  final int attempt;
+  final DateTime timestamp;
 }

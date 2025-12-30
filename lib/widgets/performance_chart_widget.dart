@@ -4,10 +4,6 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 
 class PerformanceChartWidget extends StatelessWidget {
-  final List<PerformanceMetric> metrics;
-  final String title;
-  final bool showScore;
-  final bool showAccuracy;
 
   const PerformanceChartWidget({
     super.key,
@@ -16,6 +12,10 @@ class PerformanceChartWidget extends StatelessWidget {
     this.showScore = true,
     this.showAccuracy = false,
   });
+  final List<PerformanceMetric> metrics;
+  final String title;
+  final bool showScore;
+  final bool showAccuracy;
 
   @override
   Widget build(BuildContext context) {

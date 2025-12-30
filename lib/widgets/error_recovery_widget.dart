@@ -6,15 +6,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 /// Standardized error recovery widget with retry functionality
 /// Supports automatic retry with exponential backoff
 class ErrorRecoveryWidget extends StatefulWidget {
-  final String? title;
-  final String errorMessage;
-  final VoidCallback? onRetry;
-  final String retryButtonText;
-  final IconData icon;
-  final Color iconColor;
-  final bool showRetryButton;
-  final int? maxRetries;
-  final bool autoRetry;
 
   const ErrorRecoveryWidget({
     super.key,
@@ -29,6 +20,15 @@ class ErrorRecoveryWidget extends StatefulWidget {
     this.maxRetries,
     this.autoRetry = false,
   }) : errorMessage = errorMessage ?? message ?? 'An error occurred';
+  final String? title;
+  final String errorMessage;
+  final VoidCallback? onRetry;
+  final String retryButtonText;
+  final IconData icon;
+  final Color iconColor;
+  final bool showRetryButton;
+  final int? maxRetries;
+  final bool autoRetry;
 
   @override
   State<ErrorRecoveryWidget> createState() => _ErrorRecoveryWidgetState();

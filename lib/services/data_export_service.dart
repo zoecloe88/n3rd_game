@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
@@ -7,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for exporting user data
 class DataExportService {
@@ -53,7 +53,7 @@ class DataExportService {
           }
         }
       } catch (e) {
-        debugPrint('Failed to export stats: $e');
+        LoggerService.error('Failed to export stats', error: e);
       }
 
       // Export analytics
@@ -66,7 +66,7 @@ class DataExportService {
           }
         }
       } catch (e) {
-        debugPrint('Failed to export analytics: $e');
+        LoggerService.error('Failed to export analytics', error: e);
       }
 
       // Export learning data
@@ -79,7 +79,7 @@ class DataExportService {
           }
         }
       } catch (e) {
-        debugPrint('Failed to export learning data: $e');
+        LoggerService.error('Failed to export learning data', error: e);
       }
 
       // Export game history (if exists)
@@ -95,7 +95,7 @@ class DataExportService {
               gameHistorySnapshot.docs.map((doc) => doc.data()).toList();
         }
       } catch (e) {
-        debugPrint('Failed to export game history: $e');
+        LoggerService.error('Failed to export game history', error: e);
       }
 
       // Convert to JSON
@@ -110,7 +110,7 @@ class DataExportService {
 
       return file.path;
     } catch (e) {
-      debugPrint('Failed to export user data: $e');
+      LoggerService.error('Failed to export user data', error: e);
       rethrow;
     }
   }
@@ -121,7 +121,7 @@ class DataExportService {
       final filePath = await exportUserData();
       if (filePath != null) {
         final file = File(filePath);
-        if (await file.exists()) {
+        if (file.existsSync()) {
           await Share.shareXFiles(
             [
               XFile(filePath),
@@ -131,7 +131,7 @@ class DataExportService {
         }
       }
     } catch (e) {
-      debugPrint('Failed to share exported data: $e');
+      LoggerService.error('Failed to share exported data', error: e);
       rethrow;
     }
   }
@@ -179,7 +179,7 @@ class DataExportService {
             buffer.writeln('');
           }
         } catch (e) {
-          debugPrint('Failed to export stats: $e');
+          LoggerService.error('Failed to export stats', error: e);
         }
       }
 
@@ -192,7 +192,7 @@ class DataExportService {
 
       return file.path;
     } catch (e) {
-      debugPrint('Failed to export user data as text: $e');
+      LoggerService.error('Failed to export user data as text', error: e);
       rethrow;
     }
   }

@@ -1,190 +1,135 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
-import 'package:flutter/foundation.dart';
 
-/// Utility class for handling Firestore errors consistently
-/// Provides standardized error handling and retry logic
+/// Utility class for handling Firestore errors, especially permission-denied errors
 class FirestoreErrorHandler {
-  /// Handle Firestore exceptions and convert to app exceptions
-  /// Returns appropriate exception type based on error
-  static Exception handleFirestoreError(
-    dynamic error,
-    String operationName,
-  ) {
+  /// Check if error is a permission-denied error
+  static bool isPermissionDenied(dynamic error) {
     if (error is FirebaseException) {
-      // Handle specific Firestore error codes
-      switch (error.code) {
-        case 'permission-denied':
-          LoggerService.warning(
-            'Firestore permission denied: $operationName',
-            error: error,
-          );
-          return AuthenticationException(
-            'You do not have permission to perform this operation.',
-          );
-        case 'unavailable':
-          LoggerService.warning(
-            'Firestore unavailable: $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'Service is temporarily unavailable. Please check your connection and try again.',
-          );
-        case 'deadline-exceeded':
-          LoggerService.warning(
-            'Firestore deadline exceeded: $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'Operation timed out. Please try again.',
-          );
-        case 'not-found':
-          LoggerService.warning(
-            'Firestore resource not found: $operationName',
-            error: error,
-          );
-          return ValidationException(
-            'Requested resource was not found.',
-          );
-        case 'already-exists':
-          LoggerService.warning(
-            'Firestore resource already exists: $operationName',
-            error: error,
-          );
-          return ValidationException(
-            'Resource already exists.',
-          );
-        case 'failed-precondition':
-          LoggerService.warning(
-            'Firestore precondition failed: $operationName',
-            error: error,
-          );
-          return ValidationException(
-            'Operation failed due to invalid state.',
-          );
-        case 'aborted':
-          LoggerService.warning(
-            'Firestore operation aborted: $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'Operation was aborted. Please try again.',
-          );
-        case 'resource-exhausted':
-          LoggerService.warning(
-            'Firestore resource exhausted: $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'Service is temporarily overloaded. Please try again later.',
-          );
-        case 'cancelled':
-          LoggerService.warning(
-            'Firestore operation cancelled: $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'Operation was cancelled.',
-          );
-        case 'data-loss':
-          LoggerService.error(
-            'Firestore data loss: $operationName',
-            error: error,
-          );
-          return StorageException(
-            'Data integrity error. Please contact support.',
-          );
-        case 'unauthenticated':
-          LoggerService.warning(
-            'Firestore unauthenticated: $operationName',
-            error: error,
-          );
-          return AuthenticationException(
-            'You must be logged in to perform this operation.',
-          );
-        case 'unimplemented':
-          LoggerService.error(
-            'Firestore operation not implemented: $operationName',
-            error: error,
-          );
-          return ValidationException(
-            'This operation is not supported.',
-          );
-        default:
-          LoggerService.error(
-            'Firestore error (${error.code}): $operationName',
-            error: error,
-          );
-          return NetworkException(
-            'An error occurred: ${error.message ?? error.code}',
-          );
-      }
+      return error.code == 'permission-denied';
     }
-
-    // Handle other exception types
-    if (error is Exception) {
-      LoggerService.error(
-        'Firestore operation failed: $operationName',
-        error: error,
-      );
-      return error;
-    }
-
-    // Handle unknown errors
-    LoggerService.error(
-      'Unknown Firestore error: $operationName',
-      error: error,
-    );
-    return NetworkException(
-      'An unexpected error occurred. Please try again.',
-    );
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('permission-denied') ||
+        errorStr.contains('permission denied');
   }
 
-  /// Execute Firestore operation with comprehensive error handling
-  /// Automatically converts Firestore errors to app exceptions
-  static Future<T> executeWithErrorHandling<T>({
-    required Future<T> Function() operation,
-    required String operationName,
-    T? fallbackValue,
+  /// Check if user is authenticated before Firestore operations
+  static bool isUserAuthenticated() {
+    try {
+      return FirebaseAuth.instance.currentUser != null;
+    } catch (e) {
+      LoggerService.warning('Error checking authentication state', error: e);
+      return false;
+    }
+  }
+
+  /// Wrap a Firestore operation with permission error handling
+  /// Returns the result or throws a PermissionException if permission is denied
+  static Future<T> handleFirestoreOperation<T>(
+    Future<T> Function() operation, {
+    String? operationName,
   }) async {
+    // Check authentication first
+    if (!isUserAuthenticated()) {
+      throw AuthenticationException(
+        'User must be authenticated to perform this operation.',
+      );
+    }
+
     try {
       return await operation();
-    } catch (e) {
-      final appException = handleFirestoreError(e, operationName);
-
-      // If fallback value provided, return it instead of throwing
-      if (fallbackValue != null) {
-        if (kDebugMode) {
-          debugPrint(
-            'Firestore operation failed, using fallback: $operationName',
-          );
-        }
-        return fallbackValue;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        LoggerService.warning(
+          'Firestore permission denied${operationName != null ? ' for $operationName' : ''}',
+          error: e,
+        );
+        throw PermissionException(
+          'Permission denied. Please check your access rights or contact support.',
+        );
       }
-
-      throw appException;
+      // Re-throw other Firebase exceptions
+      rethrow;
+    } catch (e) {
+      // Check if it's a permission error in the message
+      if (isPermissionDenied(e)) {
+        LoggerService.warning(
+          'Firestore permission denied${operationName != null ? ' for $operationName' : ''}',
+          error: e,
+        );
+        throw PermissionException(
+          'Permission denied. Please check your access rights or contact support.',
+        );
+      }
+      // Re-throw other errors
+      rethrow;
     }
   }
 
-  /// Check if error is retryable
-  static bool isRetryable(dynamic error) {
-    if (error is FirebaseException) {
-      // Retryable error codes
-      const retryableCodes = [
-        'unavailable',
-        'deadline-exceeded',
-        'aborted',
-        'resource-exhausted',
-        'cancelled',
-      ];
-      return retryableCodes.contains(error.code);
+  /// Handle Firestore query with retry logic for permission errors
+  static Future<QuerySnapshot> handleFirestoreQuery(
+    Future<QuerySnapshot> Function() query, {
+    String? operationName,
+    int maxRetries = 2,
+  }) async {
+    int attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        return await handleFirestoreOperation(
+          query,
+          operationName: operationName,
+        );
+      } on PermissionException {
+        // Don't retry permission errors - they won't resolve
+        rethrow;
+      } on FirebaseException catch (e) {
+        attempts++;
+        if (attempts >= maxRetries) {
+          LoggerService.error(
+            'Firestore query failed after $maxRetries attempts${operationName != null ? ' for $operationName' : ''}',
+            error: e,
+          );
+          rethrow;
+        }
+        // Wait before retry (exponential backoff)
+        await Future.delayed(Duration(milliseconds: 500 * attempts));
+      }
     }
-    // Network errors are generally retryable
-    if (error is NetworkException) {
-      return true;
+    throw Exception('Unexpected error in Firestore query retry logic');
+  }
+
+  /// Handle Firestore document operations with retry logic
+  static Future<T> handleFirestoreDocumentOperation<T>(
+    Future<T> Function() operation, {
+    String? operationName,
+    int maxRetries = 2,
+  }) async {
+    int attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        return await handleFirestoreOperation(
+          operation,
+          operationName: operationName,
+        );
+      } on PermissionException {
+        // Don't retry permission errors - they won't resolve
+        rethrow;
+      } on FirebaseException catch (e) {
+        attempts++;
+        if (attempts >= maxRetries) {
+          LoggerService.error(
+            'Firestore document operation failed after $maxRetries attempts${operationName != null ? ' for $operationName' : ''}',
+            error: e,
+          );
+          rethrow;
+        }
+        // Wait before retry (exponential backoff)
+        await Future.delayed(Duration(milliseconds: 500 * attempts));
+      }
     }
-    return false;
+    throw Exception(
+        'Unexpected error in Firestore document operation retry logic',);
   }
 }
-

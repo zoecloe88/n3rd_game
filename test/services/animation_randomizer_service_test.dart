@@ -1,13 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/services/animation_randomizer_service.dart';
+import '../utils/test_helpers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await TestHelpers.setupAllTestInfrastructure();
+  });
+
+  tearDownAll(() {
+    TestHelpers.tearDownAllTestInfrastructure();
+  });
 
   group('AnimationRandomizerService', () {
     late AnimationRandomizerService service;
 
     setUp(() {
+      TestHelpers.setupAssetManifest();
       service = AnimationRandomizerService();
       service.clearCache();
     });
@@ -70,4 +80,3 @@ void main() {
     });
   });
 }
-

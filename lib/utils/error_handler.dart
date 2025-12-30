@@ -1,28 +1,150 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
 /// Centralized error handler for consistent error display across the app
 /// Provides user-friendly error messages with actionable guidance
 class ErrorHandler {
+  /// Get localized error message from an error object
+  /// Maps error types to user-friendly localized strings
+  static String getLocalizedErrorMessage(
+    dynamic error,
+    BuildContext context,
+  ) {
+    final localizations = AppLocalizations.of(context);
+
+    if (localizations == null) {
+      // Fallback if localization not available
+      return _getDefaultErrorMessage(error);
+    }
+
+    // Check if error is an AppException with a message that can be localized
+    if (error is AuthenticationException ||
+        error is ValidationException ||
+        error is GameException ||
+        error is NetworkException ||
+        error is StorageException ||
+        error is PermissionException) {
+      final message = error.toString();
+      final localizedMessage = _localizeExceptionMessage(
+        localizations,
+        message,
+      );
+      if (localizedMessage != null) {
+        return localizedMessage;
+      }
+    }
+
+    // Use the localization method if available
+    try {
+      return localizations.getLocalizedErrorMessage(error);
+    } catch (e) {
+      // Fallback if localization method fails
+      return _getDefaultErrorMessage(error);
+    }
+  }
+
+  /// Localize exception messages by matching them to localization keys
+  static String? _localizeExceptionMessage(
+    AppLocalizations localizations,
+    String message,
+  ) {
+    // Map exception messages to localization getters
+    final messageMap = {
+      'User must be logged in': localizations.userMustBeLoggedIn,
+      'User must be logged in to create a room':
+          localizations.userMustBeLoggedInToCreateRoom,
+      'User must be logged in to join a room':
+          localizations.userMustBeLoggedInToJoinRoom,
+      'Invalid room ID format': localizations.invalidRoomIdFormat,
+      'Room not found': localizations.roomNotFound,
+      'Room is full': localizations.roomIsFull,
+      'Only the host can start the game': localizations.onlyHostCanStartGame,
+      'Not all players are ready': localizations.notAllPlayersReady,
+      'Only the host can assign roles': localizations.onlyHostCanAssignRoles,
+      'Player not in room': localizations.playerNotInRoom,
+      'Only the host can advance rounds':
+          localizations.onlyHostCanAdvanceRounds,
+      'Only the host can send invitations':
+          localizations.onlyHostCanSendInvitations,
+      'Friend already invited': localizations.friendAlreadyInvited,
+      'Invitation not found': localizations.invitationNotFound,
+      'Only the inviter can cancel the invitation':
+          localizations.onlyInviterCanCancelInvitation,
+      'Direct messaging requires premium access':
+          localizations.directMessagingRequiresPremium,
+      'User not authenticated': localizations.userNotAuthenticated,
+      'Message cannot be empty': localizations.messageCannotBeEmpty,
+      'No active conversation': localizations.noActiveConversation,
+      'Message not found': localizations.messageNotFound,
+      'You can only delete your own messages':
+          localizations.canOnlyDeleteOwnMessages,
+    };
+
+    // Try exact match first
+    if (messageMap.containsKey(message)) {
+      return messageMap[message];
+    }
+
+    // Try case-insensitive match
+    for (final entry in messageMap.entries) {
+      if (entry.key.toLowerCase() == message.toLowerCase()) {
+        return entry.value;
+      }
+    }
+
+    return null;
+  }
+
+  /// Get default error message when localization is not available
+  static String _getDefaultErrorMessage(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+
+    if (errorStr.contains('network') || errorStr.contains('connection')) {
+      return 'Network error. Please check your connection.';
+    }
+    if (errorStr.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+    if (errorStr.contains('authentication')) {
+      return 'Authentication failed. Please sign in again.';
+    }
+    if (errorStr.contains('permission')) {
+      return 'Permission denied. Please check your access rights.';
+    }
+
+    return 'An error occurred. Please try again.';
+  }
+
   /// Show an error dialog with optional retry action
   /// Automatically detects network/offline errors and provides helpful messages
+  /// If message is null, will attempt to get localized error message from context
   static Future<void> showError(
     BuildContext context,
-    String message, {
+    String? message, {
     String? title,
+    dynamic error,
     VoidCallback? onRetry,
     VoidCallback? onDismiss,
     bool isOffline = false,
   }) async {
+    // Get localized message if message not provided but error is
+    final finalMessage = message ??
+        (error != null
+            ? getLocalizedErrorMessage(error, context)
+            : 'An error occurred');
+
+    final localizations = AppLocalizations.of(context);
     if (!context.mounted) return;
 
     // Enhance error message based on error type
-    String enhancedMessage = message;
+    String enhancedMessage = finalMessage;
     if (isOffline ||
-        message.toLowerCase().contains('network') ||
-        message.toLowerCase().contains('offline') ||
-        message.toLowerCase().contains('connection')) {
+        finalMessage.toLowerCase().contains('network') ||
+        finalMessage.toLowerCase().contains('offline') ||
+        finalMessage.toLowerCase().contains('connection')) {
       enhancedMessage =
-          '$message\n\nYou appear to be offline. Some features may not be available. '
+          '$finalMessage\n\nYou appear to be offline. Some features may not be available. '
           'The app will continue to work with cached content.';
     }
 
@@ -40,7 +162,10 @@ class ErrorHandler {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                title ?? (isOffline ? 'Offline Mode' : 'Error'),
+                title ??
+                    (isOffline
+                        ? (localizations?.connectionLost ?? 'Offline Mode')
+                        : (localizations?.error ?? 'Error')),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -57,14 +182,14 @@ class ErrorHandler {
                 Navigator.of(context).pop();
                 onRetry();
               },
-              child: const Text('Retry'),
+              child: Text(localizations?.retry ?? 'Retry'),
             ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               onDismiss?.call();
             },
-            child: const Text('OK'),
+            child: Text(localizations?.ok ?? 'OK'),
           ),
         ],
       ),
@@ -72,22 +197,30 @@ class ErrorHandler {
   }
 
   /// Show a snackbar error message with enhanced offline detection
+  /// If message is null, will attempt to get localized error message from error
   static void showSnackBar(
     BuildContext context,
-    String message, {
+    String? message, {
+    dynamic error,
     Duration duration = const Duration(seconds: 3),
     Color? backgroundColor,
     bool isOffline = false,
   }) {
     if (!context.mounted) return;
 
+    // Get localized message if message not provided but error is
+    final finalMessage = message ??
+        (error != null
+            ? getLocalizedErrorMessage(error, context)
+            : 'An error occurred');
+
     // Detect network errors automatically
     final detectedOffline = !isOffline &&
-        (message.toLowerCase().contains('network') ||
-            message.toLowerCase().contains('offline') ||
-            message.toLowerCase().contains('connection') ||
-            message.toLowerCase().contains('timeout') ||
-            message.toLowerCase().contains('failed to fetch'));
+        (finalMessage.toLowerCase().contains('network') ||
+            finalMessage.toLowerCase().contains('offline') ||
+            finalMessage.toLowerCase().contains('connection') ||
+            finalMessage.toLowerCase().contains('timeout') ||
+            finalMessage.toLowerCase().contains('failed to fetch'));
 
     final finalIsOffline = isOffline || detectedOffline;
 
@@ -100,9 +233,10 @@ class ErrorHandler {
             if (finalIsOffline) const SizedBox(width: 8),
             Expanded(
               child: Text(
-                finalIsOffline && !message.toLowerCase().contains('offline')
-                    ? '$message (Offline mode active)'
-                    : message,
+                finalIsOffline &&
+                        !finalMessage.toLowerCase().contains('offline')
+                    ? '$finalMessage (${AppLocalizations.of(context)?.connectionLost ?? 'Offline mode active'})'
+                    : finalMessage,
               ),
             ),
           ],
@@ -244,12 +378,12 @@ class ErrorHandler {
   }) async {
     if (!context.mounted) return;
 
-    final String message = error.toString();
+    final String message = getLocalizedErrorMessage(error, context);
     String? guidance;
     bool isOffline = false;
 
     // Detect error type and provide specific guidance
-    final errorStr = message.toLowerCase();
+    final errorStr = error.toString().toLowerCase();
 
     if (errorStr.contains('network') ||
         errorStr.contains('connection') ||

@@ -1,7 +1,14 @@
-import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async' hide unawaited;
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:n3rd_game/services/challenge/leaderboard_repository.dart';
+import 'package:n3rd_game/services/challenge/firestore_leaderboard_repository.dart';
+import 'package:n3rd_game/services/challenge/leaderboard_retry_queue.dart';
+import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 /// Submission result with error details
 enum SubmissionResult {
@@ -15,22 +22,15 @@ enum SubmissionResult {
 }
 
 class SubmissionResponse {
-  final SubmissionResult result;
-  final String? message;
 
   SubmissionResponse(this.result, [this.message]);
+  final SubmissionResult result;
+  final String? message;
 
   bool get isSuccess => result == SubmissionResult.success;
 }
 
 class DailyChallengeLeaderboardEntry {
-  final String userId;
-  final String? displayName;
-  final int score;
-  final int completionTime; // in seconds
-  final double accuracy; // percentage
-  final DateTime timestamp;
-  final int rank;
 
   DailyChallengeLeaderboardEntry({
     required this.userId,
@@ -58,18 +58,46 @@ class DailyChallengeLeaderboardEntry {
       rank: rank,
     );
   }
+  final String userId;
+  final String? displayName;
+  final int score;
+  final int completionTime; // in seconds
+  final double accuracy; // percentage
+  final DateTime timestamp;
+  final int rank;
 }
 
+/// Service for managing daily challenge leaderboards
+///
+/// Handles score submission, attempt tracking, and leaderboard queries with:
+/// - Repository pattern for storage abstraction
+/// - Firestore integration for cloud storage
+/// - Error handling and retry logic
+/// - Rate limiting
+/// - Caching for leaderboard data
+/// - Proper disposal of resources
 class DailyChallengeLeaderboardService {
-  FirebaseFirestore? get _firestore {
-    try {
-      Firebase.app();
-      return FirebaseFirestore.instance;
-    } catch (e) {
-      return null;
-    }
-  }
+  static const int _maxSubmissionsPerMinute = 10;
+  static const int _maxQueriesPerMinute = 20;
+  static const Duration _rateLimitWindow = Duration(minutes: 1);
 
+  LeaderboardRepository? _repository;
+  final LeaderboardRetryQueue _retryQueue = LeaderboardRetryQueue();
+  bool _isInitialized = false;
+  bool _isInitializing = false; // Mutex to prevent concurrent initialization
+  bool _disposed = false;
+
+  // Rate limiting
+  final List<DateTime> _submissionTimestamps = [];
+  final List<DateTime> _queryTimestamps = [];
+
+  // Cache for leaderboard data
+  final Map<String, List<DailyChallengeLeaderboardEntry>> _leaderboardCache =
+      {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+
+  /// Get current user ID
   String? get _userId {
     try {
       return FirebaseAuth.instance.currentUser?.uid;
@@ -78,11 +106,122 @@ class DailyChallengeLeaderboardService {
     }
   }
 
+  /// Get current user display name
   String? get _displayName {
     try {
       return FirebaseAuth.instance.currentUser?.displayName;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Initialize the service
+  Future<void> init() async {
+    if (_isInitialized || _isInitializing || _disposed) return;
+
+    _isInitializing = true;
+
+    try {
+      // Try to initialize Firebase
+      try {
+        Firebase.app();
+        _repository =
+            FirestoreLeaderboardRepository(FirebaseFirestore.instance);
+      } catch (e) {
+        LoggerService.warning('Firebase not available for leaderboard',
+            error: e,);
+      }
+
+      // Load retry queue
+      await _retryQueue.loadQueue();
+
+      // Process retry queue in background
+      unawaited(_processRetryQueue());
+
+      _isInitialized = true;
+    } catch (e, stack) {
+      LoggerService.error(
+          'Failed to initialize DailyChallengeLeaderboardService',
+          error: e,
+          stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'LeaderboardService init failed',
+        fatal: false,
+      ) as Future<dynamic>,);
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  /// Get date key for a given date (or today if null)
+  String _getDateKey(DateTime? date) {
+    final targetDate = (date ?? DateTime.now()).toUtc();
+    return '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Check rate limit for submissions
+  bool _checkSubmissionRateLimit() {
+    final now = DateTime.now();
+    _submissionTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > _rateLimitWindow,
+    );
+
+    if (_submissionTimestamps.length >= _maxSubmissionsPerMinute) {
+      LoggerService.warning('Submission rate limit exceeded');
+      return false;
+    }
+
+    _submissionTimestamps.add(now);
+    return true;
+  }
+
+  /// Check rate limit for queries
+  bool _checkQueryRateLimit() {
+    final now = DateTime.now();
+    _queryTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > _rateLimitWindow,
+    );
+
+    if (_queryTimestamps.length >= _maxQueriesPerMinute) {
+      LoggerService.warning('Query rate limit exceeded');
+      return false;
+    }
+
+    _queryTimestamps.add(now);
+    return true;
+  }
+
+  /// Process retry queue
+  Future<void> _processRetryQueue() async {
+    if (_repository == null || !_repository!.isAvailable) {
+      return;
+    }
+
+    try {
+      await _retryQueue.processQueue(({
+        required dateKey,
+        required challengeId,
+        required userId,
+        required displayName,
+        required score,
+        required completionTime,
+        required accuracy,
+      }) async {
+        return _repository!.submitScore(
+          dateKey: dateKey,
+          challengeId: challengeId,
+          userId: userId,
+          displayName: displayName,
+          score: score,
+          completionTime: completionTime,
+          accuracy: accuracy,
+        );
+      });
+    } catch (e, stack) {
+      LoggerService.error('Error processing retry queue',
+          error: e, stack: stack,);
     }
   }
 
@@ -94,207 +233,230 @@ class DailyChallengeLeaderboardService {
     required int completionTime,
     required double accuracy,
   }) async {
-    // Validate challenge ID
-    if (challengeId.isEmpty) {
+    if (_disposed) {
+      return SubmissionResponse(
+        SubmissionResult.unknownError,
+        'Service has been disposed',
+      );
+    }
+
+    // Sanitize and validate inputs
+    final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+    if (sanitizedChallengeId.isEmpty) {
       return SubmissionResponse(
         SubmissionResult.challengeInvalid,
         'Invalid challenge ID',
       );
     }
 
-    final firestore = _firestore;
+    if (score < 0) {
+      return SubmissionResponse(
+        SubmissionResult.challengeInvalid,
+        'Score cannot be negative',
+      );
+    }
+
+    if (completionTime < 0) {
+      return SubmissionResponse(
+        SubmissionResult.challengeInvalid,
+        'Completion time cannot be negative',
+      );
+    }
+
+    if (accuracy < 0 || accuracy > 100) {
+      return SubmissionResponse(
+        SubmissionResult.challengeInvalid,
+        'Accuracy must be between 0 and 100',
+      );
+    }
+
+    // Check rate limit
+    if (!_checkSubmissionRateLimit()) {
+      return SubmissionResponse(
+        SubmissionResult.unknownError,
+        'Too many submissions. Please wait a moment.',
+      );
+    }
+
     final userId = _userId;
     final displayName = _displayName ?? 'Anonymous';
 
-    if (firestore == null || userId == null) {
-      debugPrint('Cannot submit score: Firebase or user not available');
+    if (userId == null) {
+      LoggerService.warning('Cannot submit score: user not logged in');
       return SubmissionResponse(
         SubmissionResult.unknownError,
-        'Firebase or user not available',
+        'Please log in to submit scores',
+      );
+    }
+
+    if (_repository == null || !_repository!.isAvailable) {
+      LoggerService.warning('Cannot submit score: Firebase not available');
+      // Queue for retry
+      final dateKey = _getDateKey(null);
+      await _retryQueue.enqueue(
+        dateKey: dateKey,
+        challengeId: challengeId,
+        userId: userId,
+        displayName: displayName,
+        score: score,
+        completionTime: completionTime,
+        accuracy: accuracy,
+      );
+      return SubmissionResponse(
+        SubmissionResult.networkError,
+        'Network error. Your score will be submitted when connection is restored.',
       );
     }
 
     try {
-      // Use UTC for consistency across timezones
-      final today = DateTime.now().toUtc();
-      final dateKey =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      final collectionPath =
-          'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
+      final dateKey = _getDateKey(null);
+      final sanitizedDisplayName =
+          InputSanitizer.sanitizeDisplayName(displayName);
+      final response = await _repository!.submitScore(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        userId: userId,
+        displayName: sanitizedDisplayName,
+        score: score,
+        completionTime: completionTime,
+        accuracy: accuracy,
+      );
 
-      // Check attempt count (limit to 5 attempts per day)
-      // Validate collection path before querying
-      if (dateKey.isEmpty || challengeId.isEmpty) {
-        debugPrint('Invalid dateKey or challengeId for attempt count query');
-        return SubmissionResponse(
-          SubmissionResult.challengeInvalid,
-          'Invalid challenge parameters',
+      // Invalidate cache on successful submission
+      if (response.isSuccess) {
+        _invalidateCache(challengeId, dateKey);
+      } else if (response.result == SubmissionResult.networkError) {
+        // Queue for retry on network error
+        await _retryQueue.enqueue(
+          dateKey: dateKey,
+          challengeId: sanitizedChallengeId,
+          userId: userId,
+          displayName: sanitizedDisplayName,
+          score: score,
+          completionTime: completionTime,
+          accuracy: accuracy,
         );
       }
 
-      int attemptCount = 0;
-      try {
-        final attemptCountQuery = await firestore
-            .collection(
-              'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-            )
-            .where('userId', isEqualTo: userId)
-            .get();
-        attemptCount = attemptCountQuery.docs.length;
-      } catch (e) {
-        // Collection might not exist yet - treat as 0 attempts
-        debugPrint(
-            'Error getting attempt count (collection may not exist): $e',);
-        attemptCount = 0;
-      }
-      if (attemptCount >= 5) {
-        debugPrint('Maximum attempts (5) reached for this challenge');
-        return SubmissionResponse(
-          SubmissionResult.maxAttemptsReached,
-          'Maximum attempts (5) reached',
-        );
-      }
+      return response;
+    } catch (e, stack) {
+      LoggerService.error('Unexpected error submitting score',
+          error: e, stack: stack,);
+      unawaited(FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'Score submission failed',
+        fatal: false,
+      ) as Future<dynamic>,);
 
-      // Check if user already has a score for this challenge today
-      final existingQuery = await firestore
-          .collection(collectionPath)
-          .where('userId', isEqualTo: userId)
-          .limit(1)
-          .get();
-
-      bool scoreImproved = false;
-
-      if (existingQuery.docs.isNotEmpty) {
-        final existingDoc = existingQuery.docs.first;
-        final existingData = existingDoc.data();
-        final existingScore = existingData['score'] as int? ?? 0;
-        final existingTime = existingData['completionTime'] as int? ?? 0;
-
-        // Only update if new score is better (higher score, or same score but faster time)
-        if (score > existingScore ||
-            (score == existingScore && completionTime < existingTime)) {
-          await existingDoc.reference.update({
-            'score': score,
-            'completionTime': completionTime,
-            'accuracy': accuracy,
-            'timestamp': FieldValue.serverTimestamp(),
-            'displayName': displayName,
-          });
-          scoreImproved = true;
-        } else {
-          // Score not better - DON'T record attempt to avoid wasting attempts
-          return SubmissionResponse(
-            SubmissionResult.scoreNotImproved,
-            'Score did not improve. Your previous best: $existingScore points in ${existingTime}s',
-          );
-        }
-      } else {
-        // Create new entry
-        await firestore.collection(collectionPath).doc(userId).set({
-          'userId': userId,
-          'displayName': displayName,
-          'score': score,
-          'completionTime': completionTime,
-          'accuracy': accuracy,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-        scoreImproved = true;
-      }
-
-      // Only record attempt if score improved (to avoid wasting attempts)
-      if (scoreImproved) {
-        await firestore
-            .collection(
-          'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-        )
-            .add({
-          'userId': userId,
-          'timestamp': FieldValue.serverTimestamp(),
-          'score': score,
-          'improved': true,
-        });
-        return SubmissionResponse(
-          SubmissionResult.success,
-          'Score submitted successfully!',
-        );
-      }
+      // Queue for retry
+      final dateKey = _getDateKey(null);
+      final sanitizedDisplayName =
+          InputSanitizer.sanitizeDisplayName(displayName);
+      await _retryQueue.enqueue(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        userId: userId,
+        displayName: sanitizedDisplayName,
+        score: score,
+        completionTime: completionTime,
+        accuracy: accuracy,
+      );
 
       return SubmissionResponse(
         SubmissionResult.unknownError,
-        'Unexpected error',
-      );
-    } on FirebaseException catch (e) {
-      debugPrint('Firebase error submitting daily challenge score: $e');
-      if (e.code == 'permission-denied') {
-        return SubmissionResponse(
-          SubmissionResult.permissionDenied,
-          'Permission denied. Please check your account.',
-        );
-      } else if (e.code == 'unavailable') {
-        return SubmissionResponse(
-          SubmissionResult.networkError,
-          'Network error. Please check your connection and try again.',
-        );
-      }
-      return SubmissionResponse(
-        SubmissionResult.networkError,
-        'Network error: ${e.message}',
-      );
-    } catch (e) {
-      debugPrint('Error submitting daily challenge score: $e');
-      return SubmissionResponse(
-        SubmissionResult.unknownError,
-        'An error occurred: $e',
+        'An error occurred. Your score will be submitted when connection is restored.',
       );
     }
   }
 
   /// Get attempt count for a user on a specific challenge
   Future<int> getAttemptCount(String challengeId, DateTime? date) async {
-    final firestore = _firestore;
-    final userId = _userId;
-
-    if (firestore == null || userId == null) {
+    if (_disposed || _repository == null || !_repository!.isAvailable) {
       return 0;
     }
 
     try {
-      // Use UTC for consistency
-      final targetDate = (date ?? DateTime.now()).toUtc();
-      final dateKey =
-          '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
-
-      // NOTE: This query requires a Firestore composite index on:
-      // Collection: daily_challenge_leaderboard/{dateKey}/{challengeId}/attempts
-      // Fields: userId (Ascending)
-      // Create the index in Firebase Console if you encounter index errors
-
-      // Validate collection path before querying
-      if (dateKey.isEmpty || challengeId.isEmpty) {
-        debugPrint('Invalid dateKey or challengeId for attempt count query');
+      final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+      final dateKey = _getDateKey(date);
+      final userId = _userId;
+      if (userId == null) {
         return 0;
       }
 
-      try {
-        final attemptCountQuery = await firestore
-            .collection(
-              'daily_challenge_leaderboard/$dateKey/$challengeId/attempts',
-            )
-            .where('userId', isEqualTo: userId)
-            .get();
-        return attemptCountQuery.docs.length;
-      } catch (e) {
-        // Collection might not exist yet - treat as 0 attempts
-        debugPrint(
-            'Error getting attempt count (collection may not exist): $e',);
-        return 0;
+      return await _repository!.getAttemptCount(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        userId: userId,
+      );
+    } catch (e, stack) {
+      LoggerService.error('Error getting attempt count',
+          error: e, stack: stack,);
+      return 0;
+    }
+  }
+
+  /// Get paginated leaderboard for a specific challenge
+  /// Returns entries and a flag indicating if there are more results
+  Future<PaginatedLeaderboardResult> getPaginatedLeaderboard({
+    required String challengeId,
+    DateTime? date,
+    int pageSize = 20,
+    DocumentSnapshot? startAfter,
+  }) async {
+    if (_disposed) {
+      return PaginatedLeaderboardResult(
+        entries: [],
+        hasMore: false,
+      );
+    }
+
+    // Sanitize challenge ID
+    final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+
+    // Check rate limit
+    if (!_checkQueryRateLimit()) {
+      LoggerService.warning('Query rate limit exceeded, returning cached data');
+      final cached = _getCachedLeaderboard(sanitizedChallengeId, date);
+      return PaginatedLeaderboardResult(
+        entries: cached,
+        hasMore: false, // Can't determine hasMore from cache
+      );
+    }
+
+    if (_repository == null || !_repository!.isAvailable) {
+      LoggerService.warning('Cannot get leaderboard: Firebase not available');
+      final cached = _getCachedLeaderboard(sanitizedChallengeId, date);
+      return PaginatedLeaderboardResult(
+        entries: cached,
+        hasMore: false,
+      );
+    }
+
+    try {
+      final dateKey = _getDateKey(date);
+
+      final result = await _repository!.getPaginatedLeaderboard(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        pageSize: pageSize,
+        startAfter: startAfter,
+      );
+
+      // Cache the first page only (for quick access)
+      if (startAfter == null && result.entries.isNotEmpty) {
+        _cacheLeaderboard(sanitizedChallengeId, dateKey, result.entries);
       }
-    } on FirebaseException catch (e) {
-      debugPrint('Firebase error getting attempt count: $e');
-      return 0;
-    } catch (e) {
-      debugPrint('Error getting attempt count: $e');
-      return 0;
+
+      return result;
+    } catch (e, stack) {
+      LoggerService.error('Error fetching paginated leaderboard',
+          error: e, stack: stack,);
+      final cached = _getCachedLeaderboard(sanitizedChallengeId, date);
+      return PaginatedLeaderboardResult(
+        entries: cached,
+        hasMore: false,
+      );
     }
   }
 
@@ -303,74 +465,46 @@ class DailyChallengeLeaderboardService {
     required String challengeId,
     DateTime? date,
   }) async {
-    final firestore = _firestore;
-    if (firestore == null) {
+    if (_disposed) {
       return [];
     }
 
+    // Sanitize challenge ID
+    final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+
+    // Check rate limit
+    if (!_checkQueryRateLimit()) {
+      LoggerService.warning('Query rate limit exceeded, returning cached data');
+      return _getCachedLeaderboard(sanitizedChallengeId, date);
+    }
+
+    if (_repository == null || !_repository!.isAvailable) {
+      LoggerService.warning('Cannot get leaderboard: Firebase not available');
+      return _getCachedLeaderboard(sanitizedChallengeId, date);
+    }
+
     try {
-      // Use UTC for consistency
-      final targetDate = (date ?? DateTime.now()).toUtc();
-      final dateKey =
-          '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+      final dateKey = _getDateKey(date);
 
-      // Validate collection path before querying
-      if (dateKey.isEmpty || challengeId.isEmpty) {
-        debugPrint('Invalid dateKey or challengeId for leaderboard query');
-        return [];
+      // Check cache first
+      final cached = _getCachedLeaderboard(sanitizedChallengeId, date);
+      if (cached.isNotEmpty) {
+        return cached;
       }
 
-      final collectionPath =
-          'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
+      final entries = await _repository!.getTopLeaderboard(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        limit: 5,
+      );
 
-      // Query with ranking: Score DESC, Time ASC, Timestamp ASC
-      // Note: Firestore doesn't support multiple orderBy easily, so we'll fetch and sort in memory
-      final querySnapshot = await firestore
-          .collection(collectionPath)
-          .orderBy('score', descending: true)
-          .limit(100) // Get more than top 5 to handle ties
-          .get();
+      // Cache the result
+      _cacheLeaderboard(sanitizedChallengeId, dateKey, entries);
 
-      if (querySnapshot.docs.isEmpty) {
-        return [];
-      }
-
-      // Convert to entries
-      final entries = querySnapshot.docs
-          .map((doc) => DailyChallengeLeaderboardEntry.fromFirestore(doc, 0))
-          .toList();
-
-      // Sort: Score DESC → Time ASC → Timestamp ASC
-      entries.sort((a, b) {
-        if (a.score != b.score) {
-          return b.score.compareTo(a.score); // Higher score first
-        }
-        if (a.completionTime != b.completionTime) {
-          return a.completionTime.compareTo(
-            b.completionTime,
-          ); // Faster time first
-        }
-        return a.timestamp.compareTo(b.timestamp); // Earlier timestamp first
-      });
-
-      // Assign ranks and return top 5
-      final top5 = entries.take(5).toList();
-      for (int i = 0; i < top5.length; i++) {
-        top5[i] = DailyChallengeLeaderboardEntry(
-          userId: top5[i].userId,
-          displayName: top5[i].displayName,
-          score: top5[i].score,
-          completionTime: top5[i].completionTime,
-          accuracy: top5[i].accuracy,
-          timestamp: top5[i].timestamp,
-          rank: i + 1,
-        );
-      }
-
-      return top5;
-    } catch (e) {
-      debugPrint('Error fetching daily challenge leaderboard: $e');
-      return [];
+      return entries;
+    } catch (e, stack) {
+      LoggerService.error('Error fetching leaderboard', error: e, stack: stack);
+      return _getCachedLeaderboard(sanitizedChallengeId, date);
     }
   }
 
@@ -380,64 +514,22 @@ class DailyChallengeLeaderboardService {
     required String userId,
     DateTime? date,
   }) async {
-    final firestore = _firestore;
-    if (firestore == null) {
+    if (_disposed || _repository == null || !_repository!.isAvailable) {
       return null;
     }
 
     try {
-      // Use UTC for consistency
-      final targetDate = (date ?? DateTime.now()).toUtc();
-      final dateKey =
-          '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
-
-      // Validate collection path before querying
-      if (dateKey.isEmpty || challengeId.isEmpty) {
-        debugPrint('Invalid dateKey or challengeId for rank query');
-        return null;
-      }
-
-      final collectionPath =
-          'daily_challenge_leaderboard/$dateKey/$challengeId/scores';
-
-      // Optimize: First check if user has a score, then query only if needed
-      // Limit to 50 for better performance (most users will be in top 50)
-      final querySnapshot = await firestore
-          .collection(collectionPath)
-          .orderBy('score', descending: true)
-          .limit(50)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        return null;
-      }
-
-      final entries = querySnapshot.docs
-          .map((doc) => DailyChallengeLeaderboardEntry.fromFirestore(doc, 0))
-          .toList();
-
-      entries.sort((a, b) {
-        if (a.score != b.score) {
-          return b.score.compareTo(a.score);
-        }
-        if (a.completionTime != b.completionTime) {
-          return a.completionTime.compareTo(b.completionTime);
-        }
-        return a.timestamp.compareTo(b.timestamp);
-      });
-
-      for (int i = 0; i < entries.length; i++) {
-        if (entries[i].userId == userId) {
-          return i + 1;
-        }
-      }
-
-      return null;
-    } on FirebaseException catch (e) {
-      debugPrint('Firebase error getting user rank: $e');
-      return null;
-    } catch (e) {
-      debugPrint('Error getting user rank: $e');
+      final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+      final sanitizedUserId = InputSanitizer.sanitizeText(userId);
+      final dateKey = _getDateKey(date);
+      return await _repository!.getUserRank(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
+        userId: sanitizedUserId,
+        maxRank: 50,
+      );
+    } catch (e, stack) {
+      LoggerService.error('Error getting user rank', error: e, stack: stack);
       return null;
     }
   }
@@ -445,44 +537,70 @@ class DailyChallengeLeaderboardService {
   /// Validate that a challenge exists and is for today
   /// Returns error message if validation fails, null if valid
   Future<String?> validateChallenge(String challengeId) async {
-    final firestore = _firestore;
-    if (firestore == null) {
+    if (_disposed || _repository == null || !_repository!.isAvailable) {
       return 'Firebase not available';
     }
 
     try {
-      // Use UTC for consistency
-      final today = DateTime.now().toUtc();
-      final dateKey =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-      // Check if challenge collection exists (indicates challenge was created today)
-      final scoresRef = firestore.collection(
-        'daily_challenge_leaderboard/$dateKey/$challengeId/scores',
+      final sanitizedChallengeId = InputSanitizer.sanitizeText(challengeId);
+      final dateKey = _getDateKey(null);
+      return await _repository!.validateChallenge(
+        dateKey: dateKey,
+        challengeId: sanitizedChallengeId,
       );
-      await scoresRef.limit(1).get(); // Just check if collection exists
-
-      // Validate that challenge is for today's date
-      // The dateKey in the path ensures it's today's challenge
-      // Additional validation: Check if challenge exists in ChallengeService
-      // Note: This validates the challenge exists and is for today via the collection path
-
-      // Note: We cannot directly validate ChallengeType here without accessing ChallengeService
-      // The UI layer should ensure only competitive challenges are submitted
-      // This validation ensures the challenge exists and is for today's date
-
-      return null; // Valid
-    } on FirebaseException catch (e) {
-      debugPrint('Error validating challenge: $e');
-      if (e.code == 'permission-denied') {
-        return 'Permission denied';
-      } else if (e.code == 'not-found') {
-        return 'Challenge not found or expired';
-      }
-      return 'Validation error: ${e.message}';
-    } catch (e) {
-      debugPrint('Error validating challenge: $e');
+    } catch (e, stack) {
+      LoggerService.error('Error validating challenge', error: e, stack: stack);
       return 'Challenge validation failed: $e';
     }
+  }
+
+  /// Get cached leaderboard
+  List<DailyChallengeLeaderboardEntry> _getCachedLeaderboard(
+    String challengeId,
+    DateTime? date,
+  ) {
+    final dateKey = _getDateKey(date);
+    final cacheKey = '$dateKey:$challengeId';
+
+    final cached = _leaderboardCache[cacheKey];
+    final timestamp = _cacheTimestamps[cacheKey];
+
+    if (cached != null && timestamp != null) {
+      if (DateTime.now().difference(timestamp) < _cacheExpiry) {
+        return cached;
+      } else {
+        // Cache expired
+        _leaderboardCache.remove(cacheKey);
+        _cacheTimestamps.remove(cacheKey);
+      }
+    }
+
+    return [];
+  }
+
+  /// Cache leaderboard data
+  void _cacheLeaderboard(
+    String challengeId,
+    String dateKey,
+    List<DailyChallengeLeaderboardEntry> entries,
+  ) {
+    final cacheKey = '$dateKey:$challengeId';
+    _leaderboardCache[cacheKey] = entries;
+    _cacheTimestamps[cacheKey] = DateTime.now();
+  }
+
+  /// Invalidate cache for a challenge
+  void _invalidateCache(String challengeId, String dateKey) {
+    final cacheKey = '$dateKey:$challengeId';
+    _leaderboardCache.remove(cacheKey);
+    _cacheTimestamps.remove(cacheKey);
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _disposed = true;
+    _retryQueue.dispose();
+    _leaderboardCache.clear();
+    _cacheTimestamps.clear();
   }
 }

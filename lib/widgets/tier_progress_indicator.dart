@@ -9,12 +9,12 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 /// Widget showing progress toward next subscription tier
 /// Only shown for free tier users
 class TierProgressIndicator extends StatelessWidget {
-  final bool showIcon;
 
   const TierProgressIndicator({
     super.key,
     this.showIcon = true,
   });
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
