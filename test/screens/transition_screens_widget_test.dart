@@ -110,7 +110,7 @@ void main() {
       await tester.pump();
       // Wait for any timers to complete
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
       // System UI mode is set in build method, verified by screen rendering
       expect(find.byType(ModeTransitionScreen), findsOneWidget);
 
@@ -129,7 +129,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
       expect(find.byType(GeneralTransitionScreen), findsOneWidget);
 
       // Test YouthTransitionScreen
@@ -145,7 +145,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
       expect(find.byType(YouthTransitionScreen), findsOneWidget);
     });
 
@@ -168,7 +168,7 @@ void main() {
       await tester.pump();
       // Wait for any timers to complete
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
 
       expect(find.byType(ModeTransitionScreen), findsOneWidget);
     });
@@ -191,7 +191,7 @@ void main() {
       await tester.pump();
       // Wait for any timers to complete
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
 
       // Should render with theme-aware background
       expect(find.byType(ModeTransitionScreen), findsOneWidget);

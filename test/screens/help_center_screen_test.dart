@@ -48,7 +48,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(
-          const Duration(milliseconds: 1000)); // Wait longer for tab content
+          const Duration(milliseconds: 1000),); // Wait longer for tab content
 
       // Should show FAQ content - may be conditionally rendered
       // Check if FAQ articles exist first
@@ -78,7 +78,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(
-          const Duration(milliseconds: 1000)); // Wait longer for tab content
+          const Duration(milliseconds: 1000),); // Wait longer for tab content
 
       // Should show Articles content - verify tab was switched
       expect(find.text('Articles'), findsOneWidget);
@@ -132,7 +132,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(
-          const Duration(milliseconds: 1000)); // Wait longer for tab content
+          const Duration(milliseconds: 1000),); // Wait longer for tab content
 
       // Should show FAQ header - may be conditionally rendered
       final faqArticles = KnowledgeBaseService.getAllArticles()
@@ -174,7 +174,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(
-          const Duration(milliseconds: 1000)); // Wait longer for tab content
+          const Duration(milliseconds: 1000),); // Wait longer for tab content
 
       // Should show articles header - verify tab was switched
       expect(find.text('Articles'), findsOneWidget);

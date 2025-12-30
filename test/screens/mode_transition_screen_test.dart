@@ -46,7 +46,7 @@ void main() {
       await tester.pump();
       // Use pump with duration instead of pumpAndSettle to avoid video loading timeout
       await tester.pump(
-          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100));
+          AppConfig.minModeTransitionDelay + const Duration(milliseconds: 100),);
 
       // Should render the screen
       expect(find.byType(ModeTransitionScreen), findsOneWidget);
@@ -113,7 +113,7 @@ void main() {
           // Navigation is handled by NavigationHelper, so we just verify the skip button was tapped
           // The actual game screen may not have "Game Screen" text
           expect(true,
-              true); // Pass the test - navigation is verified by screen change
+              true,); // Pass the test - navigation is verified by screen change
         }
       }
     });

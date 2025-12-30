@@ -285,7 +285,7 @@ void main() {
       // Semantics may or may not be present depending on widget tree
       final dropdown = find.byType(DropdownButton<int>);
       expect(semantics.evaluate().isNotEmpty || dropdown.evaluate().isNotEmpty,
-          isTrue);
+          isTrue,);
     });
   });
 }

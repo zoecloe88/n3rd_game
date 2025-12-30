@@ -1049,8 +1049,4 @@ lib/
 6. **Avoid Circular Dependencies**: If Service A depends on Service B, Service B should not depend on Service A
 7. **Use Interfaces**: Define interfaces for services to enable loose coupling
 8. **Lazy Initialization**: Initialize services only when needed
-9. **Optional Dependencies**: Make dependencies optional when possible to improve resilience
-
----
-
-*Last Updated: January 2025*
+9. **Optional Dependencies**: Make dependencies optional when possible to improve resilience---*Last Updated: January 2025*

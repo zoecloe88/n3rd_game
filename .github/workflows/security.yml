@@ -9,6 +9,9 @@ on:
     # Run weekly on Mondays at 9 AM UTC
     - cron: '0 9 * * 1'
 
+env:
+  FLUTTER_VERSION: '3.24.0'
+
 jobs:
   secret-scan:
     name: Secret Scanning
@@ -23,7 +26,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.10.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
       
       - name: Run secret scan
@@ -53,7 +56,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.10.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
       
       - name: Get dependencies
@@ -83,7 +86,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.10.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
       
       - name: Run Flutter analyze

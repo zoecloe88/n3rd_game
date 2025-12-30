@@ -42,7 +42,7 @@ void main() {
         // Log warning but don't fail the test
         // Firebase initialization failure in test environment is expected
         expect(true, isTrue,
-            reason: 'Firebase initialization may fail in test environment');
+            reason: 'Firebase initialization may fail in test environment',);
       } else {
         expect(result.firebaseInitialized, isTrue);
       }
