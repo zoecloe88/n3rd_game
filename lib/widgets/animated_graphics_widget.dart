@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/animation_randomizer_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Widget that displays animated MP4 graphics (1024x1012) with proper sizing and placement
 /// Ensures no content overlap by using constrained sizing and positioning
@@ -52,10 +52,21 @@ class _AnimatedGraphicsWidgetState extends State<AnimatedGraphicsWidget> {
 
       if (widget.specificPath != null) {
         // Validate specific path exists
-        final randomizer = Provider.of<AnimationRandomizerService>(
+        // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+        final randomizer = ProviderHelper.safeGet<AnimationRandomizerService>(
           context,
           listen: false,
         );
+        if (randomizer == null) {
+          // Service not available, set error state and return
+          if (mounted) {
+            setState(() {
+              _loading = false;
+              _error = true;
+            });
+          }
+          return;
+        }
         // Extract category and filename if it's a full path
         final fullPath = widget.specificPath!;
         final parts = fullPath.split('/');
@@ -68,10 +79,21 @@ class _AnimatedGraphicsWidgetState extends State<AnimatedGraphicsWidget> {
           path = widget.specificPath;
         }
       } else if (widget.category != null) {
-        final randomizer = Provider.of<AnimationRandomizerService>(
+        // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+        final randomizer = ProviderHelper.safeGet<AnimationRandomizerService>(
           context,
           listen: false,
         );
+        if (randomizer == null) {
+          // Service not available, set error state and return
+          if (mounted) {
+            setState(() {
+              _loading = false;
+              _error = true;
+            });
+          }
+          return;
+        }
         path = await randomizer.getRandomAnimation(widget.category!);
       }
 

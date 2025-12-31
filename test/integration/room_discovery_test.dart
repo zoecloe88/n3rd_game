@@ -2,18 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/services/room_discovery_service.dart';
 import 'package:n3rd_game/models/game_room.dart';
 import '../utils/test_helpers.dart';
-import '../utils/firebase_test_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
     await TestHelpers.setupAllTestInfrastructure();
-    await FirebaseTestHelper.initializeFirebaseForTests();
+    // Firebase is already initialized by setupAllTestInfrastructure()
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
   });
 
   group('Room Discovery Integration', () {

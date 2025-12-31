@@ -1,5 +1,7 @@
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Manages trivia pool and category tracking
 ///
@@ -90,8 +92,12 @@ class GameTriviaManager {
 
     if (candidates.isEmpty) return null;
 
-    // Return first available
-    return candidates.first;
+    // Return first available (safe access)
+    final firstCandidate = ListHelper.safeFirst(candidates);
+    if (firstCandidate == null) {
+      LoggerService.warning('GameTriviaManager: candidates list is empty after isEmpty check');
+    }
+    return firstCandidate;
   }
 
   /// Find trivia item avoiding recent categories
@@ -114,11 +120,15 @@ class GameTriviaManager {
         );
       }
       clearRecentCategories();
-      return _currentTriviaPool.isNotEmpty ? _currentTriviaPool.first : null;
+      return ListHelper.safeFirst(_currentTriviaPool);
     }
 
-    // Return first available
-    return candidates.first;
+    // Return first available (safe access)
+    final firstCandidate = ListHelper.safeFirst(candidates);
+    if (firstCandidate == null) {
+      LoggerService.warning('GameTriviaManager: candidates list is empty after isEmpty check');
+    }
+    return firstCandidate;
   }
 
   /// Reset manager state

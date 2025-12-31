@@ -323,7 +323,7 @@ The `AccessibilityService` manages all accessibility settings with persistence a
 **Usage:**
 ```dart
 // Get service
-final accessibilityService = Provider.of<AccessibilityService>(context);
+final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
 
 // Access settings
 final settings = accessibilityService.settings;

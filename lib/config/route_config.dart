@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/models/game_room.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
 import 'package:n3rd_game/utils/page_transitions.dart';
 
 /// Transition type for route navigation
@@ -82,7 +83,10 @@ class RouteConfig {
 
     // Single argument (non-Map) - check if we have a single parameter
     if (parameters.length == 1) {
-      final param = parameters.values.first;
+      final param = ListHelper.safeFirst(parameters.values.toList());
+      if (param == null) {
+        return false; // No parameters available
+      }
       return arguments.runtimeType == param.type;
     }
 
@@ -376,12 +380,6 @@ class RouteRegistry {
       requiresAuth: true,
       requiresPremium: true,
       documentation: 'Practice mode screen (Premium only)',
-    ),
-    '/trivia-creator': RouteConfig(
-      path: '/trivia-creator',
-      requiresAuth: true,
-      requiresPremium: true,
-      documentation: 'Trivia creator screen (Premium only)',
     ),
     '/help-center': RouteConfig(
       path: '/help-center',

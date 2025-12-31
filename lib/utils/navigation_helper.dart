@@ -7,6 +7,7 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/navigation_state_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/config/route_config.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 /// Navigation source tracking for analytics
 enum NavigationSource {
@@ -91,7 +92,9 @@ class NavigationHelper {
     NavigationSource source = NavigationSource.programmatic,
     int maxRetries = 2,
   }) async {
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     // Validate route arguments if route config exists
     if (!RouteRegistry.validateRouteArguments(route, arguments)) {
@@ -103,24 +106,40 @@ class NavigationHelper {
 
     final startTime = DateTime.now();
     final previousRoute = ModalRoute.of(context)?.settings.name ?? 'unknown';
-    // Capture NavigatorState before async operations
-    final navigator = Navigator.of(context);
+    // CRITICAL: Use maybeOf to prevent null check crashes
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null) {
+      LoggerService.warning('NavigationHelper: Navigator not available for route: $route');
+      return;
+    }
 
     // Retry logic with exponential backoff
     int retries = 0;
     while (retries <= maxRetries) {
       try {
-        // Save to navigation state before navigating
+        // Save to navigation state before navigating (with error handling)
         final argsMap = arguments is Map<String, dynamic>
             ? arguments
             : arguments != null
                 ? {'single_arg': arguments}
                 : null;
-        await _stateService.saveLastRoute(route, argsMap);
-        await _stateService.addToHistory(route, arguments: argsMap);
+        try {
+          await _stateService.saveLastRoute(route, argsMap);
+        } catch (e) {
+          // Log but don't block navigation if state save fails
+          LoggerService.warning('Failed to save last route, continuing navigation', error: e);
+        }
+        try {
+          await _stateService.addToHistory(route, arguments: argsMap);
+        } catch (e) {
+          // Log but don't block navigation if history save fails
+          LoggerService.warning('Failed to add to history, continuing navigation', error: e);
+        }
 
         // Check if context is still mounted before using Navigator
-        if (!context.mounted) return;
+        if (!context.mounted) {
+          return;
+        }
 
         if (replace) {
           await navigator.pushReplacementNamed(
@@ -191,10 +210,21 @@ class NavigationHelper {
   ]) {
     if (!context.mounted) return;
 
+    // CRITICAL: Use maybeOf to prevent null check crashes
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null) {
+      LoggerService.warning('NavigationHelper: Navigator not available for pop');
+      return;
+    }
+
     final currentRoute = ModalRoute.of(context)?.settings.name;
 
     try {
-      Navigator.of(context).pop(result);
+      // CRITICAL: Use maybeOf to prevent null check crashes
+      final navigator = Navigator.maybeOf(context);
+      if (navigator != null) {
+        navigator.pop(result);
+      }
 
       // Track back navigation
       if (currentRoute != null) {
@@ -230,8 +260,12 @@ class NavigationHelper {
     final routeName = route.settings.name ?? 'unknown';
     final previousRoute = ModalRoute.of(context)?.settings.name ?? 'unknown';
     final startTime = DateTime.now();
-    // Capture NavigatorState before async operations
-    final navigator = Navigator.of(context);
+    // CRITICAL: Use maybeOf to prevent null check crashes
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null) {
+      LoggerService.warning('NavigationHelper: Navigator not available for pushReplacement');
+      return null;
+    }
 
     try {
       // Save to navigation state

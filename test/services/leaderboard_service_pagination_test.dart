@@ -1,17 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/services/leaderboard_service.dart';
 import '../utils/test_helpers.dart';
-import '../utils/firebase_test_helper.dart';
 
 void main() {
   group('LeaderboardService Pagination Tests', () {
     setUpAll(() async {
       await TestHelpers.setupAllTestInfrastructure();
-      await FirebaseTestHelper.initializeFirebaseForTests();
+      // Firebase is already initialized by setupAllTestInfrastructure()
     });
 
-    tearDownAll(() {
-      TestHelpers.tearDownAllTestInfrastructure();
+    tearDownAll(() async {
+      await TestHelpers.tearDownAllTestInfrastructure();
     });
 
     setUp(() {

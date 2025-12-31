@@ -13,6 +13,7 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/models/friend.dart';
 import 'package:share_plus/share_plus.dart';
@@ -42,11 +43,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     // Check if user has online access
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
-      if (!subscriptionService.hasOnlineAccess) {
+      if (!subscriptionService.isPremium) {
         _showUpgradeDialog(context);
         return;
       }
@@ -81,7 +82,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   void _showUpgradeDialog(BuildContext context) {
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -105,7 +106,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Multiplayer - Premium Feature'),
         content: const Text(
-          'Upgrade to Premium to access multiplayer features!',
+          'Upgrade to Premium to create and join game lobbies!',
         ),
         actions: [
           TextButton(
@@ -153,7 +154,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     if (_mode == null) return;
 
     // Check network connection
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
     if (!networkService.isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,11 +174,15 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
     try {
       // Get all services before async operations
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+        context,
+        listen: false,
+      );
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -188,12 +193,13 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         mode: _mode!,
         maxPlayers: maxPlayers,
         friendsOnly: _friendsOnly,
+        subscriptionService: subscriptionService,
       );
 
       // Log newsfeed activity for room creation
       if (mounted) {
         final newsfeedService =
-            Provider.of<NewsfeedService>(context, listen: false);
+            ProviderHelper.safeGetOrThrow<NewsfeedService>(context, listen: false);
         unawaited(
           newsfeedService.logMultiplayerActivity(
             activityType: NewsfeedActivityType.roomCreated,
@@ -232,24 +238,21 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         });
       }
     } catch (e) {
+      LoggerService.error('Failed to create room', error: e);
       if (mounted) {
         setState(() => _isCreating = false);
-        final localizations = AppLocalizations.of(context);
-        final errorMessage = localizations?.multiplayerLobbyError ??
-            'Lobby operation failed. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating room: $errorMessage'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        final errorMessage = ErrorHandler.getLocalizedErrorMessage(e, context);
+        ErrorHandler.showSnackBar(context, errorMessage);
         // Log error to analytics
-        final analyticsService = Provider.of<AnalyticsService>(
-          context,
-          listen: false,
-        );
-        unawaited(analyticsService.logError('room_creation_failed', errorMessage));
+        try {
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          unawaited(analyticsService.logError('room_creation_failed', errorMessage));
+        } catch (analyticsError) {
+          // Analytics not available - non-critical
+        }
       }
     }
   }
@@ -259,7 +262,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     if (roomCode.isEmpty) return;
 
     // Check network connection
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
     if (!networkService.isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -278,18 +281,25 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     setState(() => _isJoining = true);
 
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
       // Get analytics service before async operations
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+        context,
+        listen: false,
+      );
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
       await multiplayerService.init();
 
-      await multiplayerService.joinRoom(roomCode);
+      await multiplayerService.joinRoom(
+        roomCode,
+        subscriptionService: subscriptionService,
+      );
 
       // Log analytics (fire-and-forget)
       unawaited(analyticsService.logRoomJoined());
@@ -302,31 +312,28 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         ),);
       }
     } catch (e) {
+      LoggerService.error('Failed to join room', error: e);
       if (mounted) {
         setState(() => _isJoining = false);
-        final localizations = AppLocalizations.of(context);
-        final errorMessage = localizations?.multiplayerLobbyError ??
-            'Lobby operation failed. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error joining room: $errorMessage'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        final errorMessage = ErrorHandler.getLocalizedErrorMessage(e, context);
+        ErrorHandler.showSnackBar(context, errorMessage);
         // Log error to analytics
-        final analyticsService = Provider.of<AnalyticsService>(
-          context,
-          listen: false,
-        );
-        unawaited(analyticsService.logError('room_join_failed', errorMessage));
+        try {
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+            context,
+            listen: false,
+          );
+          unawaited(analyticsService.logError('room_join_failed', errorMessage));
+        } catch (analyticsError) {
+          // Analytics not available - non-critical
+        }
       }
     }
   }
 
   Future<void> _loadInvitedFriends(String roomId) async {
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
@@ -334,7 +341,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       if (!mounted) return;
 
       // Get FriendsService to get friend details
-      final friendsService = Provider.of<FriendsService>(
+      final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
         context,
         listen: false,
       );
@@ -360,7 +367,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   Future<void> _showFriendInviteDialog() async {
     try {
-      final friendsService = Provider.of<FriendsService>(
+      final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
         context,
         listen: false,
       );
@@ -439,11 +446,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     if (_roomCode == null) return;
 
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -453,7 +460,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
       // Log newsfeed activity
       final newsfeedService =
-          Provider.of<NewsfeedService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<NewsfeedService>(context, listen: false);
       unawaited(
         newsfeedService.logMultiplayerActivity(
           activityType: NewsfeedActivityType.friendInvitedToGame,
@@ -504,7 +511,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     if (_roomCode == null) return;
 
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
@@ -533,7 +540,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   Future<void> _addFriendFromLobby(String userId) async {
     try {
-      final friendsService = Provider.of<FriendsService>(
+      final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
         context,
         listen: false,
       );
@@ -541,7 +548,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       if (!mounted) return;
 
       // Log analytics
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -581,7 +588,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       if (!mounted) return;
 
       // Log analytics
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -961,7 +968,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                                 multiplayerService.currentUserId;
 
                             // Check if player is a friend
-                            final friendsService = Provider.of<FriendsService>(
+                            final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
                               context,
                               listen: false,
                             );
@@ -1289,7 +1296,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             }
                             // Get analytics service before async operation
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               context,
                               listen: false,
                             );

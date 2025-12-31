@@ -1,6 +1,5 @@
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
@@ -12,6 +11,7 @@ import 'package:n3rd_game/screens/stats_menu_screen.dart';
 import 'package:n3rd_game/screens/friends_and_messages_screen.dart';
 import 'package:n3rd_game/screens/more_menu_screen.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Main navigation wrapper that provides persistent bottom navigation
 /// Only shown for authenticated users after login
@@ -85,7 +85,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
   void switchToTab(int index) {
     if (_currentIndex == index) return; // Already on this tab
 
-    // Check if PageController is attached before animating
+    // Check if PageController is attached before navigating
     if (!_pageController.hasClients) {
       // If not attached yet, just update the index
       setState(() {
@@ -94,25 +94,36 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
       return;
     }
 
+    // Update index immediately to prevent cycling through tabs
     setState(() {
       _currentIndex = index;
     });
 
-    // Animate to the selected page
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    // Use jumpToPage for instant navigation to prevent tab cycling
+    _pageController.jumpToPage(index);
   }
 
   void _onTabTapped(int index) {
+    // Unfocus any focused widgets to prevent focus traversal
+    FocusScope.of(context).unfocus();
     switchToTab(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final authService = ProviderHelper.safeGet<AuthService>(context, listen: false);
+
+    // If AuthService is not available yet, show loading
+    if (authService == null) {
+      return Scaffold(
+        body: Center(
+          child: Semantics(
+            label: 'Initializing',
+            child: const CircularProgressIndicator(color: Color(0xFF00D9FF)),
+          ),
+        ),
+      );
+    }
 
     // Handle unauthenticated state - redirect to login or show child
     if (!authService.isAuthenticated) {
@@ -123,7 +134,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
       // Otherwise, redirect to login
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/login');
+          NavigationHelper.safePushReplacementNamed(context, '/login');
         }
       });
       return Scaffold(
@@ -256,22 +267,20 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
     
     // Check if larger touch targets should be enforced
     bool largerTouchTargets = false;
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null) {
       largerTouchTargets = accessibilityService.settings.largerTouchTargets;
-    } catch (e) {
-      // AccessibilityService not available - use default
-      LoggerService.debug(
-        'AccessibilityService not available in MainNavigationWrapper',
-        error: e,
-      );
     }
 
     Widget navItem = GestureDetector(
-      onTap: () => _onTabTapped(index),
+      onTap: () {
+        // Unfocus before switching to prevent focus traversal
+        FocusScope.of(context).unfocus();
+        _onTabTapped(index);
+      },
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -312,13 +321,13 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
     }
     
     // Wrap with Semantics for accessibility
+    // Note: onTap is handled by GestureDetector to prevent double-tap and focus traversal
     return Expanded(
       child: Semantics(
         label: '$label tab',
         hint: isActive ? 'Currently selected' : 'Tap to switch to $label',
         button: true,
         selected: isActive,
-        onTap: () => _onTabTapped(index),
         child: navItem,
       ),
     );

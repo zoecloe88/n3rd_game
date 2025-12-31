@@ -26,7 +26,7 @@ void main() {
     };
   });
 
-  tearDownAll(() {
+  tearDownAll(() async {
     // Reset error handler
     FlutterError.onError = FlutterError.presentError;
   });

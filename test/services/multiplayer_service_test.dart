@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
 import '../utils/test_helpers.dart';
 
@@ -22,23 +21,11 @@ void main() {
   // Initialize Firebase for testing (required for MultiplayerService constructor)
   setUpAll(() async {
     await TestHelpers.setupAllTestInfrastructure();
-    try {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'test-api-key',
-          appId: 'test-app-id',
-          messagingSenderId: 'test-sender-id',
-          projectId: 'test-project-id',
-        ),
-      );
-    } catch (e) {
-      // Firebase may already be initialized, which is fine
-      // This allows tests to run even if Firebase is already set up
-    }
+    // Firebase is already initialized by setupAllTestInfrastructure()
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
   });
 
   group('MultiplayerService Initialization', () {

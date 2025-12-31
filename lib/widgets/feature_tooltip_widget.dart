@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/utils/subscription_guard.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Widget that wraps a feature with a tooltip explaining tier requirements
 /// Shows tooltip on long press for locked features
@@ -27,7 +28,11 @@ class FeatureTooltipWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    if (subscriptionService == null) {
+      return child; // Show child if service not available (fail open)
+    }
 
     // Check if feature is locked
     final isLocked = !SubscriptionGuard.canAccessFeature(

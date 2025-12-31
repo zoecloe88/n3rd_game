@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
-import 'package:n3rd_game/screens/youth_transition_screen.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -17,6 +16,7 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
@@ -367,32 +367,17 @@ class _EditionsScreenState extends State<EditionsScreen> {
       return;
     }
 
-    // Navigate to transition screen, then to game with edition info
+    // Navigate directly to game with edition info
     if (!context.mounted) return;
-    NavigationHelper.safePush(
+    NavigationHelper.safeNavigate(
       context,
-      MaterialPageRoute(
-        builder: (_) => YouthTransitionScreen(
-          onFinished: () {
-            if (!context.mounted) return;
-            NavigationHelper.safePop(context); // Pop transition screen
-            // Navigate to game screen with edition info
-            // Note: Editions will use their own content system (not trivia generator)
-            // For now, pass edition info - content system will be implemented separately
-            if (!context.mounted) return;
-            NavigationHelper.safeNavigate(
-              context,
-              '/game',
-              arguments: {
-                'mode': null, // Editions may have their own modes
-                'edition': edition.id,
-                'editionName': edition.name,
-                // triviaPool will be null - editions need their own content system
-              },
-            );
-          },
-        ),
-      ),
+      '/game',
+      arguments: {
+        'mode': null, // Editions may have their own modes
+        'edition': edition.id,
+        'editionName': edition.name,
+        // triviaPool will be null - editions need their own content system
+      },
     );
   }
 
@@ -540,12 +525,12 @@ class _EditionsScreenState extends State<EditionsScreen> {
 
                                 // Capture BuildContext-dependent objects before async operations
                                 final subscriptionService =
-                                    Provider.of<SubscriptionService>(
+                                    ProviderHelper.safeGetOrThrow<SubscriptionService>(
                                   context,
                                   listen: false,
                                 );
                                 final analyticsService =
-                                    Provider.of<AnalyticsService>(
+                                    ProviderHelper.safeGetOrThrow<AnalyticsService>(
                                   context,
                                   listen: false,
                                 );

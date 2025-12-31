@@ -63,11 +63,14 @@ class _InitialLoadingScreenWrapperState
 
       // Navigate after successful initialization
       if (mounted && context.mounted) {
-        unawaited(Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
-          ),
-        ),);
+        final navigator = Navigator.maybeOf(context);
+        if (navigator != null) {
+          unawaited(navigator.pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
+            ),
+          ),);
+        }
       }
     } catch (e) {
       // Even if font loading fails, proceed after 1 second
@@ -80,11 +83,14 @@ class _InitialLoadingScreenWrapperState
 
       // Ensure we navigate even if font loading fails
       if (mounted && context.mounted) {
-        unawaited(Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
-          ),
-        ),);
+        final navigator = Navigator.maybeOf(context);
+        if (navigator != null) {
+          unawaited(navigator.pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const AnimatedLogoLoadingScreenWrapper(),
+            ),
+          ),);
+        }
       }
     }
   }

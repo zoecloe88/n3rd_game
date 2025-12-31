@@ -11,6 +11,7 @@ import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/widgets/upgrade_dialog.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 import 'package:n3rd_game/widgets/skeleton_loader.dart';
@@ -35,7 +36,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
     // Check subscription access before loading
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -48,7 +49,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
   }
 
   void _showUpgradeDialog() {
-    final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -81,7 +82,7 @@ class _AIEditionHistoryScreenState extends State<AIEditionHistoryScreen> {
     });
 
     try {
-      final aiService = Provider.of<AIEditionService>(context, listen: false);
+      final aiService = ProviderHelper.safeGetOrThrow<AIEditionService>(context, listen: false);
       final history = await aiService.getGenerationHistory(limit: 50);
 
       if (!mounted) return;

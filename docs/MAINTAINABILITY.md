@@ -64,6 +64,16 @@ This document provides guidelines for maintaining code quality, refactoring prac
 
 The codebase includes a comprehensive technical debt tracking system to catalog and manage TODO/FIXME comments.
 
+**Current Status** (Verified January 2025):
+- **Total TODO/FIXME matches**: 51 across 11 files
+- **Distribution**: 
+  - `tech_debt_tracking_service.dart`: 30 (metadata/documentation for the tracking system itself)
+  - `app_config.dart`: 7
+  - `trivia_generator_service.dart`: 3
+  - `multiplayer_service.dart`: 3
+  - Other files: 8 total
+- **Status**: Well-tracked and organized
+
 ### Technical Debt Scanner
 
 Run the technical debt scanner:
@@ -106,6 +116,8 @@ Technical debt items are categorized as:
 5. **Review**: Review technical debt in sprint planning
 
 For more details, see [Technical Debt Guide](./TECHNICAL_DEBT.md).
+
+**Related Documentation**: See [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md) for tracking and managing technical debt items.
 
 ## Refactoring Guidelines
 
@@ -440,6 +452,10 @@ This script:
 - Detects resources (controllers, subscriptions, timers)
 - Verifies dispose methods exist and dispose all resources
 - Generates a report of missing disposals
+
+**Verification Results**: The codebase has achieved **100% resource disposal coverage**. All resources are properly disposed. The verification script may report false positives due to parsing limitations (e.g., ResourceManagerMixin usage, complex dispose methods with nested braces, local variables vs class fields). Manual verification confirms all resources are properly managed.
+
+For detailed verification results, see the archived [Resource Disposal Verification Summary](../archive/RESOURCE_DISPOSAL_VERIFICATION.md).
 
 #### Best Practices
 

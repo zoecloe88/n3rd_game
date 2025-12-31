@@ -166,6 +166,52 @@ graph TB
     StatsScreen -->|navigate| AnalyticsDashboardScreen
 ```
 
+## Application Layer Architecture
+
+### main.dart Refactoring (January 2025)
+
+The application entry point (`main.dart`) has been refactored to use a modular architecture with clear separation of concerns. The refactoring reduced the file from 1,507 lines to 145 lines (90% reduction), achieving 71% under the ideal target.
+
+#### Extracted Modules
+
+1. **ServiceRegistry** (`lib/core/service_registry.dart`)
+   - Centralizes all service provider creation
+   - Manages dependency injection setup
+   - Provides `createProviders()` and `createProxyProviders()` methods
+
+2. **RouteBuilder** (`lib/core/route_builder.dart`)
+   - Centralizes route definitions and generation
+   - Handles dynamic routes and deep links
+   - Provides `routes`, `onGenerateRoute()`, and `onUnknownRoute()` methods
+
+3. **AppInitializer** (`lib/core/app_initializer.dart`)
+   - Handles Firebase initialization
+   - Manages trivia template loading
+   - Initializes RevenueCat service
+   - Sets up error handlers
+   - Provides `initialize()` method returning initialization results
+
+4. **AppConfiguration** (`lib/core/app_configuration.dart`)
+   - MaterialApp theme configuration
+   - Localization delegates setup
+   - Accessibility MediaQuery builder
+   - Provides static methods for app configuration
+
+5. **AuthStateListener** (`lib/widgets/auth_state_listener.dart`)
+   - Listens to authentication state changes
+   - Automatically redirects to login when user logs out on protected routes
+   - Handles navigation state management
+
+#### Benefits
+
+- **Reduced Complexity**: main.dart is now a thin orchestration layer (~145 lines)
+- **Better Testability**: Each module can be tested independently
+- **Improved Maintainability**: Changes to routes/services don't require editing main.dart
+- **Clearer Separation**: Each responsibility in its own file
+- **Single Source of Truth**: No duplication of provider/route definitions
+
+For detailed refactoring information, see [CODE_COMPLEXITY.md](./CODE_COMPLEXITY.md#priority-refactoring-maindart).
+
 ## Service Architecture
 
 This project follows a **service-oriented architecture** with dependency injection via Provider.
@@ -241,25 +287,33 @@ graph TB
 
 ### Dependency Injection
 
-Services are provided via Provider and can be accessed using:
+Services are provided via Provider and should be accessed using safe patterns:
 ```dart
+// Safe access pattern (recommended for early initialization and utility widgets)
+final service = ProviderHelper.safeGet<SomeService>(context, listen: false);
+if (service != null) {
+  // Use service
+}
+
+// Direct access (only safe after services are guaranteed to be initialized)
 final service = Provider.of<SomeService>(context, listen: false);
 ```
 
 **Provider Setup Pattern:**
 - Single instance services use `ChangeNotifierProvider`
 - Dependent services use `ProxyProvider` to reuse existing instances
-- All services wired in `main.dart` with proper dependency order
+- All services wired via `ServiceRegistry` with proper dependency order (see [ServiceRegistry](../lib/core/service_registry.dart))
+- **Important**: Use `ProviderHelper.safeGet` during early initialization (e.g., in `main.dart`, route guards, utility widgets) to prevent `ProviderNotFoundException` crashes
 
 ## Service Interaction Patterns
 
 ### Initialization Flow
 1. **App Startup** (`main.dart`)
-   - Initialize Firebase
-   - Load trivia templates
-   - Initialize RevenueCat
-   - Create all service providers
-   - Wire service dependencies via ProxyProviders
+   - Call `AppInitializer.initialize()` to initialize Firebase, trivia templates, and RevenueCat
+   - Use `ServiceRegistry.createProviders()` to create all service providers
+   - Use `ServiceRegistry.createProxyProviders()` to wire service dependencies
+   - Configure MaterialApp using `AppConfiguration` static methods
+   - Use `RouteBuilder.routes` and `RouteBuilder.onGenerateRoute()` for routing
 
 2. **Service Initialization**
    - All services follow standardized `init()` pattern
@@ -366,6 +420,9 @@ sequenceDiagram
 These services have no dependencies and can be initialized first:
 
 - `LoggerService` - Logging utility
+- `FirebaseHelper` - Safe Firebase access with initialization checks
+- `ProviderHelper` - Safe provider access with error handling
+- `JsonHelper` - Safe JSON decoding with type checking
 - `AuthService` - Authentication
 - `AnalyticsService` - Analytics tracking
 - `ThemeService` - Theme management
@@ -870,7 +927,7 @@ All navigation events are tracked:
 ### Deep Link Handling
 
 Deep links are handled consistently:
-1. **Parsing**: Unified parser in `main.dart` `onGenerateRoute`
+1. **Parsing**: Unified parser in `RouteBuilder.onGenerateRoute()` (see [RouteBuilder](../lib/core/route_builder.dart))
 2. **Validation**: Parameter format validation (e.g., Firestore IDs)
 3. **Restoration**: Saved to secure storage if auth required
 4. **Execution**: Restored after authentication completes
@@ -992,6 +1049,9 @@ lib/
 ├── config/          # Configuration constants
 ├── data/            # Static data (templates, etc.)
 ├── utils/           # Utility functions
+│   ├── firebase_helper.dart    # Safe Firebase access
+│   ├── provider_helper.dart    # Safe provider access
+│   └── json_helper.dart        # Safe JSON decoding
 └── l10n/            # Localization
 ```
 
@@ -1049,4 +1109,15 @@ lib/
 6. **Avoid Circular Dependencies**: If Service A depends on Service B, Service B should not depend on Service A
 7. **Use Interfaces**: Define interfaces for services to enable loose coupling
 8. **Lazy Initialization**: Initialize services only when needed
-9. **Optional Dependencies**: Make dependencies optional when possible to improve resilience---*Last Updated: January 2025*
+9. **Optional Dependencies**: Make dependencies optional when possible to improve resilience## Related Documentation
+
+- **[ADRs/](./ADRs/)** - Architecture Decision Records documenting key technical decisions:
+  - [ADR-001: Font Loading Strategy](./ADRs/001-font-loading-strategy.md) - Font loading approach
+  - [ADR-002: Multiplayer Security Model](./ADRs/002-multiplayer-security-model.md) - Multiplayer security architecture
+  - [ADR-003: State Persistence Strategy](./ADRs/003-state-persistence-strategy.md) - State management and persistence
+  - [ADR-004: Error Recovery Mechanisms](./ADRs/004-error-recovery-mechanisms.md) - Error recovery patterns
+  - [ADR-005: Performance Monitoring](./ADRs/005-performance-monitoring.md) - Performance tracking approach
+  - [ADR-006: Subscription Routing Architecture](./ADRs/006-subscription-routing-architecture.md) - Subscription system design
+  - [ADR-007: Error Handling Strategy](./ADRs/007-error-handling-strategy.md) - Error handling patterns
+
+---*Last Updated: January 2025*

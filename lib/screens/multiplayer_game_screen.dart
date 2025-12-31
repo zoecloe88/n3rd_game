@@ -27,6 +27,8 @@ import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/feedback_helper.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/widgets/app_button.dart';
 import 'package:n3rd_game/widgets/app_text_field.dart';
 import 'package:n3rd_game/widgets/app_card.dart';
@@ -61,7 +63,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     // CRITICAL: Check subscription access before initializing game
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -77,7 +79,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   }
 
   void _showUpgradeDialogAndNavigateBack() {
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -147,7 +149,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
         // Verify we're still in the same room before restoring
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!mounted) return;
-          final multiplayerService = Provider.of<MultiplayerService>(
+          final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
             context,
             listen: false,
           );
@@ -158,7 +160,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
             _pendingSubmission = submission;
 
             // Try to retry if network is available
-            final networkService = Provider.of<NetworkService>(
+            final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(
               context,
               listen: false,
             );
@@ -214,7 +216,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   void _setupNetworkListener() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final networkService = Provider.of<NetworkService>(
+      final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(
         context,
         listen: false,
       );
@@ -229,7 +231,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   void _onNetworkChanged() {
     if (!mounted) return;
 
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
     if (networkService.hasInternetReachability &&
         _pendingSubmission != null &&
         !_isRetryingSubmission) {
@@ -243,7 +245,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     super.didChangeAppLifecycleState(state);
     if (!mounted) return;
 
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
 
     // Handle app backgrounding/foregrounding for multiplayer
     if (state == AppLifecycleState.paused ||
@@ -277,11 +279,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     _isRetryingSubmission = true;
 
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
-      final networkService = Provider.of<NetworkService>(
+      final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(
         context,
         listen: false,
       );
@@ -388,20 +390,19 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   void _initializeGame() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
-      final chatService = Provider.of<ChatService>(context, listen: false);
-      final voiceChatService = Provider.of<VoiceChatService>(
+      final voiceChatService = ProviderHelper.safeGetOrThrow<VoiceChatService>(
         context,
         listen: false,
       );
-      final gameService = Provider.of<GameService>(context, listen: false);
+      final gameService = ProviderHelper.safeGetOrThrow<GameService>(context, listen: false);
       // Safely get TriviaGeneratorService with fallback
       TriviaGeneratorService generator;
       try {
-        generator = Provider.of<TriviaGeneratorService>(
+        generator = ProviderHelper.safeGetOrThrow<TriviaGeneratorService>(
           context,
           listen: false,
         );
@@ -410,7 +411,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
           'TriviaGeneratorService not found in provider tree, creating fallback instance',
           error: e,
         );
-        generator = TriviaGeneratorService();
+        try {
+          generator = TriviaGeneratorService();
+        } catch (e2) {
+          LoggerService.error('Failed to create TriviaGeneratorService fallback', error: e2);
+          generator = TriviaGeneratorService.fallback();
+        }
       }
 
       final room = multiplayerService.currentRoom;
@@ -439,8 +445,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
         }
       }
 
-      // Start listening to chat
-      chatService.startListening(room.id);
+      // Chat messages are accessed via StreamBuilder using getMessages()
 
       // Initialize and join voice chat
       try {
@@ -465,7 +470,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
       // Log game started activity
       final newsfeedService =
-          Provider.of<NewsfeedService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<NewsfeedService>(context, listen: false);
       unawaited(
         newsfeedService.logMultiplayerActivity(
           activityType: NewsfeedActivityType.multiplayerGameStarted,
@@ -503,11 +508,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
   Future<void> _initializeLiveVideo(String roomId) async {
     try {
-      final liveVideoService = Provider.of<LiveVideoService>(
+      final liveVideoService = ProviderHelper.safeGetOrThrow<LiveVideoService>(
         context,
         listen: false,
       );
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -526,7 +531,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       if (!mounted) return;
 
       // Get current participant count from room
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
@@ -539,7 +544,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       if (!mounted) return;
 
       // Log analytics
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -560,7 +565,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
   Future<void> _toggleVideo() async {
     try {
-      final liveVideoService = Provider.of<LiveVideoService>(
+      final liveVideoService = ProviderHelper.safeGetOrThrow<LiveVideoService>(
         context,
         listen: false,
       );
@@ -578,7 +583,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
       if (!liveVideoService.isInSession) {
         // Initialize if not already in session
-        final multiplayerService = Provider.of<MultiplayerService>(
+        final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
           context,
           listen: false,
         );
@@ -619,12 +624,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
     networkService.removeListener(_onNetworkChanged);
 
     // If leaving the room, check if we should clear pending submission
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
@@ -640,7 +645,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     _chatScrollController.dispose();
     // Leave voice chat
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final voiceChatService = Provider.of<VoiceChatService>(
+      final voiceChatService = ProviderHelper.safeGetOrThrow<VoiceChatService>(
         context,
         listen: false,
       );
@@ -648,7 +653,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
       // Leave live video session
       try {
-        final liveVideoService = Provider.of<LiveVideoService>(
+        final liveVideoService = ProviderHelper.safeGetOrThrow<LiveVideoService>(
           context,
           listen: false,
         );
@@ -667,12 +672,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   }
 
   Future<void> _submitAnswer() async {
-    final gameService = Provider.of<GameService>(context, listen: false);
-    final multiplayerService = Provider.of<MultiplayerService>(
+    final gameService = ProviderHelper.safeGetOrThrow<GameService>(context, listen: false);
+    final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
       context,
       listen: false,
     );
-    final networkService = Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
     final room = multiplayerService.currentRoom;
 
     if (room == null || gameService.currentTrivia == null) return;
@@ -785,7 +790,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
               ),
             );
 
-            final analyticsService = Provider.of<AnalyticsService>(
+            final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
               context,
               listen: false,
             );
@@ -834,7 +839,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
             // Safely get TriviaGeneratorService with fallback
             TriviaGeneratorService generator;
             try {
-              generator = Provider.of<TriviaGeneratorService>(
+              generator = ProviderHelper.safeGetOrThrow<TriviaGeneratorService>(
                 context,
                 listen: false,
               );
@@ -866,7 +871,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
           }
           // Log error for debugging
           if (mounted) {
-            final analyticsService = Provider.of<AnalyticsService>(
+            final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
               context,
               listen: false,
             );
@@ -892,9 +897,16 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     final message = _chatController.text.trim();
     if (message.isEmpty) return;
 
-    final chatService = Provider.of<ChatService>(context, listen: false);
-    await chatService.sendMessage(message);
-    _chatController.clear();
+    final chatService = ProviderHelper.safeGetOrThrow<ChatService>(context, listen: false);
+    final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(context, listen: false);
+    final room = multiplayerService.currentRoom;
+    if (room != null) {
+      await chatService.sendMessage(
+        lobbyId: room.id,
+        message: message,
+      );
+      _chatController.clear();
+    }
 
     // Scroll to bottom
     if (mounted && _chatScrollController.hasClients) {
@@ -943,12 +955,10 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
                 if (room.status == RoomStatus.finished) {
                   // Log game completed activity when screen is shown
                   final newsfeedService =
-                      Provider.of<NewsfeedService>(context, listen: false);
-                  final winner = room.players.isNotEmpty
-                      ? (room.players
-                            ..sort((a, b) => b.score.compareTo(a.score)))
-                          .first
-                      : null;
+                      ProviderHelper.safeGetOrThrow<NewsfeedService>(context, listen: false);
+                  final sortedPlayers = List<Player>.from(room.players)
+                    ..sort((a, b) => b.score.compareTo(a.score));
+                  final winner = ListHelper.safeFirst(sortedPlayers);
                   unawaited(
                     newsfeedService.logMultiplayerActivity(
                       activityType:
@@ -1046,7 +1056,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
                           onPressed: () async {
                             // Get analytics service before async operation
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               context,
                               listen: false,
                             );
@@ -1391,7 +1401,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
     List<Player> sortedPlayers,
   ) {
     final currentUserId = multiplayerService.currentUserId;
-    final friendsService = Provider.of<FriendsService>(context, listen: false);
+      final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(context, listen: false);
     final allFriends = friendsService.friends;
     final friendIds = allFriends.map((f) => f.userId).toSet();
 
@@ -1469,11 +1479,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
   Future<void> _createRematch(GameRoom originalRoom) async {
     try {
-      final multiplayerService = Provider.of<MultiplayerService>(
+      final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
         context,
         listen: false,
       );
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -1533,11 +1543,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
   Future<void> _addFriendAfterGame(Player player) async {
     try {
-      final friendsService = Provider.of<FriendsService>(
+      final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
         context,
         listen: false,
       );
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -1575,17 +1585,26 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
   Future<void> _shareGameResult(
       GameRoom room, List<Player> sortedPlayers,) async {
     try {
-      final winner = sortedPlayers.first;
+      final winner = ListHelper.safeFirst(sortedPlayers);
+      if (winner == null) {
+        LoggerService.warning('Cannot share game result: no players found');
+        return;
+      }
       final winnerName = winner.displayName ?? winner.email.split('@').first;
-      final myScore = sortedPlayers
-          .firstWhere(
-            (p) =>
-                p.userId ==
-                Provider.of<MultiplayerService>(context, listen: false)
-                    .currentUserId,
-            orElse: () => sortedPlayers.last,
-          )
-          .score;
+      final currentUserId = ProviderHelper.safeGetOrThrow<MultiplayerService>(context, listen: false)
+          .currentUserId;
+      final myPlayer = sortedPlayers.firstWhere(
+        (p) => p.userId == currentUserId,
+        orElse: () {
+          final lastPlayer = ListHelper.safeLast(sortedPlayers);
+          if (lastPlayer != null) return lastPlayer;
+          // Fallback: return first player if list is not empty
+          final firstPlayer = ListHelper.safeFirst(sortedPlayers);
+          if (firstPlayer != null) return firstPlayer;
+          throw Exception('No players found in sortedPlayers');
+        },
+      );
+      final myScore = myPlayer.score;
 
       final shareText = 'Just played N3RD Trivia multiplayer!\n\n'
           'Winner: $winnerName (${winner.score} pts)\n'
@@ -1597,7 +1616,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       if (!mounted) return;
 
       // Log analytics
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -1716,40 +1735,68 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
 
             // Messages
             Expanded(
-              child: ListView.builder(
-                controller: _chatScrollController,
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                itemCount: chatService.messages.length,
-                itemBuilder: (context, index) {
-                  final message = chatService.messages[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                message.userName,
-                                style: AppTypography.labelSmall.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.7),
+              child: Builder(
+                builder: (context) {
+                  final multiplayerService = ProviderHelper.safeGetOrThrow<MultiplayerService>(
+                    context,
+                    listen: false,
+                  );
+                  final room = multiplayerService.currentRoom;
+                  if (room == null) {
+                    return const Center(
+                      child: Text(
+                        'No room available',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    );
+                  }
+                  return StreamBuilder<List<ChatMessage>>(
+                    stream: chatService.getMessages(room.id),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        );
+                      }
+                      final messages = snapshot.data!;
+                      return ListView.builder(
+                        controller: _chatScrollController,
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        message.displayName,
+                                        style: AppTypography.labelSmall.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        message.message,
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                message.message,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               ),

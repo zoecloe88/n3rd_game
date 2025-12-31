@@ -2,17 +2,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:n3rd_game/models/friend.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 class FriendsService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      Firebase.app();
       return FirebaseFirestore.instance;
     } catch (e) {
       return null;
@@ -20,8 +23,11 @@ class FriendsService extends ChangeNotifier {
   }
 
   String? get _userId {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      return FirebaseHelper.getCurrentUser()?.uid;
     } catch (e) {
       return null;
     }
@@ -108,7 +114,10 @@ class FriendsService extends ChangeNotifier {
 
         // Update pagination state
         if (snapshot.docs.isNotEmpty) {
-          _lastFriendDocument = snapshot.docs.last;
+          final lastDoc = ListHelper.safeLast(snapshot.docs);
+          if (lastDoc != null) {
+            _lastFriendDocument = lastDoc;
+          }
           _hasMore = snapshot.docs.length >= _pageSize;
         } else {
           _hasMore = false;
@@ -189,7 +198,10 @@ class FriendsService extends ChangeNotifier {
           }
         }
 
-        _lastFriendDocument = snapshot.docs.last;
+        final lastDoc = ListHelper.safeLast(snapshot.docs);
+        if (lastDoc != null) {
+          _lastFriendDocument = lastDoc;
+        }
         _hasMore = snapshot.docs.length >= _pageSize;
       }
     } catch (e) {
@@ -501,6 +513,7 @@ class FriendsService extends ChangeNotifier {
   }
 
   /// Get friend suggestions (users you might know)
+  /// Uses smart algorithm: mutual friends, similar activity, leaderboard proximity
   Future<List<Map<String, dynamic>>> getFriendSuggestions() async {
     final userId = _userId;
     final firestore = _firestore;
@@ -519,46 +532,269 @@ class FriendsService extends ChangeNotifier {
           .toSet();
       friendIds.add(userId); // Exclude self
 
-      // Get random users (excluding friends and self)
-      final suggestionsSnapshot =
-          await firestore.collection('user_profiles').limit(20).get();
-
       final suggestions = <Map<String, dynamic>>[];
-      for (final doc in suggestionsSnapshot.docs) {
-        if (!friendIds.contains(doc.id)) {
-          final data = doc.data();
-          suggestions.add({
-            'userId': doc.id,
-            'email': data['email'],
-            'displayName': data['displayName'],
-          });
-          if (suggestions.length >= 5) break; // Limit to 5 suggestions
+      final suggestionScores = <String, int>{};
+
+      // 1. Get mutual friends (friends of friends)
+      if (friendIds.length > 1) {
+        final mutualFriendsQuery = await firestore
+            .collection('friends')
+            .where('userId', whereIn: friendIds.where((id) => id != userId).take(10).toList())
+            .where('status', isEqualTo: 'accepted')
+            .limit(50)
+            .get();
+
+        for (final doc in mutualFriendsQuery.docs) {
+          final friendId = doc.data()['friendId'] as String;
+          if (!friendIds.contains(friendId)) {
+            final score = suggestionScores[friendId] ?? 0;
+            suggestionScores[friendId] = score + 10; // High weight for mutual friends
+          }
         }
       }
 
-      return suggestions;
+      // 2. Get users with similar leaderboard rank (within 50 ranks)
+      try {
+        final userProfile = await firestore.collection('user_profiles').doc(userId).get();
+        if (userProfile.exists) {
+          final userData = userProfile.data();
+          final userScore = (userData?['totalScore'] as int?) ?? 0;
+          
+          // Get users with similar scores (within 20% range)
+          final minScore = (userScore * 0.8).round();
+          final maxScore = (userScore * 1.2).round();
+          
+          final similarScoreUsers = await firestore
+              .collection('user_profiles')
+              .where('totalScore', isGreaterThanOrEqualTo: minScore)
+              .where('totalScore', isLessThanOrEqualTo: maxScore)
+              .limit(30)
+              .get();
+
+          for (final doc in similarScoreUsers.docs) {
+            if (!friendIds.contains(doc.id)) {
+              final score = suggestionScores[doc.id] ?? 0;
+              suggestionScores[doc.id] = score + 5; // Medium weight for similar activity
+            }
+          }
+        }
+      } catch (e) {
+        LoggerService.warning('Error getting similar score users for suggestions', error: e);
+      }
+
+      // 3. Get users who play similar game modes (if game history exists)
+      try {
+        final userGameHistory = await firestore
+            .collection('game_history')
+            .where('userId', isEqualTo: userId)
+            .orderBy('playedAt', descending: true)
+            .limit(10)
+            .get();
+
+        if (userGameHistory.docs.isNotEmpty) {
+          // Get most played game modes
+          final modeCounts = <String, int>{};
+          for (final doc in userGameHistory.docs) {
+            final mode = doc.data()['gameMode'] as String?;
+            if (mode != null) {
+              modeCounts[mode] = (modeCounts[mode] ?? 0) + 1;
+            }
+          }
+
+          if (modeCounts.isNotEmpty) {
+            final topMode = modeCounts.entries
+                .reduce((a, b) => a.value > b.value ? a : b)
+                .key;
+
+            // Find users who also play this mode
+            final similarModeUsers = await firestore
+                .collection('game_history')
+                .where('gameMode', isEqualTo: topMode)
+                .limit(20)
+                .get();
+
+            for (final doc in similarModeUsers.docs) {
+              final otherUserId = doc.data()['userId'] as String?;
+              if (otherUserId != null && !friendIds.contains(otherUserId)) {
+                final score = suggestionScores[otherUserId] ?? 0;
+                suggestionScores[otherUserId] = score + 3; // Lower weight for similar modes
+              }
+            }
+          }
+        }
+      } catch (e) {
+        LoggerService.warning('Error getting similar game mode users for suggestions', error: e);
+      }
+
+      // 4. Get user profiles for all suggested user IDs
+      final suggestedUserIds = suggestionScores.keys.toList();
+      if (suggestedUserIds.isNotEmpty) {
+        // Sort by score (highest first)
+        suggestedUserIds.sort((a, b) => (suggestionScores[b] ?? 0).compareTo(suggestionScores[a] ?? 0));
+        
+        // Get top 10
+        final topUserIds = suggestedUserIds.take(10).toList();
+        
+        // Batch get user profiles
+        for (final uid in topUserIds) {
+          try {
+            final userDoc = await firestore.collection('user_profiles').doc(uid).get();
+            if (userDoc.exists) {
+              final data = userDoc.data();
+              suggestions.add({
+                'userId': uid,
+                'email': data?['email'],
+                'displayName': data?['displayName'],
+                'score': suggestionScores[uid] ?? 0,
+              });
+            }
+          } catch (e) {
+            LoggerService.warning('Error getting user profile for suggestion: $uid', error: e);
+          }
+        }
+      }
+
+      // 5. Fallback: If we don't have enough suggestions, add random users
+      if (suggestions.length < 5) {
+        final randomUsersSnapshot =
+            await firestore.collection('user_profiles').limit(20).get();
+
+        for (final doc in randomUsersSnapshot.docs) {
+          if (suggestions.length >= 10) break;
+          if (!friendIds.contains(doc.id) &&
+              !suggestions.any((s) => s['userId'] == doc.id)) {
+            final data = doc.data();
+            suggestions.add({
+              'userId': doc.id,
+              'email': data['email'],
+              'displayName': data['displayName'],
+              'score': 1, // Low score for random users
+            });
+          }
+        }
+      }
+
+      // Sort by score and return top 10
+      suggestions.sort((a, b) => ((b['score'] as int?) ?? 0).compareTo((a['score'] as int?) ?? 0));
+      return suggestions.take(10).toList();
     } catch (e) {
       LoggerService.error('Error getting friend suggestions', error: e);
-      return [];
+      // Fallback to random users on error
+      try {
+        final friendsSnapshot = await firestore
+            .collection('friends')
+            .where('userId', isEqualTo: userId)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+
+        final friendIds = friendsSnapshot.docs
+            .map((doc) => doc.data()['friendId'] as String)
+            .toSet();
+        friendIds.add(userId);
+
+        final randomUsersSnapshot =
+            await firestore.collection('user_profiles').limit(20).get();
+
+        final fallbackSuggestions = <Map<String, dynamic>>[];
+        for (final doc in randomUsersSnapshot.docs) {
+          if (fallbackSuggestions.length >= 5) break;
+          if (!friendIds.contains(doc.id)) {
+            final data = doc.data();
+            fallbackSuggestions.add({
+              'userId': doc.id,
+              'email': data['email'],
+              'displayName': data['displayName'],
+            });
+          }
+        }
+        return fallbackSuggestions;
+      } catch (fallbackError) {
+        LoggerService.error('Error in fallback friend suggestions', error: fallbackError);
+        return [];
+      }
     }
   }
 
-  /// Send invitation to a user via email/SMS/share link
-  /// Creates an invitation record and uses share_plus to share the invite
-  Future<void> sendInvitation(String email) async {
+  /// Generate unique invite code for current user
+  /// Creates or retrieves existing invite code from Firestore
+  Future<String> generateInviteCode() async {
     final userId = _userId;
     final firestore = _firestore;
     if (userId == null || firestore == null) {
       throw AuthenticationException('User not authenticated');
     }
 
-    // Create invitation record in Firestore
-    await firestore.collection('invitations').add({
-      'fromUserId': userId,
-      'toEmail': email,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Check if user already has an invite code
+      final inviteCodeDoc = await firestore
+          .collection('user_invite_codes')
+          .doc(userId)
+          .get();
+
+      if (inviteCodeDoc.exists) {
+        final data = inviteCodeDoc.data();
+        final code = data?['code'] as String?;
+        final expiresAt = data?['expiresAt'] as Timestamp?;
+        
+        // Check if code is still valid (24 hours)
+        if (code != null && expiresAt != null) {
+          final expiresDate = expiresAt.toDate();
+          if (expiresDate.isAfter(DateTime.now())) {
+            return code;
+          }
+        }
+      }
+
+      // Generate new invite code (6 character alphanumeric)
+      final random = DateTime.now().millisecondsSinceEpoch;
+      final code = 'N3RD${random.toString().substring(random.toString().length - 6).toUpperCase()}';
+      
+      // Store invite code with 24 hour expiration
+      await firestore.collection('user_invite_codes').doc(userId).set({
+        'code': code,
+        'userId': userId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
+      });
+
+      return code;
+    } catch (e) {
+      LoggerService.error('Error generating invite code', error: e);
+      // Fallback: use userId as code
+      return userId.substring(0, userId.length > 8 ? 8 : userId.length).toUpperCase();
+    }
+  }
+
+  /// Send invitation to a user via email/SMS/share link
+  /// Creates an invitation record and uses share_plus to share the invite
+  Future<void> sendInvitation(String? email) async {
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      throw AuthenticationException('User not authenticated');
+    }
+
+    // Generate invite code
+    final inviteCode = await generateInviteCode();
+
+    // Create invitation record in Firestore (email optional for non-email methods)
+    if (email != null && email.isNotEmpty) {
+      await firestore.collection('invitations').add({
+        'fromUserId': userId,
+        'toEmail': email,
+        'inviteCode': inviteCode,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Store invite code even without email
+      await firestore.collection('invitations').add({
+        'fromUserId': userId,
+        'inviteCode': inviteCode,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   /// Report a user for inappropriate behavior
@@ -653,7 +889,11 @@ class FriendsService extends ChangeNotifier {
                     .get();
 
                 if (userQuery.docs.isNotEmpty) {
-                  final doc = userQuery.docs.first;
+                  final doc = ListHelper.safeFirst(userQuery.docs);
+                  if (doc == null) {
+                    LoggerService.warning('User query returned empty docs list');
+                    continue;
+                  }
                   final userData = doc.data();
                   results.add({
                     'userId': doc.id,

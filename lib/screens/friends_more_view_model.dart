@@ -201,7 +201,7 @@ class FriendsMoreViewModel extends ChangeNotifier {
   }
 
   /// Send invitation
-  Future<bool> sendInvitation(String email) async {
+  Future<bool> sendInvitation(String? email) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

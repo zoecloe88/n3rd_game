@@ -49,8 +49,8 @@ void main() {
     );
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
     // Clear secure storage mock
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

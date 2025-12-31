@@ -26,8 +26,8 @@ void main() {
     );
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
     // Clear mock handler
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

@@ -3,7 +3,6 @@ import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:n3rd_game/models/game_room.dart';
@@ -16,7 +15,10 @@ import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/services/notification_service.dart';
+import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class MultiplayerService extends ChangeNotifier {
@@ -32,8 +34,11 @@ class MultiplayerService extends ChangeNotifier {
   /// Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestoreInstance {
     if (_firestore != null) return _firestore;
+    if (!FirebaseHelper.isInitialized()) {
+      LoggerService.debug('Firebase not initialized for MultiplayerService');
+      return null;
+    }
     try {
-      Firebase.app(); // Check if Firebase is initialized
       _firestore = FirebaseFirestore.instance;
       return _firestore;
     } catch (e) {
@@ -45,8 +50,11 @@ class MultiplayerService extends ChangeNotifier {
   /// Get Auth instance if Firebase is available
   FirebaseAuth? get _authInstance {
     if (_auth != null) return _auth;
+    if (!FirebaseHelper.isInitialized()) {
+      LoggerService.debug('Firebase not initialized for MultiplayerService');
+      return null;
+    }
     try {
-      Firebase.app(); // Check if Firebase is initialized
       _auth = FirebaseAuth.instance;
       return _auth;
     } catch (e) {
@@ -367,16 +375,26 @@ class MultiplayerService extends ChangeNotifier {
 
   // Create a new game room
   // CRITICAL: Uses transaction to ensure atomic room creation
+  // NOTE: Premium check should be done in UI layer, but we validate here as well
   Future<GameRoom> createRoom({
     required MultiplayerMode mode,
     required int maxPlayers,
     bool friendsOnly = false,
     List<String>? allowedPlayers,
+    SubscriptionService? subscriptionService,
   }) async {
     final auth = _authInstance;
     final user = auth?.currentUser;
     if (user == null) {
       throw AuthenticationException('User must be logged in to create a room');
+    }
+
+    // Premium check - validate premium status if subscription service provided
+    if (subscriptionService != null && !subscriptionService.isPremium) {
+      throw ValidationException(
+        'Premium subscription required to create game lobbies',
+        recoverySuggestion: 'Please upgrade to Premium to access multiplayer features.',
+      );
     }
 
     // CRITICAL: Rate limit room creation to prevent abuse
@@ -487,11 +505,23 @@ class MultiplayerService extends ChangeNotifier {
   // Join an existing room
   // CRITICAL: Uses Firestore transaction to prevent race conditions
   // This ensures atomic check-and-update to prevent exceeding maxPlayers
-  Future<GameRoom> joinRoom(String roomId) async {
+  // NOTE: Premium check should be done in UI layer, but we validate here as well
+  Future<GameRoom> joinRoom(
+    String roomId, {
+    SubscriptionService? subscriptionService,
+  }) async {
     final auth = _authInstance;
     final user = auth?.currentUser;
     if (user == null) {
       throw AuthenticationException('User must be logged in to join a room');
+    }
+
+    // Premium check - validate premium status if subscription service provided
+    if (subscriptionService != null && !subscriptionService.isPremium) {
+      throw ValidationException(
+        'Premium subscription required to join game lobbies',
+        recoverySuggestion: 'Please upgrade to Premium to access multiplayer features.',
+      );
     }
 
     // CRITICAL: Sanitize room ID to prevent injection attacks
@@ -696,8 +726,12 @@ class MultiplayerService extends ChangeNotifier {
             } else {
               // CRITICAL: Double-check players list is not empty to prevent race condition
               // List might become empty between isEmpty check and first access
-              // Transfer host to first remaining player
-              final newHost = updatedRoom.players.first;
+              // Transfer host to first remaining player (safe access)
+              final newHost = ListHelper.safeFirst(updatedRoom.players);
+              if (newHost == null) {
+                LoggerService.error('Cannot transfer host: players list is empty');
+                return;
+              }
 
               // Validate new host exists and is valid
               if (newHost.userId.isEmpty) {
@@ -744,7 +778,13 @@ class MultiplayerService extends ChangeNotifier {
                 // Validate new host is still available
                 final validNewHost = currentRoom.players.firstWhere(
                   (p) => p.userId == newHost.userId,
-                  orElse: () => currentRoom.players.first,
+                  orElse: () {
+                    final firstPlayer = ListHelper.safeFirst(currentRoom.players);
+                    if (firstPlayer == null) {
+                      throw Exception('Cannot find valid host: players list is empty');
+                    }
+                    return firstPlayer;
+                  },
                 );
 
                 // Transfer host
@@ -863,8 +903,9 @@ class MultiplayerService extends ChangeNotifier {
     Map<String, bool>? playerSubmissions;
     if (_currentRoom!.mode == MultiplayerMode.battleRoyale) {
       // CRITICAL: Check players list is not empty before accessing first element
-      if (_currentRoom!.players.isNotEmpty) {
-        currentPlayerId = _currentRoom!.players.first.userId;
+      final firstPlayer = ListHelper.safeFirst(_currentRoom!.players);
+      if (firstPlayer != null) {
+        currentPlayerId = firstPlayer.userId;
       }
       // Initialize submission tracking
       playerSubmissions = {
@@ -1694,8 +1735,10 @@ class MultiplayerService extends ChangeNotifier {
             if (updatedDoc.exists) {
               final updatedRoom = GameRoom.fromFirestore(updatedDoc);
               if (updatedRoom.players.isNotEmpty) {
-                await docRef
-                    .update({'hostId': updatedRoom.players.first.userId});
+                final firstPlayer = ListHelper.safeFirst(updatedRoom.players);
+                if (firstPlayer != null) {
+                  await docRef.update({'hostId': firstPlayer.userId});
+                }
               }
             }
           }

@@ -76,9 +76,10 @@ class _StatsScreenState extends State<StatsScreen> {
                                         Icons.analytics_outlined,
                                         color: AppColors.of(context).info,
                                       ),
-                                      onPressed: () => Navigator.of(
+                                      onPressed: () => NavigationHelper.safeNavigate(
                                         context,
-                                      ).pushNamed('/analytics'),
+                                        '/analytics',
+                                      ),
                                       tooltip: AppLocalizations.of(
                                             context,
                                           )?.analytics ??
@@ -96,9 +97,10 @@ class _StatsScreenState extends State<StatsScreen> {
                                         Icons.psychology_outlined,
                                         color: AppColors.of(context).info,
                                       ),
-                                      onPressed: () => Navigator.of(
+                                      onPressed: () => NavigationHelper.safeNavigate(
                                         context,
-                                      ).pushNamed('/performance-insights'),
+                                        '/performance-insights',
+                                      ),
                                       tooltip: AppLocalizations.of(
                                             context,
                                           )?.performanceInsights ??

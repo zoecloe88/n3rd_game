@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/services/video_cache_service.dart';
@@ -34,13 +33,14 @@ import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/services/newsfeed_service.dart';
 import 'package:n3rd_game/services/social_discovery_service.dart';
 import 'package:n3rd_game/services/game_history_service.dart';
-import 'package:n3rd_game/services/trivia_creator_service.dart';
 import 'package:n3rd_game/services/performance_monitoring_service.dart';
 import 'package:n3rd_game/services/ai_mode_service.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
     deferred as templates;
 import 'package:n3rd_game/utils/image_cache_helper.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/core/error_handlers.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
@@ -172,133 +172,141 @@ class AppInitializer {
     // Get all services that need initialization from providers
     final servicesToInit = <String, Future<void> Function()>{};
 
-    try {
-      // Core services
-      final authService = Provider.of<AuthService>(context, listen: false);
+    // CRITICAL: Use ProviderHelper.safeGet to prevent ProviderNotFoundException
+    // Services are accessed safely and only initialized if available
+    final authService = ProviderHelper.safeGet<AuthService>(context, listen: false);
+    if (authService != null) {
       servicesToInit['AuthService'] = () => authService.init();
+    }
 
-      final analyticsService =
-          Provider.of<AnalyticsService>(context, listen: false);
+    final analyticsService = ProviderHelper.safeGet<AnalyticsService>(context, listen: false);
+    if (analyticsService != null) {
       servicesToInit['AnalyticsService'] = () => analyticsService.init();
+    }
 
-      final challengeService =
-          Provider.of<ChallengeService>(context, listen: false);
+    final challengeService = ProviderHelper.safeGet<ChallengeService>(context, listen: false);
+    if (challengeService != null) {
       servicesToInit['ChallengeService'] = () => challengeService.init();
+    }
 
-      final dailyChallengeLeaderboardService =
-          Provider.of<DailyChallengeLeaderboardService>(context, listen: false);
-      servicesToInit['DailyChallengeLeaderboardService'] =
-          () => dailyChallengeLeaderboardService.init();
+    final dailyChallengeLeaderboardService = ProviderHelper.safeGet<DailyChallengeLeaderboardService>(context, listen: false);
+    if (dailyChallengeLeaderboardService != null) {
+      servicesToInit['DailyChallengeLeaderboardService'] = () => dailyChallengeLeaderboardService.init();
+    }
 
-      final textToSpeechService =
-          Provider.of<TextToSpeechService>(context, listen: false);
-      servicesToInit['TextToSpeechService'] =
-          () => textToSpeechService.init();
+    final textToSpeechService = ProviderHelper.safeGet<TextToSpeechService>(context, listen: false);
+    if (textToSpeechService != null) {
+      servicesToInit['TextToSpeechService'] = () => textToSpeechService.init();
+    }
 
-      final voiceRecognitionService =
-          Provider.of<VoiceRecognitionService>(context, listen: false);
-      servicesToInit['VoiceRecognitionService'] =
-          () => voiceRecognitionService.init();
+    final voiceRecognitionService = ProviderHelper.safeGet<VoiceRecognitionService>(context, listen: false);
+    if (voiceRecognitionService != null) {
+      servicesToInit['VoiceRecognitionService'] = () => voiceRecognitionService.init();
+    }
 
-      final pronunciationDictionaryService =
-          Provider.of<PronunciationDictionaryService>(context, listen: false);
-      servicesToInit['PronunciationDictionaryService'] =
-          () => pronunciationDictionaryService.init();
+    final pronunciationDictionaryService = ProviderHelper.safeGet<PronunciationDictionaryService>(context, listen: false);
+    if (pronunciationDictionaryService != null) {
+      servicesToInit['PronunciationDictionaryService'] = () => pronunciationDictionaryService.init();
+    }
 
-      final voiceCalibrationService =
-          Provider.of<VoiceCalibrationService>(context, listen: false);
-      servicesToInit['VoiceCalibrationService'] =
-          () => voiceCalibrationService.init();
+    final voiceCalibrationService = ProviderHelper.safeGet<VoiceCalibrationService>(context, listen: false);
+    if (voiceCalibrationService != null) {
+      servicesToInit['VoiceCalibrationService'] = () => voiceCalibrationService.init();
+    }
 
-      final themeService = Provider.of<ThemeService>(context, listen: false);
+    final themeService = ProviderHelper.safeGet<ThemeService>(context, listen: false);
+    if (themeService != null) {
       servicesToInit['ThemeService'] = () => themeService.init();
+    }
 
-      final settingsService =
-          Provider.of<SettingsService>(context, listen: false);
+    final settingsService = ProviderHelper.safeGet<SettingsService>(context, listen: false);
+    if (settingsService != null) {
       servicesToInit['SettingsService'] = () => settingsService.init();
+    }
 
-      final learningService =
-          Provider.of<LearningService>(context, listen: false);
+    final learningService = ProviderHelper.safeGet<LearningService>(context, listen: false);
+    if (learningService != null) {
       servicesToInit['LearningService'] = () => learningService.init();
+    }
 
-      final offlineService =
-          Provider.of<OfflineService>(context, listen: false);
+    final offlineService = ProviderHelper.safeGet<OfflineService>(context, listen: false);
+    if (offlineService != null) {
       servicesToInit['OfflineService'] = () => offlineService.init();
+    }
 
-      final accessibilityService =
-          Provider.of<AccessibilityService>(context, listen: false);
-      servicesToInit['AccessibilityService'] =
-          () => accessibilityService.init();
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
+    if (accessibilityService != null) {
+      servicesToInit['AccessibilityService'] = () => accessibilityService.init();
+    }
 
-      final freeTierService =
-          Provider.of<FreeTierService>(context, listen: false);
+    final freeTierService = ProviderHelper.safeGet<FreeTierService>(context, listen: false);
+    if (freeTierService != null) {
       servicesToInit['FreeTierService'] = () => freeTierService.init();
+    }
 
-      final soundService = Provider.of<SoundService>(context, listen: false);
+    final soundService = ProviderHelper.safeGet<SoundService>(context, listen: false);
+    if (soundService != null) {
       servicesToInit['SoundService'] = () => soundService.init();
+    }
 
-      final notificationService =
-          Provider.of<NotificationService>(context, listen: false);
-      servicesToInit['NotificationService'] =
-          () => notificationService.init();
+    final notificationService = ProviderHelper.safeGet<NotificationService>(context, listen: false);
+    if (notificationService != null) {
+      servicesToInit['NotificationService'] = () => notificationService.init();
+    }
 
-      final animationRandomizerService =
-          Provider.of<AnimationRandomizerService>(context, listen: false);
-      servicesToInit['AnimationRandomizerService'] =
-          () => animationRandomizerService.init();
+    final animationRandomizerService = ProviderHelper.safeGet<AnimationRandomizerService>(context, listen: false);
+    if (animationRandomizerService != null) {
+      servicesToInit['AnimationRandomizerService'] = () => animationRandomizerService.init();
+    }
 
-      final networkService =
-          Provider.of<NetworkService>(context, listen: false);
+    final networkService = ProviderHelper.safeGet<NetworkService>(context, listen: false);
+    if (networkService != null) {
       servicesToInit['NetworkService'] = () => networkService.init();
+    }
 
-      final multiplayerService =
-          Provider.of<MultiplayerService>(context, listen: false);
+    final multiplayerService = ProviderHelper.safeGet<MultiplayerService>(context, listen: false);
+    if (multiplayerService != null) {
       servicesToInit['MultiplayerService'] = () => multiplayerService.init();
+    }
 
-      final familyGroupService =
-          Provider.of<FamilyGroupService>(context, listen: false);
-      servicesToInit['FamilyGroupService'] =
-          () => familyGroupService.init();
+    final familyGroupService = ProviderHelper.safeGet<FamilyGroupService>(context, listen: false);
+    if (familyGroupService != null) {
+      servicesToInit['FamilyGroupService'] = () => familyGroupService.init();
+    }
 
-      final friendsService =
-          Provider.of<FriendsService>(context, listen: false);
+    final friendsService = ProviderHelper.safeGet<FriendsService>(context, listen: false);
+    if (friendsService != null) {
       servicesToInit['FriendsService'] = () => friendsService.init();
+    }
 
-      final newsfeedService =
-          Provider.of<NewsfeedService>(context, listen: false);
+    final newsfeedService = ProviderHelper.safeGet<NewsfeedService>(context, listen: false);
+    if (newsfeedService != null) {
       servicesToInit['NewsfeedService'] = () => newsfeedService.init();
+    }
 
-      final socialDiscoveryService =
-          Provider.of<SocialDiscoveryService>(context, listen: false);
-      servicesToInit['SocialDiscoveryService'] =
-          () => socialDiscoveryService.init();
+    final socialDiscoveryService = ProviderHelper.safeGet<SocialDiscoveryService>(context, listen: false);
+    if (socialDiscoveryService != null) {
+      servicesToInit['SocialDiscoveryService'] = () => socialDiscoveryService.init();
+    }
 
-      final gameHistoryService =
-          Provider.of<GameHistoryService>(context, listen: false);
-      servicesToInit['GameHistoryService'] =
-          () => gameHistoryService.init();
+    final gameHistoryService = ProviderHelper.safeGet<GameHistoryService>(context, listen: false);
+    if (gameHistoryService != null) {
+      servicesToInit['GameHistoryService'] = () => gameHistoryService.init();
+    }
 
-      final triviaCreatorService =
-          Provider.of<TriviaCreatorService>(context, listen: false);
-      servicesToInit['TriviaCreatorService'] =
-          () => triviaCreatorService.init();
+    final performanceMonitoringService = ProviderHelper.safeGet<PerformanceMonitoringService>(context, listen: false);
+    if (performanceMonitoringService != null) {
+      servicesToInit['PerformanceMonitoringService'] = () => performanceMonitoringService.init();
+    }
 
-      final performanceMonitoringService =
-          Provider.of<PerformanceMonitoringService>(context, listen: false);
-      servicesToInit['PerformanceMonitoringService'] =
-          () => performanceMonitoringService.init();
-
-      final aiModeService =
-          Provider.of<AIModeService>(context, listen: false);
+    final aiModeService = ProviderHelper.safeGet<AIModeService>(context, listen: false);
+    if (aiModeService != null) {
       servicesToInit['AIModeService'] = () => aiModeService.init();
+    }
 
-      final editionAccessService =
-          Provider.of<EditionAccessService>(context, listen: false);
-      servicesToInit['EditionAccessService'] =
-          () => editionAccessService.init();
-    } catch (e) {
-      LoggerService.error('⚠️ Warning: Failed to access some services', error: e);
-      // Continue with available services
+    final editionAccessService = ProviderHelper.safeGet<EditionAccessService>(context, listen: false);
+    if (editionAccessService != null) {
+      servicesToInit['EditionAccessService'] = () => editionAccessService.init();
     }
 
     // Initialize all services in parallel with timeout
@@ -366,6 +374,18 @@ class AppInitializer {
     try {
       await Firebase.initializeApp();
 
+      // CRITICAL: Verify Firebase app was actually created
+      try {
+        final firebaseApp = Firebase.app();
+        LoggerService.debug('Firebase app verified: ${firebaseApp.name}');
+      } catch (e) {
+        LoggerService.error(
+          'Firebase initialization verification failed',
+          error: e,
+        );
+        return (initialized: false, error: 'Firebase app verification failed: $e');
+      }
+
       // Register background message handler
       try {
         FirebaseMessaging.onBackgroundMessage(
@@ -376,6 +396,7 @@ class AppInitializer {
           'Failed to register Firebase background message handler',
           error: e,
         );
+        // Non-critical - app can continue without background messaging
       }
 
       if (kDebugMode) {
@@ -482,19 +503,21 @@ class AppInitializer {
         await revenueCatService.initialize(revenueCatApiKey);
 
         // Sync Firebase user if already logged in
-        final firebaseUser = FirebaseAuth.instance.currentUser;
-        if (firebaseUser != null) {
-          await revenueCatService.syncFirebaseUser();
-        }
-
-        // Listen to auth changes to sync RevenueCat
-        FirebaseAuth.instance.authStateChanges().listen((user) {
-          if (user != null && revenueCatService.isInitialized) {
-            revenueCatService.syncFirebaseUser();
-          } else if (user == null && revenueCatService.isInitialized) {
-            revenueCatService.logOut();
+        if (FirebaseHelper.isInitialized()) {
+          final firebaseUser = FirebaseHelper.getCurrentUser();
+          if (firebaseUser != null) {
+            await revenueCatService.syncFirebaseUser();
           }
-        });
+
+          // Listen to auth changes to sync RevenueCat
+          FirebaseAuth.instance.authStateChanges().listen((user) {
+            if (user != null && revenueCatService.isInitialized) {
+              revenueCatService.syncFirebaseUser();
+            } else if (user == null && revenueCatService.isInitialized) {
+              revenueCatService.logOut();
+            }
+          });
+        }
 
         LoggerService.info('RevenueCat initialized successfully');
       }
@@ -511,6 +534,17 @@ class AppInitializer {
 /// Must be top-level function
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  // Handle background message here
+  try {
+    // Check if Firebase is already initialized
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
+    // Handle background message here
+  } catch (e) {
+    // Log error but don't crash - background handler must not throw
+    LoggerService.error(
+      'Firebase background message handler initialization failed',
+      error: e,
+    );
+  }
 }

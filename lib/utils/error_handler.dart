@@ -18,6 +18,23 @@ class ErrorHandler {
       return _getDefaultErrorMessage(error);
     }
 
+    // Check for common Dart exceptions first
+    if (error is StackOverflowError) {
+      return '(StackOverflowError). Please try again or restart the app.';
+    }
+    if (error is StateError) {
+      return 'Game initialization error. Please restart the app.';
+    }
+    if (error is NoSuchMethodError) {
+      return 'Game service error. Please restart the app.';
+    }
+    if (error is TypeError) {
+      return 'Game initialization error. Please restart the app.';
+    }
+    if (error is ArgumentError) {
+      return 'Invalid game configuration. Please try again.';
+    }
+
     // Check if error is an AppException with a message that can be localized
     if (error is AuthenticationException ||
         error is ValidationException ||
@@ -39,8 +56,14 @@ class ErrorHandler {
     try {
       return localizations.getLocalizedErrorMessage(error);
     } catch (e) {
-      // Fallback if localization method fails
-      return _getDefaultErrorMessage(error);
+      // Fallback if localization method fails - include error type for debugging
+      final errorType = error.runtimeType.toString();
+      final defaultMessage = _getDefaultErrorMessage(error);
+      // If default message is generic, include error type
+      if (defaultMessage == 'An error occurred. Please try again.') {
+        return 'An error occurred ($errorType). Please try again or restart the app.';
+      }
+      return defaultMessage;
     }
   }
 
@@ -99,6 +122,7 @@ class ErrorHandler {
   /// Get default error message when localization is not available
   static String _getDefaultErrorMessage(dynamic error) {
     final errorStr = error.toString().toLowerCase();
+    final errorType = error.runtimeType.toString();
 
     if (errorStr.contains('network') || errorStr.contains('connection')) {
       return 'Network error. Please check your connection.';
@@ -112,8 +136,22 @@ class ErrorHandler {
     if (errorStr.contains('permission')) {
       return 'Permission denied. Please check your access rights.';
     }
+    if (errorStr.contains('state') || errorStr.contains('null')) {
+      return 'Game initialization error. Please restart the app.';
+    }
+    if (errorStr.contains('method') && errorStr.contains('not found')) {
+      return 'Game service error. Please restart the app.';
+    }
+    if (errorStr.contains('initialization') || errorStr.contains('init')) {
+      return 'Failed to initialize game. Please try again or restart the app.';
+    }
+    if (errorStr.contains('service') && 
+        (errorStr.contains('not available') || errorStr.contains('not found'))) {
+      return 'Game service unavailable. Please restart the app.';
+    }
 
-    return 'An error occurred. Please try again.';
+    // Include error type for unknown errors to help with debugging
+    return 'An error occurred ($errorType). Please try again or restart the app.';
   }
 
   /// Show an error dialog with optional retry action
@@ -224,7 +262,11 @@ class ErrorHandler {
 
     final finalIsOffline = isOffline || detectedOffline;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    // CRITICAL: Use maybeOf to prevent null check crashes
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return; // No ScaffoldMessenger available
+
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -248,7 +290,7 @@ class ErrorHandler {
           label: 'Dismiss',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            messenger.clearSnackBars();
           },
         ),
       ),
@@ -263,7 +305,11 @@ class ErrorHandler {
   }) {
     if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    // CRITICAL: Use maybeOf to prevent null check crashes
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return; // No ScaffoldMessenger available
+
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         duration: duration,
@@ -272,7 +318,7 @@ class ErrorHandler {
           label: 'Dismiss',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            messenger.clearSnackBars();
           },
         ),
       ),
@@ -352,14 +398,20 @@ class ErrorHandler {
           if (onCancel != null)
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                final navigator = Navigator.maybeOf(context);
+                if (navigator != null) {
+                  navigator.pop();
+                }
                 onCancel();
               },
               child: const Text('Cancel'),
             ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              final navigator = Navigator.maybeOf(context);
+              if (navigator != null) {
+                navigator.pop();
+              }
               onConfirm?.call();
             },
             child: const Text('OK'),
@@ -403,6 +455,9 @@ class ErrorHandler {
     } else if (errorStr.contains('trivia') || errorStr.contains('template')) {
       guidance =
           'Trivia content failed to load. Try restarting the app or selecting a different category.';
+    } else if (errorStr.contains('stackoverflow') || errorStr.contains('stack overflow')) {
+      guidance =
+          'This error indicates excessive recursion. Restarting the app usually resolves this.';
     } else if (errorStr.contains('permission') || errorStr.contains('access')) {
       guidance =
           'The app needs permission to access this feature. Go to Settings to enable permissions.';
@@ -440,7 +495,12 @@ class ErrorHandler {
             content: Text(guidanceText),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () {
+                  final navigator = Navigator.maybeOf(dialogContext);
+                  if (navigator != null) {
+                    navigator.pop();
+                  }
+                },
                 child: const Text('Got it'),
               ),
             ],

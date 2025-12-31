@@ -1,6 +1,5 @@
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
@@ -10,6 +9,7 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:flutter/gestures.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
@@ -129,8 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
 
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final analyticsService = Provider.of<AnalyticsService>(
+      final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -181,13 +181,12 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
 
-        // Existing user or onboarding complete - show word of the day first, then proceed to title
+        // Existing user or onboarding complete - navigate directly to word of the day
         if (mounted && context.mounted) {
           unawaited(NavigationHelper.safeNavigate(
             context,
-            '/general-transition',
+            '/word-of-day',
             replace: true,
-            arguments: {'routeAfter': '/word-of-day', 'routeArgs': null},
           ),);
         }
       }
@@ -241,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors
           .overlayDark, // Black fallback - video or static background will cover
       resizeToAvoidBottomInset:
-          true, // Allow screen to resize when keyboard appears
+          false, // Prevent video background distortion when keyboard appears
       body: VideoBackgroundWidget(
         videoPath: 'assets/loginscreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent

@@ -34,13 +34,14 @@ import 'package:n3rd_game/screens/themes_screen.dart';
 import 'package:n3rd_game/screens/learning_mode_screen.dart';
 import 'package:n3rd_game/screens/performance_insights_screen.dart';
 import 'package:n3rd_game/screens/practice_mode_screen.dart';
-import 'package:n3rd_game/screens/trivia_creator_screen.dart';
 import 'package:n3rd_game/screens/help_center_screen.dart';
 import 'package:n3rd_game/screens/support_dashboard_screen.dart';
 import 'package:n3rd_game/screens/achievements_screen.dart';
 import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/widgets/main_navigation_wrapper.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/theme/app_typography.dart';
 
 /// Provides centralized route generation and management for the application.
 class RouteBuilder {
@@ -159,11 +160,6 @@ class RouteBuilder {
               featureName: 'Practice Mode',
               child: PracticeModeScreen(),
             ),
-        '/trivia-creator': (context) => const RouteGuard(
-              requiresPremium: true,
-              featureName: 'Trivia Creator',
-              child: TriviaCreatorScreen(),
-            ),
         '/help-center': (context) => const HelpCenterScreen(),
         '/support-dashboard': (context) => const SupportDashboardScreen(),
         '/achievements': (context) => const AchievementsScreen(),
@@ -262,7 +258,110 @@ class RouteBuilder {
       );
     }
 
+    // Handle family invitation deep links
+    // Format: /family-invitation?groupId=xxx or /family-invitation/xxx
+    if (routeName != null && routeName.startsWith('/family-invitation')) {
+      String? groupId;
+      // Check if groupId is in query parameters or path
+      if (settings.arguments is Map) {
+        final args = settings.arguments as Map<String, dynamic>;
+        groupId = args['groupId'] as String?;
+      } else if (settings.arguments is String) {
+        groupId = settings.arguments as String;
+      } else if (routeName.contains('?')) {
+        // Extract from query string
+        final uri = Uri.parse(routeName);
+        groupId = uri.queryParameters['groupId'];
+      } else if (routeName.split('/').length > 2) {
+        // Extract from path: /family-invitation/groupId
+        final parts = routeName.split('/');
+        if (parts.length >= 3) {
+          groupId = parts[2];
+        }
+      }
+      return RouteRegistry.createRoute(
+        path: routeName,
+        page: RouteGuard(
+          requiresOnlineAccess: true,
+          featureName: 'Family Invitation',
+          child: FamilyInvitationScreen(groupId: groupId),
+        ),
+        settings: settings,
+        arguments: settings.arguments,
+      );
+    }
+
     return null;
+  }
+
+  /// Handles unknown routes by showing an error screen
+  static Route<dynamic> onUnknownRoute(RouteSettings settings) {
+    return MaterialPageRoute(
+      builder: (context) => Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          // CRITICAL: Wrap in SingleChildScrollView to prevent RenderFlex overflow
+          // This allows content to scroll if it exceeds screen height
+          child: SingleChildScrollView(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Page Not Found',
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'The page "${settings.name}" could not be found.',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                      // CRITICAL: Add overflow handling for long route names
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () {
+                        NavigationHelper.safeNavigate(
+                          context,
+                          '/title',
+                          replace: true,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                      ),
+                      child: Text(
+                        'Go Home',
+                        style: AppTypography.labelLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Builds error screen widget

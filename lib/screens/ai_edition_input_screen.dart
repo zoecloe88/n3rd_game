@@ -7,6 +7,7 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
@@ -88,7 +89,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
 
     // RouteGuard handles subscription checking at route level
     // Double-check subscription before expensive AI operation
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
@@ -540,7 +541,7 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
                           },
                         ),
 
-                        if (!Provider.of<SubscriptionService>(context)
+                        if (!ProviderHelper.safeGetOrThrow<SubscriptionService>(context)
                             .isPremium) ...[
                           const SizedBox(height: AppSpacing.md),
                           TextButton(

@@ -14,14 +14,14 @@ class OnboardingService {
   }
 
   /// Check if user has completed onboarding
+  /// Only returns true if "don't show again" is explicitly checked
+  /// This ensures onboarding shows on every login until user explicitly opts out
   Future<bool> hasCompletedOnboarding() async {
     try {
       final prefs = await _getPrefs();
-      // If "don't show again" is set, consider onboarding completed
-      if (prefs.getBool(_dontShowAgainKey) ?? false) {
-        return true;
-      }
-      return prefs.getBool(_onboardingKey) ?? false;
+      // Only consider onboarding completed if "don't show again" is explicitly set
+      final dontShowAgain = prefs.getBool(_dontShowAgainKey) ?? false;
+      return dontShowAgain;
     } catch (e) {
       LoggerService.warning('Error checking onboarding status', error: e);
       // Return false on error to ensure onboarding is shown

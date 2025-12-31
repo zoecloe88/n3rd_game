@@ -450,9 +450,9 @@ High contrast mode provides maximum visual contrast (21:1 ratio - WCAG AAA) for 
 // Automatically uses high contrast if enabled
 final colors = AppColors.of(context);
 
-// Manual check
-final accessibilityService = Provider.of<AccessibilityService>(context);
-if (accessibilityService.settings.highContrastMode) {
+// Manual check (use safe access pattern)
+final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
+if (accessibilityService?.settings.highContrastMode ?? false) {
   // High contrast colors are already applied via AppColors.of(context)
 }
 ```
@@ -593,9 +593,9 @@ if (mediaQuery?.disableAnimations ?? false) {
   // Disable animations
 }
 
-// Check app-level setting
-final accessibilityService = Provider.of<AccessibilityService>(context);
-if (accessibilityService.settings.reduceMotion) {
+// Check app-level setting (use safe access pattern)
+final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
+if (accessibilityService?.settings.reduceMotion ?? false) {
   // Use static fallback instead of video
 }
 ```
@@ -673,13 +673,15 @@ Semantics(
 The `AccessibilityService` manages all accessibility settings with persistence.
 
 ```dart
-// Get service
-final accessibilityService = Provider.of<AccessibilityService>(context);
+// Get service (use safe access pattern)
+final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
 
-// Access settings
-final settings = accessibilityService.settings;
-if (settings.highContrastMode) {
-  // Use high contrast
+// Access settings (with null check)
+if (accessibilityService != null) {
+  final settings = accessibilityService.settings;
+  if (settings.highContrastMode) {
+    // Use high contrast
+  }
 }
 
 // Update settings

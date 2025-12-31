@@ -336,11 +336,14 @@ class WordService extends ChangeNotifier {
 
   // Extract part of speech
   String? _extractPartOfSpeech(List<dynamic> meanings) {
-    if (meanings.isNotEmpty) {
-      final firstMeaning = meanings[0] as Map<String, dynamic>;
-      return firstMeaning['partOfSpeech'] as String?;
+    if (meanings.isEmpty) return null;
+    final firstItem = meanings[0];
+    if (firstItem is! Map<String, dynamic>) {
+      LoggerService.warning('Invalid meaning format in word service');
+      return null;
     }
-    return null;
+    final firstMeaning = firstItem;
+    return firstMeaning['partOfSpeech'] as String?;
   }
 
   // Extract synonyms

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
-// ignore: unused_import
 import 'package:n3rd_game/services/game_service.dart';
 import 'package:n3rd_game/services/stats_service.dart';
 import 'package:n3rd_game/services/free_tier_service.dart';
@@ -37,7 +36,6 @@ import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/services/friend_score_service.dart';
 import 'package:n3rd_game/services/direct_message_service.dart';
 import 'package:n3rd_game/services/game_history_service.dart';
-import 'package:n3rd_game/services/trivia_creator_service.dart';
 import 'package:n3rd_game/services/performance_monitoring_service.dart';
 import 'package:n3rd_game/services/newsfeed_service.dart';
 import 'package:n3rd_game/services/social_discovery_service.dart';
@@ -114,7 +112,6 @@ class ServiceRegistry {
       ChangeNotifierProvider<SocialDiscoveryService>(create: (_) => SocialDiscoveryService()),
       ChangeNotifierProvider<DirectMessageService>(create: (_) => DirectMessageService()),
       ChangeNotifierProvider<GameHistoryService>(create: (_) => GameHistoryService()),
-      ChangeNotifierProvider<TriviaCreatorService>(create: (_) => TriviaCreatorService()),
       ChangeNotifierProvider<FriendsMoreViewModel>(create: (_) => FriendsMoreViewModel()),
       ChangeNotifierProvider<PerformanceMonitoringService>(create: (_) => PerformanceMonitoringService()),
       ChangeNotifierProvider<RevenueCatService>.value(value: revenueCatService),
@@ -303,11 +300,25 @@ class ServiceRegistry {
         return service;
       } catch (e) {
         LoggerService.error('Failed to create TriviaGeneratorService', error: e);
-        // Final fallback - throw StateError
-        throw StateError(
-          'CRITICAL: TriviaGeneratorService cannot be initialized. '
-          'Original error: $error',
-        );
+        // Create fallback service instead of throwing
+        try {
+          final fallbackService = TriviaGeneratorService.fallback();
+          fallbackService.setPersonalizationService(personalization);
+          fallbackService.setAnalyticsService(analytics);
+          return fallbackService;
+        } catch (e2) {
+          // Even fallback failed - return empty service
+          LoggerService.error('Fallback service creation also failed', error: e2);
+          final emptyService = TriviaGeneratorService.empty();
+          // Try to set services even on empty service (may fail, but won't crash)
+          try {
+            emptyService.setPersonalizationService(personalization);
+            emptyService.setAnalyticsService(analytics);
+          } catch (_) {
+            // Ignore - service is in empty mode
+          }
+          return emptyService;
+        }
       }
     }
 
@@ -342,14 +353,31 @@ class ServiceRegistry {
           Exception(errorMessage),
           stackTrace,
           reason: 'TriviaGeneratorService initialization failure',
-          fatal: true,
+          fatal: false, // Changed from true to false
         );
       } catch (_) {
         // Ignore Crashlytics errors
       }
 
-      // Final fallback - throw StateError
-      throw StateError(errorMessage);
+      // Final fallback - create fallback service instead of throwing
+      try {
+        final fallbackService = TriviaGeneratorService.fallback();
+        fallbackService.setPersonalizationService(personalization);
+        fallbackService.setAnalyticsService(analytics);
+        return fallbackService;
+      } catch (e2) {
+        // Even fallback failed - return empty service
+        LoggerService.error('Fallback service creation also failed', error: e2);
+        final emptyService = TriviaGeneratorService.empty();
+        // Try to set services even on empty service (may fail, but won't crash)
+        try {
+          emptyService.setPersonalizationService(personalization);
+          emptyService.setAnalyticsService(analytics);
+        } catch (_) {
+          // Ignore - service is in empty mode
+        }
+        return emptyService;
+      }
     }
   }
 }

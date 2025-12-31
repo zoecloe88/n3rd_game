@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -31,7 +32,8 @@ class UpgradeDialog extends StatelessWidget { // Show tier comparison
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final analyticsService = Provider.of<AnalyticsService>(
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final analyticsService = ProviderHelper.safeGet<AnalyticsService>(
       context,
       listen: false,
     );
@@ -87,7 +89,7 @@ class UpgradeDialog extends StatelessWidget { // Show tier comparison
       actions: [
         TextButton(
           onPressed: () {
-            analyticsService.logUpgradeDialogDismissed(
+            analyticsService?.logUpgradeDialogDismissed(
               source: source,
               targetTier: targetTier,
             );
@@ -97,7 +99,7 @@ class UpgradeDialog extends StatelessWidget { // Show tier comparison
         ),
         ElevatedButton(
           onPressed: () {
-            analyticsService.logConversionFunnelStep(
+            analyticsService?.logConversionFunnelStep(
               step: 3,
               stepName: 'subscription_screen_opened',
               source: source,

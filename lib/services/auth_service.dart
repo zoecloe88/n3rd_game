@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
@@ -12,6 +14,7 @@ import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/secure_storage_service.dart';
 import 'package:n3rd_game/services/rate_limiter_service.dart';
 import 'package:n3rd_game/utils/device_fingerprint.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 import 'package:n3rd_game/config/app_config.dart';
 
 class AuthService extends ChangeNotifier {
@@ -273,10 +276,6 @@ class AuthService extends ChangeNotifier {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: reason ?? 'Please authenticate to continue',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
       );
 
       if (authenticated) {
@@ -381,15 +380,37 @@ class AuthService extends ChangeNotifier {
 
     // Try to initialize Firebase Auth
     try {
-      Firebase.app();
+      if (!FirebaseHelper.isInitialized()) {
+        LoggerService.debug('Firebase not initialized during init');
+        _firebaseAvailable = false;
+        return;
+      }
       _auth = FirebaseAuth.instance;
       _firebaseAvailable = true;
+
+      // Check SharedPreferences as fallback before waiting for Firebase Auth
+      final prefs = await _getPrefs();
+      final prefsAuthenticated = prefs.getBool('isAuthenticated') ?? false;
+      final secureStorage = SecureStorageService();
+      final prefsEmail = await secureStorage.getEmail() ?? prefs.getString('userEmail');
+
+      // Use Completer to wait for first auth state change
+      final authStateCompleter = Completer<void>();
+      bool authStateReceived = false;
 
       // Listen to Firebase auth state changes
       _authStateSubscription = _auth!.authStateChanges().listen((user) {
         _firebaseUser = user;
         _isAuthenticated = user != null;
         _userEmail = user?.email;
+        
+        if (!authStateReceived) {
+          authStateReceived = true;
+          if (!authStateCompleter.isCompleted) {
+            authStateCompleter.complete();
+          }
+        }
+        
         if (_isAuthenticated) {
           _updateSessionActivity();
           _startSessionTimeoutTimer();
@@ -399,15 +420,60 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
       });
 
-      // Check current Firebase user
+      // Check current Firebase user immediately
       _firebaseUser = _auth!.currentUser;
       _isAuthenticated = _firebaseUser != null;
       _userEmail = _firebaseUser?.email;
 
+      // If currentUser is null, use SharedPreferences as temporary fallback
+      // and wait for auth state restoration
+      if (!_isAuthenticated && prefsAuthenticated) {
+        _isAuthenticated = true;
+        _userEmail = prefsEmail;
+        notifyListeners();
+      }
+
+      // Wait for first auth state change with timeout (2 seconds)
+      // This ensures Firebase Auth has time to restore the session
+      try {
+        await authStateCompleter.future.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            // Timeout: use SharedPreferences if Firebase Auth hasn't restored session
+            if (!_isAuthenticated && prefsAuthenticated) {
+              _isAuthenticated = true;
+              _userEmail = prefsEmail;
+              LoggerService.debug('Using SharedPreferences fallback for auth state');
+              notifyListeners();
+            }
+          },
+        );
+      } catch (e) {
+        LoggerService.debug('Auth state wait error', error: e);
+        // On error, use SharedPreferences fallback if available
+        if (!_isAuthenticated && prefsAuthenticated) {
+          _isAuthenticated = true;
+          _userEmail = prefsEmail;
+          notifyListeners();
+        }
+      }
+
+      // Finalize auth state based on Firebase Auth or SharedPreferences
       if (_isAuthenticated) {
         await _loadSessionState();
         _updateSessionActivity();
         _startSessionTimeoutTimer();
+      } else if (prefsAuthenticated) {
+        // Still use SharedPreferences if Firebase Auth says not authenticated
+        // but we have persisted auth state (session might have expired on server)
+        _isAuthenticated = true;
+        _userEmail = prefsEmail;
+        await _loadSessionState();
+        _checkSessionTimeout();
+        if (!_sessionExpired) {
+          _updateSessionActivity();
+          _startSessionTimeoutTimer();
+        }
       }
 
       notifyListeners();
@@ -500,6 +566,14 @@ class AuthService extends ChangeNotifier {
         _isAuthenticated = _firebaseUser != null;
         _userEmail = _firebaseUser?.email;
         _sessionExpired = false;
+
+        // Persist auth state to SharedPreferences for fallback on app restart
+        try {
+          final prefs = await _getPrefs();
+          await prefs.setBool('isAuthenticated', true);
+        } catch (e) {
+          LoggerService.debug('Failed to persist auth state', error: e);
+        }
 
         // Reset failed login attempts on successful login
         await _resetFailedLoginAttempts(email.trim());
@@ -621,6 +695,14 @@ class AuthService extends ChangeNotifier {
         _isAuthenticated = _firebaseUser != null;
         _userEmail = _firebaseUser?.email;
         _sessionExpired = false;
+
+        // Persist auth state to SharedPreferences for fallback on app restart
+        try {
+          final prefs = await _getPrefs();
+          await prefs.setBool('isAuthenticated', true);
+        } catch (e) {
+          LoggerService.debug('Failed to persist auth state', error: e);
+        }
 
         // Update session activity
         _updateSessionActivity();
@@ -763,6 +845,51 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       throw AuthenticationException(
         'Failed to update display name: ${e.toString()}',
+      );
+    }
+  }
+
+  // Update user profile image
+  Future<String> updateProfileImage(File imageFile) async {
+    final firebaseAuth = auth;
+    if (firebaseAuth == null) {
+      throw AuthenticationException(
+        'Profile image update is not available. Firebase is not initialized.',
+      );
+    }
+
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) {
+        throw AuthenticationException('No user is currently signed in');
+      }
+
+      final storage = FirebaseStorage.instance;
+      final userId = user.uid;
+      
+      // Upload to Firebase Storage at users/{userId}/profile_image.jpg
+      final ref = storage.ref().child('users/$userId/profile_image.jpg');
+      
+      // Upload file
+      await ref.putFile(imageFile);
+      
+      // Get download URL
+      final downloadUrl = await ref.getDownloadURL();
+      
+      // Update user profile photo URL
+      await user.updatePhotoURL(downloadUrl);
+      await user.reload();
+      _firebaseUser = firebaseAuth.currentUser;
+      notifyListeners();
+      
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      throw StorageException(
+        'Failed to upload profile image: ${e.message ?? e.toString()}',
+      );
+    } catch (e) {
+      throw StorageException(
+        'Failed to update profile image: ${e.toString()}',
       );
     }
   }

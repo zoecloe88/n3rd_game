@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/utils/subscription_guard.dart';
 import 'package:n3rd_game/widgets/upgrade_dialog.dart';
@@ -8,6 +7,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Route guard widget that enforces subscription requirements
 /// Wraps screens to check subscription access before rendering
@@ -34,7 +34,13 @@ class RouteGuard extends StatelessWidget { // For upgrade dialog
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    
+    // If service not available, allow access (fail open) to prevent blocking app
+    if (subscriptionService == null) {
+      return child;
+    }
 
     // Check access using centralized guard
     final hasAccess = SubscriptionGuard.canAccessFeature(
@@ -85,7 +91,8 @@ class _LockedScreen extends StatelessWidget {
   final String? featureName;
 
   void _showUpgradeDialog(BuildContext context) {
-    final analyticsService = Provider.of<AnalyticsService>(
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final analyticsService = ProviderHelper.safeGet<AnalyticsService>(
       context,
       listen: false,
     );
@@ -108,8 +115,8 @@ class _LockedScreen extends StatelessWidget {
       requiresFamilyFriends: requiresFamilyFriends,
     );
 
-    // Log analytics
-    analyticsService.logUpgradeDialogShown(
+    // Log analytics if service available
+    analyticsService?.logUpgradeDialogShown(
       source: featureName?.toLowerCase().replaceAll(' ', '_') ?? 'route_guard',
       targetTier: targetTier,
     );

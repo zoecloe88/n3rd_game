@@ -23,7 +23,7 @@ void main() {
       }
     });
 
-    tearDownAll(() {
+    tearDownAll(() async {
       // Cleanup if needed
     });
 

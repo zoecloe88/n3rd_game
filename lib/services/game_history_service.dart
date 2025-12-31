@@ -15,6 +15,7 @@ import 'package:n3rd_game/services/game_history/game_history_retry_queue.dart';
 import 'package:n3rd_game/services/game_history/game_history_statistics.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/exceptions/error_codes.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service for managing game history records
 ///
@@ -59,8 +60,11 @@ class GameHistoryService extends ChangeNotifier {
   FirebaseFirestore? get _firestoreInstance {
     if (_disposed) return null;
     if (_firestore != null && _firebaseAvailable) return _firestore;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
     try {
-      Firebase.app(); // Check if Firebase is initialized
       _firestore = FirebaseFirestore.instance;
       _firebaseAvailable = true;
       return _firestore;
@@ -74,8 +78,11 @@ class GameHistoryService extends ChangeNotifier {
   FirebaseAuth? get _authInstance {
     if (_disposed) return null;
     if (_auth != null && _firebaseAvailable) return _auth;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
     try {
-      Firebase.app(); // Check if Firebase is initialized
       _auth = FirebaseAuth.instance;
       _firebaseAvailable = true;
       return _auth;

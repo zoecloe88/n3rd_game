@@ -15,6 +15,7 @@ class AnimatedLogoLoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Black background to prevent white flash
       body: VideoBackgroundWidget(
         videoPath: 'assets/logoloadingscreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent

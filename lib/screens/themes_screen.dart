@@ -66,9 +66,10 @@ class ThemesScreen extends StatelessWidget {
                           const SizedBox(height: 24),
                           ElevatedButton(
                             onPressed: () {
-                              Navigator.of(
+                              NavigationHelper.safeNavigate(
                                 context,
-                              ).pushNamed('/subscription-management');
+                                '/subscription-management',
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: colors.primaryButton,
@@ -286,7 +287,8 @@ class ThemesScreen extends StatelessWidget {
                                               ),
                                             ),
                                             maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
+                                            overflow: TextOverflow.visible,
+                                            softWrap: true,
                                           ),
                                           if (theme.isSeasonal) ...[
                                             const SizedBox(height: 4),

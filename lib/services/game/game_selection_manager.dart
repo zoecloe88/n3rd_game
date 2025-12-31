@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/models/game_state.dart';

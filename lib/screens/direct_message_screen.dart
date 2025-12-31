@@ -12,6 +12,7 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
@@ -54,7 +55,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     if (!mounted) return;
 
     // CRITICAL: Check subscription access first using SubscriptionService
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
@@ -80,8 +81,16 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     }
 
     // Get current user ID before any async operations
-    final currentUserId =
-        Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final authService = ProviderHelper.safeGet<AuthService>(context, listen: false);
+    final currentUserId = authService?.currentUser?.uid ?? '';
+    
+    // If no auth service or user, exit early
+    if (authService == null || currentUserId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
 
     // Double-check premium access via message service
     final hasPremium = await _messageService.hasPremiumAccess();
@@ -559,7 +568,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   Widget _buildMessageBubble(DirectMessage message, bool isMe) {
     final bubbleColors = AppColors.of(context);
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
     final isMyMessage = message.fromUserId == authService.currentUser?.uid;
 
     return GestureDetector(

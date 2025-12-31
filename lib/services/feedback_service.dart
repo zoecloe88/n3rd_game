@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:io' as io;
 import 'package:n3rd_game/services/rate_limiter_service.dart';
@@ -10,6 +10,7 @@ import 'package:n3rd_game/utils/input_sanitizer.dart';
 import 'package:n3rd_game/utils/security_helper.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service for handling user feedback, bug reports, and error submissions
 class FeedbackService {
@@ -56,7 +57,7 @@ class FeedbackService {
     String? userEmail,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       final userId = user?.uid ?? 'anonymous';
 
       // Check rate limit for feedback submission
@@ -322,7 +323,7 @@ class FeedbackService {
   /// Get user's feedback history
   Future<List<Map<String, dynamic>>> getUserFeedbackHistory() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       if (user == null) return [];
 
       final firestore = _firestoreInstance;

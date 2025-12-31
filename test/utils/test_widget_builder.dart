@@ -8,7 +8,6 @@ import 'package:n3rd_game/services/learning_service.dart';
 import 'package:n3rd_game/services/game_history_service.dart';
 import 'package:n3rd_game/services/challenge_service.dart';
 import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
-import 'package:n3rd_game/services/trivia_creator_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/services/ai_edition_service.dart';
 // Note: TriviaGeneratorService is a large file (15,491 lines) but is needed
@@ -40,7 +39,6 @@ class TestWidgetBuilder {
     GameHistoryService? gameHistoryService,
     ChallengeService? challengeService,
     DailyChallengeLeaderboardService? dailyChallengeLeaderboardService,
-    TriviaCreatorService? triviaCreatorService,
     FriendsService? friendsService,
     AIEditionService? aiEditionService,
     TriviaGeneratorService? triviaGeneratorService,
@@ -108,14 +106,6 @@ class TestWidgetBuilder {
       providers.add(
         Provider<DailyChallengeLeaderboardService>.value(
           value: dailyChallengeLeaderboardService,
-        ),
-      );
-    }
-
-    if (triviaCreatorService != null) {
-      providers.add(
-        ChangeNotifierProvider<TriviaCreatorService>.value(
-          value: triviaCreatorService,
         ),
       );
     }

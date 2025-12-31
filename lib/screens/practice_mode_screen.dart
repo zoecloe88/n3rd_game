@@ -10,6 +10,7 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/widgets/app_button.dart';
@@ -139,21 +140,20 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.school,
             size: AppSpacing.xxxl,
-            color: colors.onDarkText.withValues(alpha: 0.7),
+            color: Colors.white,
           ),
-          const SizedBox(height: AppSpacing.md),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             'Unlimited practice rounds with progressive hints.\nNo score penalties - focus on learning!',
             textAlign: TextAlign.center,
-            style: AppTypography.bodySmall.copyWith(
-              color: colors.onDarkText.withValues(alpha: 0.8),
+            style: AppTypography.bodyMedium.copyWith(
+              color: Colors.white,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           AppButton.primary(
             label: 'Start Practice',
             onPressed:
@@ -162,12 +162,12 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
             semanticsLabel:
                 'Start practice game. Double tap to begin unlimited practice rounds',
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.xl),
           Text(
             'Hint Levels:\n• Level 1: Eliminate 1 wrong answer\n• Level 2: Eliminate 2 wrong answers\n• Show Answer: Reveal correct answers',
             textAlign: TextAlign.center,
             style: AppTypography.bodySmall.copyWith(
-              color: colors.onDarkText.withValues(alpha: 0.6),
+              color: Colors.white,
             ),
           ),
         ],
@@ -193,7 +193,7 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
           Text(
             'Practice Mode',
             style: AppTypography.headlineMedium.copyWith(
-              color: colors.onDarkText,
+              color: Colors.white,
             ),
           ),
           const Spacer(),
@@ -237,7 +237,7 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                   child: Text(
                     'No Hints',
                     style: AppTypography.bodySmall.copyWith(
-                      color: colors.onDarkText,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -246,7 +246,7 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                   child: Text(
                     'Hint Level 1',
                     style: AppTypography.bodySmall.copyWith(
-                      color: colors.onDarkText,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -255,7 +255,7 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                   child: Text(
                     'Hint Level 2',
                     style: AppTypography.bodySmall.copyWith(
-                      color: colors.onDarkText,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -264,11 +264,15 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
                   child: Text(
                     'Show Answer',
                     style: AppTypography.bodySmall.copyWith(
-                      color: colors.onDarkText,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ],
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+              style: AppTypography.bodySmall.copyWith(
+                color: Colors.white,
+              ),
               onChanged: (value) {
                 setState(() {
                   _hintLevel = value ?? _defaultHintLevel;
@@ -322,10 +326,15 @@ class _PracticeModeScreenState extends State<PracticeModeScreen> {
           'TriviaGeneratorService not found in provider tree, creating fallback instance',
           error: e,
         );
-        generator = TriviaGeneratorService();
+        try {
+          generator = TriviaGeneratorService();
+        } catch (e2) {
+          LoggerService.error('Failed to create TriviaGeneratorService fallback', error: e2);
+          generator = TriviaGeneratorService.fallback();
+        }
       }
 
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         buildContext,
         listen: false,
       );

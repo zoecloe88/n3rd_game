@@ -2,16 +2,16 @@ import 'dart:async';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
-import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/widgets/animated_graphics_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 
@@ -100,7 +100,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     HapticService().lightImpact();
     // Track skip in analytics
     try {
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -119,27 +119,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     });
 
     try {
-      final success = await _onboardingService.completeOnboarding();
+      // Always navigate to word-of-day screen regardless of checkbox state
+      // Mark onboarding as completed if user checked "don't show again"
+      if (_dontShowAgain) {
+        final success = await _onboardingService.completeOnboarding();
+        if (!mounted || !context.mounted) return;
+        
+        if (!success) {
+          // Show error to user - onboarding save failed, but still navigate
+          final localizations = AppLocalizations.of(context);
+          ErrorHandler.showSnackBar(
+            context,
+            localizations?.onboardingSaveError ??
+                'Failed to save onboarding status. Please try again.',
+          );
+        }
+      }
 
       if (!mounted || !context.mounted) return;
 
-      if (!success) {
-        // Show error to user - onboarding save failed
-        final localizations = AppLocalizations.of(context);
-        ErrorHandler.showSnackBar(
-          context,
-          localizations?.onboardingSaveError ??
-              'Failed to save onboarding status. Please try again.',
-        );
-        setState(() {
-          _isSaving = false;
-        });
-        return; // Don't navigate if save failed - user can try again
-      }
-
       // Track completion in analytics
       try {
-        final analyticsService = Provider.of<AnalyticsService>(
+        final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
           context,
           listen: false,
         );
@@ -172,9 +173,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return Scaffold(
       backgroundColor:
-          Colors.black, // Black fallback - static background will cover
-      body: BackgroundImageWidget(
-        imagePath: 'assets/background n3rd.png',
+          Colors.black, // Black fallback - video background will cover
+      body: VideoBackgroundWidget(
+        videoPath: 'assets/youthscreen.mp4',
         child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(
@@ -200,7 +201,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 child: Text(
                                   localizations?.skip ?? 'Skip',
                                   style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.of(context).secondaryText,
+                                    color: Colors.white,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -269,8 +270,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     localizations?.onboardingDontShowAgain ??
                                         "Don't show again",
                                     style: AppTypography.bodyMedium.copyWith(
-                                      color:
-                                          AppColors.of(context).secondaryText,
+                                      color: Colors.white,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -353,8 +353,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildPage(OnboardingPage page, int pageIndex) {
-    final pageColors = AppColors.of(context);
-
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
@@ -379,7 +377,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: Icon(
                 page.icon!,
                 size: 80,
-                color: pageColors.primaryButton,
+                color: Colors.white,
               ),
             ),
           const SizedBox(height: AppSpacing.xl),
@@ -390,7 +388,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             style: AppTypography.headlineLarge.copyWith(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: pageColors.primaryText,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -400,7 +398,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             textAlign: TextAlign.center,
             style: AppTypography.bodyMedium.copyWith(
               fontSize: 16,
-              color: pageColors.secondaryText,
+              color: Colors.white,
               height: 1.5,
             ),
           ),

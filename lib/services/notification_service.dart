@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service for handling push notifications
 class NotificationService extends ChangeNotifier {
@@ -77,10 +77,16 @@ class NotificationService extends ChangeNotifier {
   Future<void> _saveTokenToFirestore(String? token) async {
     if (token == null) return;
 
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+    final user = FirebaseHelper.getCurrentUser();
+    if (user == null) return;
 
+    // CRITICAL: Check Firebase is initialized before accessing Firestore
+    if (!FirebaseHelper.isInitialized()) {
+      LoggerService.debug('Firebase not initialized, skipping FCM token save');
+      return;
+    }
+
+    try {
       final firestore = FirebaseFirestore.instance;
       await firestore.collection('user_tokens').doc(user.uid).set(
         {
@@ -90,7 +96,7 @@ class NotificationService extends ChangeNotifier {
         SetOptions(merge: true),
       );
     } catch (e) {
-      LoggerService.error('Error saving FCM token', error: e);
+      LoggerService.error('Failed to save FCM token to Firestore', error: e);
     }
   }
 
@@ -150,6 +156,11 @@ class NotificationService extends ChangeNotifier {
     required String body,
     Map<String, dynamic>? data,
   }) async {
+    // CRITICAL: Check Firebase is initialized before accessing Firestore
+    if (!FirebaseHelper.isInitialized()) {
+      LoggerService.debug('Firebase not initialized, skipping notification send');
+      return;
+    }
     try {
       final firestore = FirebaseFirestore.instance;
       final tokenDoc =
@@ -189,6 +200,11 @@ class NotificationService extends ChangeNotifier {
     String inviterName,
     String roomCode,
   ) async {
+    // CRITICAL: Check Firebase is initialized before accessing Firestore
+    if (!FirebaseHelper.isInitialized()) {
+      LoggerService.debug('Firebase not initialized, skipping room invitation notification');
+      return;
+    }
     try {
       final firestore = FirebaseFirestore.instance;
       final tokenDoc =
@@ -225,6 +241,51 @@ class NotificationService extends ChangeNotifier {
       });
     } catch (e) {
       LoggerService.error('Error sending room invitation notification', error: e);
+    }
+  }
+
+  /// Enable push notifications
+  /// Requests permission and initializes notification service
+  Future<bool> enableNotifications() async {
+    try {
+      if (!_initialized) {
+        await init();
+      }
+      return _initialized;
+    } catch (e) {
+      LoggerService.error('Error enabling notifications', error: e);
+      return false;
+    }
+  }
+
+  /// Disable push notifications
+  /// Unsubscribes from token refresh and message streams
+  Future<void> disableNotifications() async {
+    try {
+      // Cancel all subscriptions
+      _tokenSubscription?.cancel();
+      _tokenSubscription = null;
+      _foregroundMessageSubscription?.cancel();
+      _foregroundMessageSubscription = null;
+      _messageOpenedSubscription?.cancel();
+      _messageOpenedSubscription = null;
+
+      // Delete FCM token from Firestore
+      final user = FirebaseHelper.getCurrentUser();
+      if (user != null && FirebaseHelper.isInitialized()) {
+        try {
+          final firestore = FirebaseFirestore.instance;
+          await firestore.collection('user_tokens').doc(user.uid).delete();
+        } catch (e) {
+          LoggerService.debug('Failed to delete FCM token', error: e);
+        }
+      }
+
+      _fcmToken = null;
+      _initialized = false;
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error('Error disabling notifications', error: e);
     }
   }
 

@@ -8,6 +8,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
@@ -48,7 +49,7 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
 
       // Check if user is authenticated
       if (!authService.isAuthenticated) {
@@ -103,9 +104,9 @@ class _FamilyInvitationScreenState extends State<FamilyInvitationScreen> {
 
     try {
       final familyService =
-          Provider.of<FamilyGroupService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
       final analyticsService =
-          Provider.of<AnalyticsService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
       await familyService.acceptInvitation(groupId);
 

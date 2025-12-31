@@ -12,10 +12,13 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
-import 'package:n3rd_game/widgets/view_toggle_widget.dart';
-import 'package:n3rd_game/widgets/personal_stats_view.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/widgets/chart_type_selector.dart';
 import 'package:n3rd_game/utils/stats_preferences.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
+import 'package:n3rd_game/widgets/stats_chart_widgets.dart';
+import 'package:n3rd_game/services/stats_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -45,8 +48,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   String _selectedRegion = 'Global';
   bool _friendsOnly = false;
 
-  // View toggle state
-  bool _showPersonalStats = false;
+  // Chart type for future chart visualization
+  String _chartType = 'line';
+  bool _showChart = true;
+  List<DailyStats> _chartData = [];
+  bool _loadingChartData = false;
 
   late TabController _tabController;
 
@@ -55,38 +61,200 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _scrollController.addListener(_onScroll);
-    _loadPreferences();
+    _loadChartTypePreference();
     _loadLeaderboard(reset: true);
+    _loadChartData();
   }
 
-  Future<void> _loadPreferences() async {
-    final viewType = await StatsPreferences.getViewType();
+  Future<void> _loadChartTypePreference() async {
+    final chartType = await StatsPreferences.getChartType();
     if (mounted) {
       setState(() {
-        _showPersonalStats = viewType == 'personal_stats';
+        _chartType = chartType;
       });
     }
   }
 
-  Future<void> _onViewToggleChanged(bool showPersonalStats) async {
-    final viewType = showPersonalStats ? 'personal_stats' : 'leaderboard';
-    await StatsPreferences.setViewType(viewType);
-
-    // Track analytics - capture context before async
-    if (!mounted) return;
-    final analyticsService =
-        Provider.of<AnalyticsService>(context, listen: false);
-    await analyticsService.logCustomEvent(
-      'leaderboard_view_toggled',
-      parameters: {
-        'view_type': viewType,
-      },
-    );
-
+  Future<void> _onChartTypeChanged(String chartType) async {
+    await StatsPreferences.setChartType(chartType);
     if (mounted) {
       setState(() {
-        _showPersonalStats = showPersonalStats;
+        _chartType = chartType;
       });
+    }
+    // Track analytics
+    try {
+      if (!mounted) return;
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
+      await analyticsService.logCustomEvent(
+        'leaderboard_chart_type_changed',
+        parameters: {
+          'chart_type': chartType,
+        },
+      );
+    } catch (e) {
+      // Analytics not available - non-critical
+    }
+  }
+
+  Future<void> _loadChartData() async {
+    if (!mounted) return;
+    setState(() => _loadingChartData = true);
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final userId = authService.currentUser?.uid;
+      if (userId == null) {
+        if (mounted) {
+          setState(() {
+            _loadingChartData = false;
+            _chartData = [];
+          });
+        }
+        return;
+      }
+
+      // Get stats service to load daily stats
+      final statsService = ProviderHelper.safeGetOrThrow<StatsService>(
+        context,
+        listen: false,
+      );
+      await statsService.init();
+      final gameStats = statsService.stats;
+
+      // Validate and convert to chart data (last 30 days)
+      final now = DateTime.now();
+      final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+      
+      final chartData = gameStats.dailyStats
+          .where((stat) {
+            // Validate date is not null and within range
+            if (stat.date.isBefore(thirtyDaysAgo) || stat.date.isAfter(now.add(const Duration(days: 1)))) {
+              return false;
+            }
+            // Validate score is non-negative
+            if (stat.score < 0) {
+              LoggerService.warning('Invalid negative score in daily stats: ${stat.score}');
+              return false;
+            }
+            return true;
+          })
+          .toList()
+        ..sort((a, b) {
+          // Ensure chronological order
+          return a.date.compareTo(b.date);
+        });
+
+      // Validate data completeness - check for gaps
+      if (chartData.isNotEmpty) {
+        final firstDate = chartData.first.date;
+        final lastDate = chartData.last.date;
+        final expectedDays = lastDate.difference(firstDate).inDays + 1;
+        if (chartData.length < expectedDays * 0.5) {
+          // Less than 50% data coverage - log warning
+          LoggerService.warning(
+            'Chart data has gaps: ${chartData.length} data points for $expectedDays expected days',
+          );
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _chartData = chartData;
+          _loadingChartData = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      LoggerService.error(
+        'Error loading chart data',
+        error: e,
+        stack: stackTrace,
+      );
+      if (mounted) {
+        setState(() {
+          _loadingChartData = false;
+          _chartData = [];
+        });
+      }
+    }
+  }
+
+  Widget _buildLeaderboardChart() {
+    if (_loadingChartData) {
+      return Container(
+        height: 250,
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    // Validate chart data before rendering
+    if (_chartData.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Additional validation: check for valid data points
+    final validData = _chartData.where((stat) {
+      return stat.date.isBefore(DateTime.now().add(const Duration(days: 1))) &&
+          stat.date.isAfter(DateTime.now().subtract(const Duration(days: 31))) &&
+          stat.score >= 0;
+    }).toList();
+
+    if (validData.isEmpty) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            'No chart data available',
+            style: AppTypography.bodyMedium.copyWith(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
+    try {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        child: ScoreTrendChart(
+          dailyStats: validData,
+          daysToShow: 30,
+          chartType: _chartType,
+        ),
+      );
+    } catch (e, stackTrace) {
+      LoggerService.error(
+        'Error rendering leaderboard chart',
+        error: e,
+        stack: stackTrace,
+      );
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            'Unable to display chart',
+            style: AppTypography.bodyMedium.copyWith(color: Colors.white70),
+          ),
+        ),
+      );
     }
   }
 
@@ -266,11 +434,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         style: AppTypography.headlineLarge.copyWith(
                           color: Colors.white,
                         ),
+                        overflow: TextOverflow.visible,
+                        softWrap: true,
+                        maxLines: 2,
                       ),
-                    ),
-                    ViewToggleWidget(
-                      showPersonalStats: _showPersonalStats,
-                      onChanged: _onViewToggleChanged,
                     ),
                     const SizedBox(width: 8),
                     IconButton(
@@ -282,9 +449,45 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
               ),
 
-              // Tabs for time period (only show for leaderboard view)
-              if (!_showPersonalStats)
-                TabBar(
+              // Chart type selector and toggle
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Switch(
+                          value: _showChart,
+                          onChanged: (value) {
+                            setState(() => _showChart = value);
+                          },
+                          activeColor: const Color(0xFF00D9FF),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Show Chart',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_showChart)
+                      ChartTypeSelector(
+                        selectedChartType: _chartType,
+                        onChanged: _onChartTypeChanged,
+                      ),
+                  ],
+                ),
+              ),
+
+              // Chart visualization
+              if (_showChart && !_loading && _chartData.isNotEmpty)
+                _buildLeaderboardChart(),
+
+              // Tabs for time period
+              TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
@@ -297,6 +500,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         'Monthly',
                       ][index];
                       _loadLeaderboard(reset: true);
+                      _loadChartData(); // Reload chart data when time period changes
                     });
                   },
                   tabs: const [
@@ -306,8 +510,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   ],
                 ),
 
-              // User rank card (only show for leaderboard view)
-              if (_userRank > 0 && !_loading && !_showPersonalStats)
+              // User rank card
+              if (_userRank > 0 && !_loading)
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
@@ -339,11 +543,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   ),
                 ),
 
-              // Content: Leaderboard or Personal Stats
+              // Content: Leaderboard
               Expanded(
-                child: _showPersonalStats
-                    ? const PersonalStatsView()
-                    : _loading
+                child: _loading
                         ? const Center(
                             child:
                                 CircularProgressIndicator(color: Colors.white),
@@ -413,7 +615,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                         final entry =
                                             _entries[index] as dynamic;
                                         final isCurrentUser = entry.userId ==
-                                            Provider.of<AuthService>(
+                                            ProviderHelper.safeGetOrThrow<AuthService>(
                                               context,
                                               listen: false,
                                             ).currentUser?.uid;
@@ -500,8 +702,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.normal,
                 color: AppColors.of(context).primaryText,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+              overflow: TextOverflow.visible,
+              softWrap: true,
             ),
           ),
 

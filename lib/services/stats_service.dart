@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart'
     as firebase_crashlytics;
@@ -9,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:n3rd_game/services/achievement_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 import 'package:n3rd_game/config/app_config.dart';
 
 /// Daily statistics for historical tracking
@@ -204,8 +204,11 @@ class StatsService extends ChangeNotifier {
   // Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestore {
     if (!_firebaseAvailable) return null;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
     try {
-      Firebase.app();
       return FirebaseFirestore.instance;
     } catch (e) {
       _firebaseAvailable = false;
@@ -215,8 +218,11 @@ class StatsService extends ChangeNotifier {
 
   // Get current user ID for Firestore
   String? get _userId {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      return FirebaseHelper.getCurrentUser()?.uid;
     } catch (e) {
       return null;
     }

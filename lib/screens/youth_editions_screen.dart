@@ -3,7 +3,6 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
-import 'package:n3rd_game/screens/youth_transition_screen.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
@@ -408,7 +407,8 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
                       color: AppColors.of(context).primaryText,
                     ),
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: TextOverflow.visible,
+                    softWrap: true,
                   ),
                 ),
               ],
@@ -433,34 +433,21 @@ class _YouthEditionsScreenState extends State<YouthEditionsScreen> {
   void _onEditionTapped(YouthEdition edition) {
     if (!mounted || !context.mounted) return;
     try {
-      // Navigate to transition screen first, then to game
-      NavigationHelper.safePush(
+      // Navigate directly to game with edition info
+      // Use consistent edition ID format
+      // Normalize edition ID: lowercase, replace spaces with underscores, remove invalid characters
+      final editionId = edition.title
+          .toLowerCase()
+          .replaceAll(' ', '_')
+          .replaceAll(RegExp(r'[^a-z0-9_-]'), '');
+      NavigationHelper.safeNavigate(
         context,
-        MaterialPageRoute(
-          builder: (_) => YouthTransitionScreen(
-            onFinished: () {
-              if (!context.mounted) return;
-              NavigationHelper.safePop(context); // Pop transition screen
-              // Navigate to game screen with edition info
-              if (!context.mounted) return;
-              // Use consistent edition ID format
-              // Normalize edition ID: lowercase, replace spaces with underscores, remove invalid characters
-              final editionId = edition.title
-                  .toLowerCase()
-                  .replaceAll(' ', '_')
-                  .replaceAll(RegExp(r'[^a-z0-9_-]'), '');
-              NavigationHelper.safeNavigate(
-                context,
-                '/game',
-                arguments: {
-                  'mode': null,
-                  'edition': editionId,
-                  'editionName': edition.title,
-                },
-              );
-            },
-          ),
-        ),
+        '/game',
+        arguments: {
+          'mode': null,
+          'edition': editionId,
+          'editionName': edition.title,
+        },
       );
     } catch (e) {
       // Handle navigation error gracefully

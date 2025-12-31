@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// RevenueCat service for managing subscriptions and in-app purchases
 ///
@@ -50,9 +50,14 @@ class RevenueCatService extends ChangeNotifier {
       await Purchases.configure(configuration);
 
       // Set user ID if Firebase user is logged in
-      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final firebaseUser = FirebaseHelper.getCurrentUser();
       if (firebaseUser != null) {
-        await Purchases.logIn(firebaseUser.uid);
+        try {
+          await Purchases.logIn(firebaseUser.uid);
+        } catch (e) {
+          // RevenueCat login error - continue without user sync
+          LoggerService.debug('Failed to sync Firebase user with RevenueCat', error: e);
+        }
       }
 
       // Load customer info
@@ -232,14 +237,15 @@ class RevenueCatService extends ChangeNotifier {
   Future<void> syncFirebaseUser() async {
     if (!_initialized) return;
 
-    try {
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
+    final firebaseUser = FirebaseHelper.getCurrentUser();
+    if (firebaseUser != null) {
+      try {
         await Purchases.logIn(firebaseUser.uid);
         await _loadCustomerInfo();
+      } catch (e) {
+        // RevenueCat sync error - log and continue
+        LoggerService.debug('Failed to sync Firebase user with RevenueCat', error: e);
       }
-    } catch (e) {
-      LoggerService.error('Error syncing Firebase user', error: e);
     }
   }
 

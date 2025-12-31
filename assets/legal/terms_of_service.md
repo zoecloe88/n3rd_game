@@ -128,7 +128,7 @@ We may terminate or suspend your account if you:
 
 ## 11. Governing Law
 
-These Terms shall be governed by and construed in accordance with the laws of [Your Jurisdiction], without regard to its conflict of law provisions.
+These Terms shall be governed by and construed in accordance with the laws of the United States of America, without regard to its conflict of law provisions.
 
 ## 12. Dispute Resolution
 
@@ -138,7 +138,7 @@ These Terms shall be governed by and construed in accordance with the laws of [Y
 
 ### Binding Arbitration
 - Any disputes not resolved informally shall be resolved through binding arbitration
-- Arbitration shall be conducted in accordance with [Arbitration Rules]
+- Arbitration shall be conducted in accordance with the rules of the American Arbitration Association
 - You waive your right to a jury trial
 
 ## 13. Changes to Terms
@@ -160,7 +160,7 @@ If you have questions about these Terms, please contact us at:
 
 **Email:** support@n3rdtrivia.app
 
-**Address:** [To be provided when business address is established]
+For inquiries regarding these Terms, please contact us at support@n3rdtrivia.app
 
 ---
 

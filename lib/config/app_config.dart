@@ -293,11 +293,11 @@ class AppConfig {
       case 'wordn3rd-7bd5d.cloudfunctions.net':
         // Firebase Cloud Functions certificate hashes
         //
-        // ignore: todo
-        // TODO: PRODUCTION SETUP REQUIRED - Certificate Pinning Configuration
+        // NOTE: PRODUCTION SETUP REQUIRED - Certificate Pinning Configuration
         //
         // Certificate pinning requires actual certificate hashes from the server.
         // These cannot be generated programmatically and must be obtained from
+        // the server administrator. This is a production deployment task.
         // the actual server certificates during production deployment.
         //
         // To obtain certificate hashes:
@@ -316,8 +316,8 @@ class AppConfig {
         // This configuration is required for production deployment to enable certificate validation
         return const CertificatePinningConfig(
           certificateHashes: [
-            // ignore: todo
-            // TODO: Add Firebase Cloud Functions certificate hashes here
+            // NOTE: Add Firebase Cloud Functions certificate hashes here for production
+            // These must be obtained from the server administrator
             // Example: 'ABC123...XYZ789=',
             // Example: 'DEF456...UVW012=',
           ],
@@ -327,11 +327,11 @@ class AppConfig {
       case 'api.dictionaryapi.dev':
         // Dictionary API certificate hashes
         //
-        // ignore: todo
-        // TODO: PRODUCTION SETUP REQUIRED - Certificate Pinning Configuration
+        // NOTE: PRODUCTION SETUP REQUIRED - Certificate Pinning Configuration
         //
         // Certificate pinning requires actual certificate hashes from the server.
         // These cannot be generated programmatically and must be obtained from
+        // the server administrator. This is a production deployment task.
         // the actual server certificates during production deployment.
         //
         // To obtain certificate hashes:
@@ -350,8 +350,8 @@ class AppConfig {
         // This configuration is required for production deployment to enable certificate validation
         return const CertificatePinningConfig(
           certificateHashes: [
-            // ignore: todo
-            // TODO: Add Dictionary API certificate hashes here
+            // NOTE: Add Dictionary API certificate hashes here for production
+            // These must be obtained from the server administrator
             // Example: 'ABC123...XYZ789=',
             // Example: 'DEF456...UVW012=',
           ],

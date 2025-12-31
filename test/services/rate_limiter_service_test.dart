@@ -21,7 +21,7 @@ void main() {
       // No cleanup needed
     });
 
-    tearDownAll(() {
+    tearDownAll(() async {
       TestHelpers.clearMockSharedPreferences();
     });
 

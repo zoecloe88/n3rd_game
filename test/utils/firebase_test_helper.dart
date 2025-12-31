@@ -5,6 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// Firebase test configuration and initialization helpers
 class FirebaseTestHelper {
   static bool _isInitializing = false;
+  
+  /// Track all created Firebase app names for cleanup
+  static final Set<String> _createdAppNames = <String>{};
+  
+  /// Track the default app name separately
+  static String? _defaultAppName;
 
   /// Test Firebase options
   static const FirebaseOptions testOptions = FirebaseOptions(
@@ -54,10 +60,27 @@ class FirebaseTestHelper {
 
   /// Initialize Firebase for testing
   /// Handles cases where Firebase is already initialized
-  static Future<void> initializeFirebaseForTests() async {
+  /// Returns true if a new app was created, false if it already existed
+  static Future<bool> initializeFirebaseForTests() async {
     // Prevent concurrent initialization
-    if (_isInitializing || isFirebaseInitialized()) {
-      return;
+    if (_isInitializing) {
+      return false;
+    }
+
+    // Check if Firebase apps already exist using Firebase.apps list
+    if (Firebase.apps.isNotEmpty) {
+      // Firebase is already initialized, nothing to do
+      // Track existing default app if not already tracked
+      try {
+        final defaultApp = Firebase.app();
+        if (_defaultAppName == null) {
+          _defaultAppName = defaultApp.name;
+          _createdAppNames.add(defaultApp.name);
+        }
+      } catch (e) {
+        // No default app, but other apps exist - that's fine
+      }
+      return false;
     }
 
     _isInitializing = true;
@@ -65,42 +88,32 @@ class FirebaseTestHelper {
       // Set up mocks first
       setupFirebaseMocks();
 
-      // Check if Firebase is already initialized
+      // Initialize Firebase with test options (default app)
       try {
-        Firebase.app();
-        // Firebase is already initialized, nothing to do
-        return;
+        final app = await Firebase.initializeApp(
+          options: testOptions,
+        );
+        _defaultAppName = app.name;
+        _createdAppNames.add(app.name);
+        
+        // Give Firebase a moment to fully initialize
+        await Future.delayed(const Duration(milliseconds: 100));
+        return true;
       } catch (e) {
-        // Firebase is not initialized, proceed with initialization
-      }
-
-      // Initialize Firebase with test options
-      await Firebase.initializeApp(
-        options: testOptions,
-      );
-
-      // Give Firebase a moment to fully initialize
-      await Future.delayed(const Duration(milliseconds: 100));
-    } catch (e) {
-      // Firebase may already be initialized by another test or setup
-      // Try to verify it's available now
-      try {
-        Firebase.app(); // Verify Firebase is available
-      } catch (_) {
-        // If initialization failed and app is not available, try once more
+        // If initialization fails, check if Firebase is now available
+        // (may have been initialized by another thread)
         try {
-          await Firebase.initializeApp(
-            options: testOptions,
-            name: 'test-app-${DateTime.now().millisecondsSinceEpoch}',
-          );
-          await Future.delayed(const Duration(milliseconds: 100));
-        } catch (e2) {
-          // Final fallback - tests that need Firebase will handle gracefully
-          // Log the error for debugging
-          if (e2.toString().contains('already been initialized')) {
-            // This is fine - Firebase is already initialized
-            return;
+          final defaultApp = Firebase.app();
+          if (_defaultAppName == null) {
+            _defaultAppName = defaultApp.name;
+            _createdAppNames.add(defaultApp.name);
           }
+          return false;
+        } catch (_) {
+          // Firebase initialization failed and no app is available
+          // Don't create named apps as fallback - let tests handle the error
+          // This prevents accumulation of named apps
+          rethrow;
         }
       }
     } finally {
@@ -110,11 +123,68 @@ class FirebaseTestHelper {
 
   /// Check if Firebase is initialized
   static bool isFirebaseInitialized() {
+    return Firebase.apps.isNotEmpty;
+  }
+
+  /// Get the count of Firebase apps currently initialized
+  /// Useful for debugging and verification
+  static int getFirebaseAppCount() {
+    return Firebase.apps.length;
+  }
+
+  /// Clean up all tracked Firebase apps
+  /// Deletes all named apps (non-default) to prevent memory accumulation
+  /// Keeps the default app if it exists (for test isolation)
+  static Future<void> cleanupFirebaseApps() async {
     try {
-      Firebase.app();
-      return true;
+      final appsToDelete = <String>[];
+      
+      // Collect all named apps (non-default) for deletion
+      for (final appName in _createdAppNames) {
+        if (appName != _defaultAppName && appName != '[DEFAULT]') {
+          appsToDelete.add(appName);
+        }
+      }
+      
+      // Delete each named app
+      for (final appName in appsToDelete) {
+        try {
+          final app = Firebase.app(appName);
+          await app.delete();
+          _createdAppNames.remove(appName);
+        } catch (e) {
+          // App may have already been deleted or doesn't exist
+          // Remove from tracking anyway
+          _createdAppNames.remove(appName);
+        }
+      }
+      
+      // Optionally delete default app if we want full cleanup
+      // For now, we keep it for test isolation between test files
+      // If default app needs cleanup, uncomment below:
+      // if (_defaultAppName != null) {
+      //   try {
+      //     final defaultApp = Firebase.app(_defaultAppName!);
+      //     await defaultApp.delete();
+      //     _createdAppNames.remove(_defaultAppName!);
+      //     _defaultAppName = null;
+      //   } catch (e) {
+      //     // Default app may have already been deleted
+      //     _createdAppNames.remove(_defaultAppName!);
+      //     _defaultAppName = null;
+      //   }
+      // }
     } catch (e) {
-      return false;
+      // If cleanup fails completely, at least clear tracking
+      // This prevents tracking from growing indefinitely
+      _createdAppNames.clear();
+      _defaultAppName = null;
     }
+  }
+
+  /// Reset tracking (for testing cleanup functionality)
+  static void resetTracking() {
+    _createdAppNames.clear();
+    _defaultAppName = null;
   }
 }

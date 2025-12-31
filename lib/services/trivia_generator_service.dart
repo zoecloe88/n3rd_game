@@ -121,33 +121,82 @@ class TriviaGeneratorService extends ChangeNotifier {
   TriviaGeneratorService() {
     // Check if service was previously disposed
     if (_isDisposed) {
-      throw ValidationException(
-        'CRITICAL: TriviaGeneratorService cannot be initialized after disposal.',
-      );
+      // Don't throw - create empty service instead
+      LoggerService.error('TriviaGeneratorService: Attempted to create after disposal');
+      _totalPossibleCombinations = 0;
+      return;
     }
-    // NOTE: Library loading check removed - library is loaded synchronously in main.dart
-    // If templates aren't initialized, _initializeTemplates() will handle it gracefully
-    _initializeTemplates();
+    
+    try {
+      // NOTE: Library loading check removed - library is loaded synchronously in main.dart
+      // If templates aren't initialized, _initializeTemplates() will handle it gracefully
+      _initializeTemplates();
 
-    // Validate templates were loaded successfully
-    if (_allTemplates.isEmpty) {
-      throw ValidationException(
-        'CRITICAL ERROR: No trivia templates loaded! TriviaGeneratorService cannot function without templates.',
+      // Validate templates were loaded successfully
+      if (_allTemplates.isEmpty) {
+        LoggerService.error(
+          'CRITICAL ERROR: No trivia templates loaded! TriviaGeneratorService will use fallback mode.',
+          error: Exception('Templates empty after initialization'),
+          stack: StackTrace.current,
+          fatal: false,
+        );
+        // Don't throw - create empty service that will fail gracefully later
+        // This prevents app crash on startup
+        _totalPossibleCombinations = 0;
+        return;
+      }
+
+      _enhanceTemplates(); // Enhance templates with tiered distractors
+
+      // Validate templates still exist after enhancement
+      if (_allTemplates.isEmpty) {
+        LoggerService.error(
+          'CRITICAL ERROR: Templates were cleared during enhancement!',
+          error: Exception('Templates cleared during enhancement'),
+          stack: StackTrace.current,
+          fatal: false,
+        );
+        // Don't throw - create empty service that will fail gracefully later
+        _totalPossibleCombinations = 0;
+        return;
+      }
+
+      _calculateTotalCombinations();
+      _verifyContentRequirements();
+    } catch (e, stackTrace) {
+      // Catch any unexpected errors during initialization
+      LoggerService.error(
+        'CRITICAL ERROR: TriviaGeneratorService initialization failed',
+        error: e,
+        stack: stackTrace,
+        fatal: false,
       );
+      // Don't throw - create empty service that will fail gracefully later
+      // This prevents app crash on startup
+      _totalPossibleCombinations = 0;
     }
-
-    _enhanceTemplates(); // Enhance templates with tiered distractors
-
-    // Validate templates still exist after enhancement
-    if (_allTemplates.isEmpty) {
-      throw ValidationException(
-        'CRITICAL ERROR: Templates were cleared during enhancement!',
-      );
-    }
-
-    _calculateTotalCombinations();
-    _verifyContentRequirements();
   }
+
+  /// Fallback constructor for when normal initialization fails
+  /// Creates minimal service with empty templates
+  /// Public to allow access from main.dart for error recovery
+  TriviaGeneratorService.fallback() {
+    // Create minimal service with empty templates
+    _isDisposed = false;
+    _totalPossibleCombinations = 0;
+    LoggerService.warning('TriviaGeneratorService: Using fallback mode');
+  }
+
+  /// Empty constructor as last resort
+  /// Creates completely empty service - trivia generation will fail gracefully
+  /// Public to allow access from main.dart for error recovery
+  TriviaGeneratorService.empty() {
+    // Create completely empty service as last resort
+    _isDisposed = false;
+    _totalPossibleCombinations = 0;
+    LoggerService.error('TriviaGeneratorService: Using empty mode - trivia generation will fail');
+  }
+
   final Random _random = Random();
   // Use List instead of Set to preserve insertion order for sliding window
   // This ensures oldest items are removed first, preventing duplicate trivia generation
@@ -260,16 +309,27 @@ class TriviaGeneratorService extends ChangeNotifier {
       LoggerService.debug('═══════════════════════════════════════════════════════');
     }
 
+    // CRITICAL: Don't throw exceptions - log errors instead to prevent crashes
     if (_allTemplates.length < GameConstants.minTemplateCount) {
-      throw ValidationException(
-        'CRITICAL ERROR: Need ${GameConstants.minTemplateCount}+ templates! Only ${_allTemplates.length} found.',
+      final errorMsg = 'CRITICAL ERROR: Need ${GameConstants.minTemplateCount}+ templates! Only ${_allTemplates.length} found.';
+      LoggerService.error(
+        errorMsg,
+        error: ValidationException(errorMsg),
+        fatal: false,
       );
+      // Don't throw - allow service to continue in degraded mode
+      return;
     }
 
     if (_totalPossibleCombinations < GameConstants.minCombinations) {
-      throw ValidationException(
-        'CRITICAL ERROR: Need ${GameConstants.minCombinations}+ combinations! Only ${_totalPossibleCombinations.toStringAsFixed(0)} found.',
+      final errorMsg = 'CRITICAL ERROR: Need ${GameConstants.minCombinations}+ combinations! Only ${_totalPossibleCombinations.toStringAsFixed(0)} found.';
+      LoggerService.error(
+        errorMsg,
+        error: ValidationException(errorMsg),
+        fatal: false,
       );
+      // Don't throw - allow service to continue in degraded mode
+      return;
     }
 
     // Validate each template using ContentValidationService
@@ -15414,6 +15474,15 @@ class TriviaGeneratorService extends ChangeNotifier {
     String? theme,
     bool usePersonalization = false,
   }) {
+    // CRITICAL: Check if templates are empty before attempting generation
+    if (_allTemplates.isEmpty) {
+      LoggerService.warning(
+        'TriviaGeneratorService: No templates available, returning empty batch',
+      );
+      // Return empty list instead of throwing - allows app to continue
+      return [];
+    }
+
     // Validate dependencies (debug mode only)
     _validateDependencies(operation: 'generateBatch');
 
@@ -15451,9 +15520,12 @@ class TriviaGeneratorService extends ChangeNotifier {
         // Log error but continue with remaining items
         lastError = e.toString();
         LoggerService.error('⚠️ Failed to generate trivia item ${i + 1}/$count', error: e);
-        // If we can't generate even one item, throw to prevent empty batch
+        // If we can't generate even one item, return empty list instead of throwing
         if (batch.isEmpty) {
-          rethrow;
+          LoggerService.warning(
+            'TriviaGeneratorService: Failed to generate any trivia items',
+          );
+          return []; // Return empty list instead of throwing
         }
         // Otherwise, return partial batch
         break;

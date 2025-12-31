@@ -3,6 +3,9 @@ import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/config/game_constants.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/services/game/game_validation_manager.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Manages game round progression, trivia selection, and answer validation
 ///
@@ -78,9 +81,12 @@ class GameRoundManager {
         if (_validateTriviaItem(candidate)) {
           selectedTrivia = candidate;
           _recentTriviaCategories.add(candidate.category);
-          // Keep only last 5 categories
+          // Keep only last 5 categories (safe access)
           if (_recentTriviaCategories.length > 5) {
-            _recentTriviaCategories.remove(_recentTriviaCategories.first);
+            final firstCategory = ListHelper.safeFirst(_recentTriviaCategories.toList());
+            if (firstCategory != null) {
+              _recentTriviaCategories.remove(firstCategory);
+            }
           }
         }
       }
@@ -98,8 +104,18 @@ class GameRoundManager {
     }
 
     if (selectedTrivia == null) {
+      // Last resort: use validation manager to find any valid trivia
+      final validationManager = GameValidationManager();
+      selectedTrivia = validationManager.findValidTriviaFromPool(
+        _currentTriviaPool,
+        (max) => _random.nextInt(max),
+        maxAttempts: 50, // More attempts for fallback
+      );
+    }
+    
+    if (selectedTrivia == null) {
       throw GameException(
-        'No valid trivia item found in pool after $maxAttempts attempts',
+        'No valid trivia item found in pool of ${_currentTriviaPool.length} items. All items failed validation.',
       );
     }
 
@@ -114,6 +130,7 @@ class GameRoundManager {
     // Check word count
     final words = trivia.words.where((w) => w.trim().isNotEmpty).toList();
     if (words.length != 6) {
+      LoggerService.debug('Trivia validation failed: word count ${words.length} != 6');
       return false;
     }
 
@@ -121,6 +138,7 @@ class GameRoundManager {
     final correctAnswers =
         trivia.correctAnswers.where((ca) => ca.trim().isNotEmpty).toList();
     if (correctAnswers.length != GameConstants.expectedCorrectAnswers) {
+      LoggerService.debug('Trivia validation failed: correct answers count ${correctAnswers.length} != ${GameConstants.expectedCorrectAnswers}');
       return false;
     }
 
@@ -129,8 +147,20 @@ class GameRoundManager {
     final correctSet =
         correctAnswers.map((ca) => ca.trim().toLowerCase()).toSet();
     final missing = correctSet.where((ca) => !wordsSet.contains(ca)).toList();
+    if (missing.isNotEmpty) {
+      LoggerService.debug('Trivia validation failed: correct answers not in words list: $missing');
+      return false;
+    }
+    
+    // Check for duplicate words after normalization
+    final inputWordsCount = trivia.words.where((w) => w.trim().isNotEmpty).length;
+    if (inputWordsCount != wordsSet.length) {
+      final duplicateCount = inputWordsCount - wordsSet.length;
+      LoggerService.debug('Trivia validation failed: contains $duplicateCount duplicate normalized word(s)');
+      return false;
+    }
 
-    return missing.isEmpty;
+    return true;
   }
 
   /// Add selected answer

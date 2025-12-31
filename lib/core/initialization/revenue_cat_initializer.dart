@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// RevenueCat initializer
 class RevenueCatInitializer {
@@ -29,19 +30,21 @@ class RevenueCatInitializer {
         await revenueCatService.initialize(revenueCatApiKey);
 
         // Sync Firebase user if already logged in
-        final firebaseUser = FirebaseAuth.instance.currentUser;
-        if (firebaseUser != null) {
-          await revenueCatService.syncFirebaseUser();
-        }
-
-        // Listen to auth changes to sync RevenueCat
-        FirebaseAuth.instance.authStateChanges().listen((user) {
-          if (user != null && revenueCatService.isInitialized) {
-            revenueCatService.syncFirebaseUser();
-          } else if (user == null && revenueCatService.isInitialized) {
-            revenueCatService.logOut();
+        if (FirebaseHelper.isInitialized()) {
+          final firebaseUser = FirebaseHelper.getCurrentUser();
+          if (firebaseUser != null) {
+            await revenueCatService.syncFirebaseUser();
           }
-        });
+
+          // Listen to auth changes to sync RevenueCat
+          FirebaseAuth.instance.authStateChanges().listen((user) {
+            if (user != null && revenueCatService.isInitialized) {
+              revenueCatService.syncFirebaseUser();
+            } else if (user == null && revenueCatService.isInitialized) {
+              revenueCatService.logOut();
+            }
+          });
+        }
 
         LoggerService.info('RevenueCat initialized successfully');
       }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 // ignore: unused_import
 import 'package:n3rd_game/services/game_service.dart' as game_service;
@@ -12,6 +11,7 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
@@ -157,6 +157,14 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
       'mode': GameMode.learning,
       'isPremium': true,
     },
+    {
+      'title': 'Online Multiplayer',
+      'description':
+          'Play against friends and players worldwide in real-time multiplayer matches. Compete and climb the leaderboards!',
+      'mode': null, // Special case - navigates to multiplayer lobby
+      'isPremium': false,
+      'isOnline': true,
+    },
   ];
 
   /// Get number of cards to show per page based on device type
@@ -295,11 +303,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     String? difficulty,
     String? revealMode,
   }) async {
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
@@ -343,7 +351,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   Future<void> _showUpgradeDialog(BuildContext context) async {
     final localizations = AppLocalizations.of(context);
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -494,12 +502,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         try {
           unawaited(NavigationHelper.safeNavigate(
             context,
-            '/mode-transition',
+            '/game',
             arguments: {'mode': GameMode.shuffle, 'difficulty': difficulty},
           ),);
           // Log successful navigation
           if (!context.mounted) return;
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             context,
             listen: false,
           );
@@ -507,14 +515,14 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             'mode_navigation_success',
             parameters: {
               'mode': GameMode.shuffle.name,
-              'destination': 'mode-transition',
+              'destination': 'game',
               'difficulty': difficulty,
             },
           );
         } catch (e) {
           // Log error analytics
           if (!context.mounted) return;
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             context,
             listen: false,
           );
@@ -538,7 +546,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   }
 
   Future<void> _showFlipRevealMode(BuildContext context) async {
-    final gameService = Provider.of<GameService>(context, listen: false);
+    final gameService = ProviderHelper.safeGetOrThrow<game_service.GameService>(context, listen: false);
     final colors = AppColors.of(context);
     final localizations = AppLocalizations.of(context);
 
@@ -600,7 +608,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         try {
           unawaited(NavigationHelper.safeNavigate(
             context,
-            '/mode-transition',
+            '/game',
             arguments: {
               'mode': GameMode.flip,
               'revealMode': revealMode,
@@ -608,7 +616,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           ),);
           // Log successful navigation
           if (!context.mounted) return;
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             context,
             listen: false,
           );
@@ -616,14 +624,14 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             'mode_navigation_success',
             parameters: {
               'mode': GameMode.flip.name,
-              'destination': 'mode-transition',
+              'destination': 'game',
               'reveal_mode': revealMode,
             },
           );
         } catch (e) {
           // Log error analytics
           if (!context.mounted) return;
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             context,
             listen: false,
           );
@@ -689,7 +697,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   color: colors.secondaryText,
                 ),
                 maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                overflow: TextOverflow.visible,
+                softWrap: true,
               ),
             ],
           ),
@@ -787,6 +796,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                           mode: mode,
                                           isPremium:
                                               modeData['isPremium'] == true,
+                                          isOnline: modeData['isOnline'] == true,
                                           onTap: modeData['mode'] ==
                                                   GameMode.shuffle
                                               ? () => _showShuffleDifficulty(
@@ -830,18 +840,19 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                                 isPremium:
                                                     modeData['isPremium'] ==
                                                         true,
+                                                isOnline: modeData['isOnline'] == true,
                                                 onTap: modeData['mode'] ==
                                                         GameMode.shuffle
                                                     ? () =>
-                                                        _showShuffleDifficulty(
-                                                          context,
-                                                        )
+                                                          _showShuffleDifficulty(
+                                                            context,
+                                                          )
                                                     : modeData['mode'] ==
                                                             GameMode.flip
                                                         ? () =>
-                                                            _showFlipRevealMode(
-                                                              context,
-                                                            )
+                                                              _showFlipRevealMode(
+                                                                context,
+                                                              )
                                                         : null,
                                               ),
                                             );
@@ -962,6 +973,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     required String description,
     GameMode? mode,
     bool isPremium = false,
+    bool isOnline = false,
     VoidCallback? onTap,
   }) {
     // Use responsive sizing - larger cards on tablets
@@ -1069,19 +1081,22 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     }
 
     // Check if mode is accessible for current subscription tier
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
     // AI, Practice, and Learning modes require Premium, other modes check canAccessMode
-    final isAccessible = mode == null
-        ? true
-        : (mode == GameMode.ai ||
-                mode == GameMode.practice ||
-                mode == GameMode.learning
-            ? subscriptionService.isPremium
-            : subscriptionService.canAccessMode(mode));
-    final isLocked = mode != null && !isAccessible;
+    // Online multiplayer requires online access (Base or Premium)
+    final isAccessible = mode == null && isOnline
+        ? subscriptionService.hasOnlineAccess // Online multiplayer requires online access
+        : mode == null
+            ? true // Other null modes (shouldn't happen)
+            : (mode == GameMode.ai ||
+                    mode == GameMode.practice ||
+                    mode == GameMode.learning
+                ? subscriptionService.isPremium
+                : subscriptionService.canAccessMode(mode));
+    final isLocked = !isAccessible;
 
     final Widget cardContent = Semantics(
       label: isLocked ? '$title - Locked' : title,
@@ -1093,8 +1108,35 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             ? () => _showUpgradeDialog(context)
             : (onTap ??
                 () async {
-                  if (mode != null) {
-                    try {
+                  try {
+                    // Handle online multiplayer (mode is null, isOnline is true)
+                    if (isOnline) {
+                      // Online Multiplayer mode - navigate to multiplayer lobby
+                      if (context.mounted) {
+                        try {
+                          unawaited(NavigationHelper.safeNavigate(context, '/multiplayer-lobby'));
+                          // Log successful navigation
+                          if (!context.mounted) return;
+                          final analyticsService =
+                              ProviderHelper.safeGetOrThrow<AnalyticsService>(
+                            context,
+                            listen: false,
+                          );
+                          await analyticsService.logCustomEvent(
+                            'mode_navigation_success',
+                            parameters: {
+                              'mode': 'online_multiplayer',
+                              'destination': 'multiplayer-lobby',
+                            },
+                          );
+                        } catch (e) {
+                          rethrow;
+                        }
+                      }
+                      return;
+                    }
+                    
+                    if (mode != null) {
                       // Practice and Learning modes go directly to their screens
                       if (mode == GameMode.practice) {
                         await _logModeSelection(context, mode);
@@ -1104,7 +1146,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             // Log successful navigation
                             if (!context.mounted) return;
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               context,
                               listen: false,
                             );
@@ -1127,7 +1169,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                             // Log successful navigation
                             if (!context.mounted) return;
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               context,
                               listen: false,
                             );
@@ -1152,13 +1194,13 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                           try {
                             unawaited(NavigationHelper.safeNavigate(
                               context,
-                              '/mode-transition',
+                              '/game',
                               arguments: mode,
                             ),);
                             // Log successful navigation
                             if (!context.mounted) return;
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               context,
                               listen: false,
                             );
@@ -1166,7 +1208,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               'mode_navigation_success',
                               parameters: {
                                 'mode': mode.name,
-                                'destination': 'mode-transition',
+                                'destination': 'game',
                               },
                             );
                           } catch (e) {
@@ -1174,29 +1216,33 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                           }
                         }
                       }
-                    } catch (e) {
-                      // Handle navigation error gracefully
-                      if (context.mounted) {
-                        // Log error analytics
-                        final analyticsService = Provider.of<AnalyticsService>(
+                    }
+                  } catch (e) {
+                    // Handle navigation error gracefully
+                    if (context.mounted) {
+                      // Log error analytics
+                      try {
+                        final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
                           context,
                           listen: false,
                         );
                         await analyticsService.logCustomEvent(
                           'mode_navigation_error',
                           parameters: {
-                            'mode': mode.name,
+                            'mode': mode?.name ?? 'online_multiplayer',
                             'error_type': e.runtimeType.toString(),
                           },
                         );
-                        if (!context.mounted) return;
-                        final errorMessage =
-                            ErrorHandler.getLocalizedErrorMessage(e, context);
-                        ErrorHandler.showSnackBar(
-                          context,
-                          errorMessage,
-                        );
+                      } catch (analyticsError) {
+                        // Analytics not available - non-critical
                       }
+                      if (!context.mounted) return;
+                      final errorMessage =
+                          ErrorHandler.getLocalizedErrorMessage(e, context);
+                      ErrorHandler.showSnackBar(
+                        context,
+                        errorMessage,
+                      );
                     }
                   }
                 }),
@@ -1249,7 +1295,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                               maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              overflow: TextOverflow.visible,
+                              softWrap: true,
                             ),
                           ),
                           if (isPremium && !isLocked)

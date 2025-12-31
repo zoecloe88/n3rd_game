@@ -21,7 +21,7 @@ void main() {
       service.dispose();
     });
 
-    tearDownAll(() {
+    tearDownAll(() async {
       TestHelpers.clearMockSharedPreferences();
       TestHelpers.clearMockConnectivity();
     });

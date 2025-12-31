@@ -107,23 +107,20 @@ class _PersonalStatsViewState extends State<PersonalStatsView> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              // Header with chart type selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    localizations?.personalPerformance ??
-                        'Personal Performance',
-                    style: AppTypography.titleLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  ChartTypeSelector(
-                    selectedChartType: _chartType,
-                    onChanged: _onChartTypeChanged,
-                  ),
-                ],
+              // Header
+              Text(
+                localizations?.personalPerformance ??
+                    'Personal Performance',
+                style: AppTypography.titleLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Chart type selector below header
+              ChartTypeSelector(
+                selectedChartType: _chartType,
+                onChanged: _onChartTypeChanged,
               ),
               const SizedBox(height: AppSpacing.lg),
 

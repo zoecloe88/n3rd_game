@@ -219,6 +219,7 @@ class AppLocalizations {
   String get createdBy => 'Created by';
   String get avatarUploadComingSoon => 'Avatar upload coming soon';
   String get imagePickError => 'Failed to pick image. Please try again.';
+  String get selectImageSource => 'Select Image Source';
   String get displayName => 'Display Name';
   String get gameSettingsNote => 'These settings affect your game experience';
   String get gameSettingsSaveError =>
@@ -240,8 +241,6 @@ class AppLocalizations {
   String get performanceInsightsSubtitle =>
       'View detailed performance analytics';
   String get practiceModeSubtitle => 'Practice without pressure';
-  String get triviaCreator => 'Trivia Creator';
-  String get triviaCreatorSubtitle => 'Create your own trivia questions';
   String get support => 'Support';
   String get helpCenter => 'Help Center';
   String get helpCenterSubtitle => 'Get help and answers';
@@ -689,11 +688,37 @@ class AppLocalizations {
         errorStr.contains('all content used')) {
       return allContentUsed;
     }
+    if ((errorStr.contains('invalid trivia') || 
+        (errorStr.contains('validation') && errorStr.contains('trivia'))) ||
+        errorStr.contains('trivia item') && errorStr.contains('invalid')) {
+      return 'Trivia content validation failed. Please try again or restart the app.';
+    }
     if (errorStr.contains('trivia') && errorStr.contains('validation')) {
       return triviaValidationFailed;
     }
     if (errorStr.contains('trivia') && errorStr.contains('load')) {
       return failedToLoadTrivia;
+    }
+    if ((errorStr.contains('empty') && errorStr.contains('trivia')) ||
+        errorStr.contains('no trivia') ||
+        errorStr.contains('trivia pool is empty')) {
+      return 'No trivia content available. Please try again or restart the app.';
+    }
+    if (errorStr.contains('service') && 
+        (errorStr.contains('not available') || 
+         errorStr.contains('not found') ||
+         errorStr.contains('provider'))) {
+      return 'Game service unavailable. Please restart the app.';
+    }
+    if (errorStr.contains('initialization') || 
+        errorStr.contains('init') ||
+        errorStr.contains('initialize')) {
+      return 'Failed to initialize game. Please try again or restart the app.';
+    }
+    if (errorStr.contains('null') || 
+        errorStr.contains('null pointer') ||
+        errorStr.contains('nullreference')) {
+      return 'Game initialization error. Please restart the app.';
     }
 
     // Subscription/Purchase errors

@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/services/video_cache_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
 import 'package:n3rd_game/config/app_config.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Simple video background widget for MP4 backgrounds
 /// Uses BoxFit.cover (equivalent to CSS object-fit: cover) to fill screen
@@ -50,6 +50,7 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
   Timer?
       _retryTimer; // Timer for retry delay (replaces Future.delayed for proper cancellation)
   Timer? _maxWaitTimer; // Maximum wait timeout to prevent indefinite waiting
+  Timer? _initTimeoutTimer; // Safety timeout for video initialization
   DateTime?
       _videoInitStartTime; // Track video initialization start time for analytics
 
@@ -58,6 +59,27 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeVideo();
+    
+    // Safety timeout: if video doesn't initialize within max wait duration,
+    // set error state to show fallback image
+    _initTimeoutTimer = Timer(AppConfig.videoMaxWaitDuration + const Duration(seconds: 2), () {
+      if (mounted && !_isInitialized && !_hasError) {
+        setState(() {
+          _hasError = true;
+          _isInitialized = false;
+        });
+        // If we have a completion callback and video failed, call it after delay
+        if (widget.onVideoCompleted != null && !widget.loop) {
+          _fallbackTimer?.cancel();
+          _fallbackTimer = Timer(AppConfig.videoFallbackTimerDuration, () {
+            if (mounted && !_hasCalledCompletion) {
+              _hasCalledCompletion = true;
+              widget.onVideoCompleted?.call();
+            }
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -188,6 +210,8 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
           _isInitialized = true;
           _hasError = false;
         });
+        // Cancel initialization timeout since we succeeded
+        _initTimeoutTimer?.cancel();
 
         // Start playing if autoplay is enabled
         if (widget.autoplay) {
@@ -198,7 +222,25 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
           if (!wasCached) {
             await controller.seekTo(Duration.zero);
           }
-          await controller.play();
+          // Ensure video actually starts playing
+          try {
+            await controller.play();
+            // Verify video is actually playing after a short delay
+            await Future.delayed(const Duration(milliseconds: 100));
+            if (mounted && controller.value.isPlaying == false) {
+              LoggerService.warning(
+                'Video did not start playing, retrying: ${widget.videoPath}',
+              );
+              await controller.play();
+            }
+          } catch (e) {
+            LoggerService.error(
+              'Failed to start video playback: ${widget.videoPath}',
+              error: e,
+            );
+            // Re-throw to trigger error handling
+            rethrow;
+          }
         }
 
         // Add listener for video completion if not looping and callback provided
@@ -354,52 +396,43 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
 
   /// Log video load failure (non-blocking)
   void _logVideoLoadFailure(String error) {
-    try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+    if (!mounted) return;
+    final analytics = ProviderHelper.safeGet<AnalyticsService>(context, listen: false);
+    if (analytics != null) {
       analytics.logVideoLoadFailure(widget.videoPath, error);
-    } catch (e) {
-      // Analytics not available - non-critical, continue
-      LoggerService.debug('Analytics not available for video load failure', error: e);
     }
   }
 
   /// Log video retry success (non-blocking)
   void _logVideoRetrySuccess(int retryCount) {
-    try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+    if (!mounted) return;
+    final analytics = ProviderHelper.safeGet<AnalyticsService>(context, listen: false);
+    if (analytics != null) {
       analytics.logVideoRetrySuccess(widget.videoPath, retryCount);
-    } catch (e) {
-      // Analytics not available - non-critical, continue
-      LoggerService.debug(
-          'Analytics not available for video retry success: $e',);
     }
   }
 
   /// Log video completion with timing (non-blocking)
   void _logVideoCompletion(
       int expectedDurationMs, int actualDurationMs, int differenceMs,) {
-    try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+    if (!mounted) return;
+    final analytics = ProviderHelper.safeGet<AnalyticsService>(context, listen: false);
+    if (analytics != null) {
       analytics.logVideoCompletion(
         widget.videoPath,
         expectedDurationMs,
         actualDurationMs,
         differenceMs,
       );
-    } catch (e) {
-      // Analytics not available - non-critical, continue
-      LoggerService.debug('Analytics not available for video completion', error: e);
     }
   }
 
   /// Log fallback timer usage (non-blocking)
   void _logVideoFallbackTimerUsed() {
-    try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+    if (!mounted) return;
+    final analytics = ProviderHelper.safeGet<AnalyticsService>(context, listen: false);
+    if (analytics != null) {
       analytics.logVideoFallbackTimerUsed(widget.videoPath);
-    } catch (e) {
-      // Analytics not available - non-critical, continue
-      LoggerService.debug('Analytics not available for fallback timer', error: e);
     }
   }
 
@@ -413,9 +446,9 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
     }
 
     // Check app-level accessibility settings
-    try {
-      final accessibilityService =
-          Provider.of<AccessibilityService>(context, listen: false);
+    final accessibilityService =
+        ProviderHelper.safeGet<AccessibilityService>(context, listen: false);
+    if (accessibilityService != null) {
       final settings = accessibilityService.settings;
 
       // Don't show video if user has disabled background videos
@@ -427,11 +460,6 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
       if (settings.reducedMotion) {
         return false;
       }
-    } catch (e) {
-      // AccessibilityService not available - default to showing video
-      // This maintains backward compatibility
-      LoggerService.debug(
-          'AccessibilityService not available, defaulting to show video: $e',);
     }
 
     return true;
@@ -443,10 +471,12 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
     _fallbackTimer?.cancel(); // Cancel fallback timer
     _retryTimer?.cancel(); // Cancel retry timer
     _maxWaitTimer?.cancel(); // Cancel maximum wait timer
+    _initTimeoutTimer?.cancel(); // Cancel initialization timeout timer
     _completionCheckTimer = null;
     _fallbackTimer = null;
     _retryTimer = null;
     _maxWaitTimer = null;
+    _initTimeoutTimer = null;
     WidgetsBinding.instance.removeObserver(this);
     // Don't dispose cached controllers - VideoCacheService manages them
     // Only dispose if this controller is not cached
@@ -474,6 +504,13 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
     // Check if video should be shown based on accessibility settings
     final shouldShowVideo = _shouldShowVideo(context);
 
+    // Determine if video is ready to display
+    final videoReady = shouldShowVideo &&
+        _isInitialized &&
+        _controller != null &&
+        !_hasError &&
+        _controller!.value.isInitialized;
+
     // Wrap entire background in Semantics to exclude from accessibility tree
     // Background videos and images are decorative and should not be announced
     return Semantics(
@@ -485,11 +522,8 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
             child: ColoredBox(color: Colors.black),
           ),
 
-          // Video background - show only if motion is allowed and video is ready
-          if (shouldShowVideo &&
-              _isInitialized &&
-              _controller != null &&
-              !_hasError)
+          // Video background - PRIMARY: show when video is ready
+          if (videoReady)
             // Video is loaded and ready - show video as primary background
             Positioned.fill(
               child: FittedBox(
@@ -506,8 +540,8 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
                 ),
               ),
             )
-          else if (shouldShowVideo && !_isInitialized && !_hasError)
-            // Show loading indicator while video initializes (only if motion allowed)
+          // Show loading indicator while video initializes (only if motion allowed and not errored)
+          else if (shouldShowVideo && !_hasError && !_isInitialized)
             const Positioned.fill(
               child: Center(
                 child: CircularProgressIndicator(
@@ -520,7 +554,8 @@ class _VideoBackgroundWidgetState extends State<VideoBackgroundWidget>
           // Static background fallback when:
           // 1. Motion is disabled (accessibility preference)
           // 2. Video failed to load (error state)
-          if (!shouldShowVideo || _hasError)
+          // 3. Video initialization timed out
+          if (!videoReady && (_hasError || !shouldShowVideo || (_controller == null && !_isInitialized)))
             const Positioned.fill(
               child: BackgroundImageWidget(
                 imagePath: 'assets/background n3rd.png',

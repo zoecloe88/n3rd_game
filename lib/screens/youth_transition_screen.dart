@@ -7,7 +7,6 @@ import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/services/resource_manager.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/config/app_config.dart';
-import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
 /// Youth-specific transition screen
@@ -77,8 +76,6 @@ class _YouthTransitionScreenState extends State<YouthTransitionScreen>
 
     if (!mounted || !context.mounted) return;
 
-    if (!mounted || !context.mounted) return;
-
     try {
       if (widget.onFinished != null) {
         widget.onFinished!.call();
@@ -124,7 +121,7 @@ class _YouthTransitionScreenState extends State<YouthTransitionScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
+      backgroundColor: Colors.black,
       body: Semantics(
         label: 'Transition video playing',
         child: VideoBackgroundWidget(

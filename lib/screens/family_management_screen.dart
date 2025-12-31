@@ -9,6 +9,7 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
@@ -45,9 +46,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     try {
       final familyService =
-          Provider.of<FamilyGroupService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
       final analyticsService =
-          Provider.of<AnalyticsService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
       await familyService.inviteMember(email);
 
@@ -113,9 +114,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     if (!mounted) return;
     final familyService =
-        Provider.of<FamilyGroupService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
     final analyticsService =
-        Provider.of<AnalyticsService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
     setState(() {
       _isRemoving = true;
@@ -181,9 +182,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     if (!mounted) return;
     final familyService =
-        Provider.of<FamilyGroupService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
     final analyticsService =
-        Provider.of<AnalyticsService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
     try {
       await familyService.leaveGroup();

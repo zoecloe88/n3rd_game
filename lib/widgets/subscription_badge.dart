@@ -4,6 +4,7 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Subscription status badge widget
 /// Displays current tier and allows navigation to subscription management
@@ -14,7 +15,12 @@ class SubscriptionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    if (subscriptionService == null) {
+      return const SizedBox.shrink(); // Hide badge if service not available
+    }
+    
     final colors = AppColors.of(context);
     final tier = subscriptionService.tierName;
 

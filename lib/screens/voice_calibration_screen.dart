@@ -85,6 +85,14 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ElevatedButton(
                           onPressed: () async {
                             try {
+                              // Ensure voice service is initialized and enabled
+                              if (!voiceService.isAvailable) {
+                                await voiceService.init();
+                              }
+                              if (!voiceService.isEnabled) {
+                                await voiceService.setEnabled(true);
+                              }
+                              
                               await calibrationService.startCalibration(
                                 pronunciationService: pronunciationService,
                                 recognitionService: voiceService,
@@ -93,6 +101,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                 setState(() {
                                   _currentSample = 0;
                                   _lastRecognizedText = null;
+                                  _isRecording = false;
                                 });
                               }
                             } catch (e) {
@@ -414,9 +423,17 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                               });
 
                               try {
+                                // Ensure voice service is enabled before starting
+                                if (!voiceService.isEnabled) {
+                                  await voiceService.setEnabled(true);
+                                }
+                                
                                 await voiceService.startListening(
                                   onResult: (text) {
                                     if (!mounted) return;
+                                    // Only process non-empty results
+                                    if (text.trim().isEmpty) return;
+                                    
                                     setState(() {
                                       _lastRecognizedText = text;
                                       _isRecording = false;
@@ -486,6 +503,62 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                             if (_isRecording) {
                               try {
                                 await voiceService.stop();
+                                // Get current word
+                                final word = calibrationService.getCurrentCalibrationWord();
+                                if (word == null || word.isEmpty) {
+                                  if (mounted && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          AppLocalizations.of(context)
+                                                  ?.noCalibrationWordAvailable ??
+                                              'No calibration word available. Please try again.',
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                // Process any recognized text that might not have triggered onResult yet
+                                if (mounted && voiceService.lastWords.isNotEmpty && _lastRecognizedText == null) {
+                                  final text = voiceService.lastWords;
+                                  if (text.trim().isNotEmpty) {
+                                    setState(() {
+                                      _lastRecognizedText = text;
+                                    });
+                                    try {
+                                      // Record the sample
+                                      calibrationService.recordCalibrationSample(
+                                        word: word,
+                                        recognizedText: text,
+                                        recognitionService: voiceService,
+                                      );
+                                      // Move to next sample
+                                      if (mounted) {
+                                        setState(() {
+                                          _currentSample++;
+                                          if (_currentSample >= 3) {
+                                            _currentSample = 0;
+                                            calibrationService.completeWordCalibration(word);
+                                          }
+                                        });
+                                      }
+                                    } catch (e) {
+                                      if (mounted && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              AppLocalizations.of(context)?.recordingError ??
+                                                  'Recording error. Please try again.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                }
                                 if (mounted) {
                                   setState(() {
                                     _isRecording = false;

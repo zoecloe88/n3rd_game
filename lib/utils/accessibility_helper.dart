@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
-import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Accessibility helper utilities for consistent accessibility implementation
 ///
@@ -110,15 +109,14 @@ class AccessibilityHelper {
     final systemScale = textScaler.scale(1.0);
     
     // Get app-level fontSizeMultiplier from AccessibilityService
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
     double appMultiplier = 1.0;
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null) {
       appMultiplier = accessibilityService.settings.fontSizeMultiplier;
-    } catch (e) {
-      // AccessibilityService not available, use default
     }
     
     // Apply both multipliers
@@ -136,19 +134,14 @@ class AccessibilityHelper {
     final systemScale = textScaler.scale(1.0);
     
     // Get app-level fontSizeMultiplier from AccessibilityService
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
     double appMultiplier = 1.0;
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null) {
       appMultiplier = accessibilityService.settings.fontSizeMultiplier;
-    } catch (e) {
-      // AccessibilityService not available, use default
-      LoggerService.debug(
-        'AccessibilityService not available in getScaledTextStyle',
-        error: e,
-      );
     }
     
     // Apply both multipliers
@@ -217,7 +210,10 @@ class AccessibilityHelper {
     // with proper Semantics configuration
     if (isScreenReaderEnabled(context)) {
       // Show a temporary message that screen readers will pick up
-      ScaffoldMessenger.of(context).showSnackBar(
+      // CRITICAL: Use maybeOf to prevent null check crashes
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+      messenger.showSnackBar(
         SnackBar(
           content: Semantics(
             liveRegion: true,
@@ -247,19 +243,14 @@ class AccessibilityHelper {
     double? minSize,
   }) {
     // Check if largerTouchTargets setting is enabled
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
     bool shouldEnforce = false;
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null) {
       shouldEnforce = accessibilityService.settings.largerTouchTargets;
-    } catch (e) {
-      // AccessibilityService not available, don't enforce
-      LoggerService.debug(
-        'AccessibilityService not available in ensureMinimumTouchTarget',
-        error: e,
-      );
     }
     
     // Always enforce minimum 48px when setting is enabled, otherwise use provided minSize or default
@@ -276,19 +267,15 @@ class AccessibilityHelper {
 
   /// Check if larger touch targets should be enforced
   static bool shouldEnforceLargerTouchTargets(BuildContext context) {
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null) {
       return accessibilityService.settings.largerTouchTargets;
-    } catch (e) {
-      LoggerService.debug(
-        'AccessibilityService not available in shouldEnforceLargerTouchTargets',
-        error: e,
-      );
-      return false;
     }
+    return false;
   }
 
   /// Create accessible icon with label

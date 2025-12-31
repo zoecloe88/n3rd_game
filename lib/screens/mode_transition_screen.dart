@@ -100,10 +100,14 @@ class _ModeTransitionScreenState extends State<ModeTransitionScreen>
       // Get the game mode arguments passed from mode selection screen
       final args = ModalRoute.of(context)?.settings.arguments;
 
+      // Log arguments for debugging
+      LoggerService.debug('ModeTransitionScreen: Navigating to game with arguments: $args (type: ${args.runtimeType})');
+
       // Validate arguments - should be GameMode or Map with 'mode' key
       if (args != null) {
         if (args is! GameMode && args is! Map) {
-          // Invalid argument type - navigate to game without arguments (will use default)
+          // Invalid argument type - log warning and navigate to game without arguments (will use default)
+          LoggerService.warning('ModeTransitionScreen: Invalid argument type ${args.runtimeType}, navigating without arguments');
           if (mounted && context.mounted) {
             unawaited(NavigationHelper.safeNavigate(context, '/game', replace: true));
           }
@@ -113,6 +117,7 @@ class _ModeTransitionScreenState extends State<ModeTransitionScreen>
 
       // Navigate with validated arguments
       if (mounted && context.mounted) {
+        LoggerService.debug('ModeTransitionScreen: Navigating to /game with arguments: $args');
         unawaited(NavigationHelper.safeNavigate(
           context,
           '/game',
@@ -120,8 +125,9 @@ class _ModeTransitionScreenState extends State<ModeTransitionScreen>
           arguments: args,
         ),);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Handle navigation error gracefully
+      LoggerService.error('ModeTransitionScreen: Navigation error', error: e, stack: stackTrace);
       LoggerService.error(
         'ModeTransitionScreen: Navigation error',
         error: e,
@@ -200,7 +206,7 @@ class _ModeTransitionScreenState extends State<ModeTransitionScreen>
     }
 
     return Scaffold(
-      backgroundColor: AppColors.of(context).background,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           Semantics(

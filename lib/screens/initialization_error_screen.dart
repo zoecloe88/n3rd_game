@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/utils/navigation_helper.dart';
 
 /// Screen displayed when critical initialization fails (e.g., trivia templates)
 /// This provides a clear, user-friendly error message instead of crashing
@@ -125,11 +126,13 @@ class InitializationErrorScreen extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () {
                       // Exit app - user needs to restart
-                      // On web, navigate to splash instead of exiting
+                      // On web, navigate to login instead of exiting
                       if (kIsWeb) {
-                        Navigator.of(
+                        NavigationHelper.safeNavigateAndRemoveUntil(
                           context,
-                        ).pushNamedAndRemoveUntil('/splash', (route) => false);
+                          '/login',
+                          (route) => false,
+                        );
                       } else {
                         exit(0);
                       }

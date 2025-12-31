@@ -263,7 +263,7 @@ class _NewsfeedScreenState extends State<NewsfeedScreen> {
               backgroundColor: const Color(0xFF00D9FF),
               child: Text(
                 (activity.userDisplayName?.isNotEmpty == true
-                        ? activity.userDisplayName[0]
+                        ? activity.userDisplayName![0]
                         : activity.userEmail?[0] ?? '?')
                     .toUpperCase(),
                 style: AppTypography.labelLarge.copyWith(

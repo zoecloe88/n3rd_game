@@ -14,6 +14,7 @@ import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
@@ -36,10 +37,10 @@ class _SubscriptionManagementScreenState
     // Initialize free tier service to show current status
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<FreeTierService>(context, listen: false).init();
+      ProviderHelper.safeGetOrThrow<FreeTierService>(context, listen: false).init();
 
       // Log subscription screen viewed
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -49,11 +50,11 @@ class _SubscriptionManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
-    final freeTierService = Provider.of<FreeTierService>(
+    final freeTierService = ProviderHelper.safeGetOrThrow<FreeTierService>(
       context,
       listen: false,
     );
@@ -291,7 +292,7 @@ class _SubscriptionManagementScreenState
                                 ),
                               );
                               final revenueCatService =
-                                  Provider.of<RevenueCatService>(
+                                  ProviderHelper.safeGetOrThrow<RevenueCatService>(
                                 context,
                                 listen: false,
                               );
@@ -711,7 +712,7 @@ class _SubscriptionManagementScreenState
   }
 
   void _showSubscriptionDialog(String tier) {
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -757,7 +758,7 @@ class _SubscriptionManagementScreenState
                   NavigationHelper.safePop(context);
                 }
                 if (!context.mounted) return;
-                final revenueCatService = Provider.of<RevenueCatService>(
+                final revenueCatService = ProviderHelper.safeGetOrThrow<RevenueCatService>(
                   context,
                   listen: false,
                 );
@@ -819,7 +820,7 @@ class _SubscriptionManagementScreenState
 
                     // Capture services after checking mounted, but before async operations
                     if (!context.mounted) return;
-                    final analyticsService = Provider.of<AnalyticsService>(
+                    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
                       context,
                       listen: false,
                     );
@@ -878,7 +879,7 @@ class _SubscriptionManagementScreenState
                             tier.toLowerCase().contains('friends')) {
                           try {
                             if (!context.mounted) return;
-                            final familyService = Provider.of<FamilyGroupService>(
+                            final familyService = ProviderHelper.safeGetOrThrow<FamilyGroupService>(
                               context,
                               listen: false,
                             );

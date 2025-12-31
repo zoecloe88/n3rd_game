@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/models/game_state.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
-import 'package:n3rd_game/models/game_mode_config.dart';
+import 'package:n3rd_game/models/game_mode_config.dart' show GameMode, GamePhase, ModeConfig;
 import 'package:n3rd_game/services/game/game_state_manager.dart';
 import 'package:n3rd_game/services/game/game_round_manager.dart';
 import 'package:n3rd_game/services/game/game_trivia_manager.dart';
@@ -12,13 +12,14 @@ import 'package:n3rd_game/services/game/game_selection_manager.dart';
 import 'package:n3rd_game/services/game/game_mode_handler.dart';
 import 'package:n3rd_game/services/game/game_validation_manager.dart';
 import 'package:n3rd_game/services/game/game_mode_specific_manager.dart';
-import 'package:n3rd_game/services/game/game_powerup_manager.dart';
+import 'package:n3rd_game/services/game/game_powerup_manager.dart' show GamePowerupManager, PowerupResult, PowerupResultWithCallback;
 import 'package:n3rd_game/services/game/game_competitive_challenge_manager.dart';
+import 'dart:math';
 import 'package:n3rd_game/services/interfaces/game_service_interface.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
-import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart';
+import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart' show DailyChallengeLeaderboardService, SubmissionResponse, SubmissionResult;
 import 'package:n3rd_game/config/game_constants.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/game/game_persistence_manager.dart'
@@ -64,6 +65,17 @@ class GameService extends ChangeNotifier implements GameServiceInterface {
   // Revealed words set (combines power-up hints and flip mode reveals)
   final Set<String> _revealedWords = {};
 
+  // Extended time multiplier for accessibility
+  double _extendedTimeMultiplier = 1.0;
+
+  // AI mode timing (set dynamically)
+  // Reserved for future AI mode timing functionality
+  // These fields are intentionally unused until AI mode timing is implemented
+  // ignore: unused_field, use_late_for_private_fields_and_variables
+  int? _aiMemorizeTime;
+  // ignore: unused_field, use_late_for_private_fields_and_variables
+  int? _aiPlayTime;
+
   GameService() {
     _setupTimerCallbacks();
     _loadFlipRevealMode();
@@ -82,6 +94,93 @@ class GameService extends ChangeNotifier implements GameServiceInterface {
   /// Set leaderboard service for competitive challenges
   void setLeaderboardService(DailyChallengeLeaderboardService? service) {
     _leaderboardService = service;
+  }
+
+  /// Set competitive challenge
+  ///
+  /// Initializes competitive challenge tracking for daily challenges.
+  /// Resets session stats and game start time when challenge starts.
+  void setCompetitiveChallenge(
+    String challengeId, {
+    int? targetRounds,
+    DailyChallengeLeaderboardService? leaderboardService,
+  }) {
+    if (_isDisposed) return;
+    
+    // Set leaderboard service if provided
+    if (leaderboardService != null) {
+      _leaderboardService = leaderboardService;
+    }
+    
+    // Set competitive challenge via manager
+    _competitiveChallengeManager.setCompetitiveChallenge(
+      challengeId,
+      targetRounds: targetRounds,
+      onResetSessionStats: () {
+        _sessionCorrectAnswers = 0;
+        _sessionWrongAnswers = 0;
+      },
+      onResetGameStartTime: () {
+        _gameStartTime = DateTime.now();
+      },
+      onNotifyListeners: () {
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Set personalization service
+  /// 
+  /// **Reserved for future use**: Personalization service integration
+  /// is planned but not yet implemented. This method is a placeholder.
+  void setPersonalizationService(dynamic service) {
+    // Stub implementation - personalization not yet integrated
+  }
+
+  /// Set gamification service
+  /// 
+  /// **Reserved for future use**: Gamification service integration
+  /// is planned but not yet implemented. This method is a placeholder.
+  void setGamificationService(dynamic service) {
+    // Stub implementation - gamification not yet integrated
+  }
+
+  /// Set subscription service
+  /// 
+  /// **Reserved for future use**: Subscription service integration
+  /// is planned but not yet implemented. This method is a placeholder.
+  void setSubscriptionService(dynamic service) {
+    // Stub implementation - subscription not yet integrated
+  }
+
+  /// Set game history service
+  /// 
+  /// **Reserved for future use**: Game history service integration
+  /// is planned but not yet implemented. This method is a placeholder.
+  void setGameHistoryService(dynamic service) {
+    // Stub implementation - game history not yet integrated
+  }
+
+  /// Load game settings
+  /// 
+  /// **Reserved for future use**: Game settings loading functionality
+  /// is planned but not yet implemented. This method is a placeholder.
+  Future<void> loadGameSettings() async {
+    // Stub implementation - settings loading not yet integrated
+  }
+
+  /// Generate trivia pool
+  /// 
+  /// **Reserved for future use**: This method should delegate to the trivia
+  /// generator service but is not yet implemented. Currently returns empty list.
+  /// 
+  /// [generator] - Trivia generator service (not used)
+  /// [count] - Number of trivia items to generate (not used)
+  /// Returns empty list until implementation is complete.
+  List<TriviaItem> generateTriviaPool(dynamic generator, {int count = 50}) {
+    // This should delegate to the trivia generator service
+    // For now, return empty list - this needs proper implementation
+    return [];
   }
 
   /// Set up timer callbacks for phase transitions
@@ -283,7 +382,9 @@ class GameService extends ChangeNotifier implements GameServiceInterface {
     if (_isDisposed) return;
     if (triviaPool.isEmpty) {
       LoggerService.warning('Cannot start round: trivia pool is empty');
-      return;
+      throw GameException(
+        'Cannot start round: trivia pool is empty. Please try again or select a different game mode.',
+      );
     }
 
     LoggerService.debug(
@@ -327,10 +428,10 @@ class GameService extends ChangeNotifier implements GameServiceInterface {
           _validationManager.validateTriviaItem(selectedTrivia);
       if (!validationResult.isValid) {
         LoggerService.error(
-          'Invalid trivia selected: ${validationResult.errorMessage}',
+          'Invalid trivia selected: ${validationResult.errorMessage}. Pool size: ${triviaPool.length}',
         );
         throw GameException(
-          'Invalid trivia item: ${validationResult.errorMessage}',
+          'Invalid trivia item: ${validationResult.errorMessage}. This may indicate corrupted trivia data. Please try again.',
         );
       }
 
@@ -1074,5 +1175,307 @@ class GameService extends ChangeNotifier implements GameServiceInterface {
     _timerManager.onShuffleTick = null;
 
     super.dispose();
+  }
+
+  /// Set extended time multiplier for accessibility
+  void setExtendedTimeMultiplier(double multiplier) {
+    _extendedTimeMultiplier = multiplier;
+  }
+
+  /// Set AI mode timing
+  void setAIModeTiming(int memorizeTime, int playTime) {
+    _aiMemorizeTime = memorizeTime;
+    _aiPlayTime = playTime;
+  }
+
+  /// Get current mode configuration
+  ModeConfig get currentConfig {
+    return ModeConfig.getConfig(
+      _currentMode,
+      round: _stateManager.state.round,
+      extendedTimeMultiplier: _extendedTimeMultiplier,
+    );
+  }
+
+  /// Check if save failure notification is needed
+  bool get needsSaveFailureNotification {
+    return _persistenceManager.needsSaveFailureNotification;
+  }
+
+  /// Clear save failure notification
+  void clearSaveFailureNotification() {
+    _persistenceManager.resetNotificationFlags();
+  }
+
+  /// Check if extended state failure notification is needed
+  bool get needsExtendedStateFailureNotification {
+    return _persistenceManager.needsExtendedStateFailureNotification;
+  }
+
+  /// Clear extended state failure notification
+  void clearExtendedStateFailureNotification() {
+    _persistenceManager.resetNotificationFlags();
+  }
+
+  /// Get precision error message (from mode-specific manager)
+  String? get precisionError {
+    return _modeSpecificManager.precisionError;
+  }
+
+  /// Get streak multiplier
+  int get streakMultiplier {
+    return _modeSpecificManager.streakMultiplier;
+  }
+
+  /// Submit competitive challenge score
+  Future<SubmissionResponse> submitCompetitiveChallengeScore() async {
+    if (_leaderboardService == null) {
+      LoggerService.warning('Cannot submit competitive challenge: leaderboard service not available');
+      return SubmissionResponse(
+        SubmissionResult.unknownError,
+        'Leaderboard service not available',
+      );
+    }
+    return _competitiveChallengeManager.submitCompetitiveChallengeScore(
+      state: state,
+      sessionCorrectAnswers: _sessionCorrectAnswers,
+      sessionWrongAnswers: _sessionWrongAnswers,
+      isLoadingState: false,
+      leaderboardService: _leaderboardService!,
+      onSaveState: () => saveState(),
+    );
+  }
+
+  /// Get survival perfect count
+  int get survivalPerfectCount {
+    return _modeSpecificManager.survivalPerfectCount;
+  }
+
+  /// Get time attack seconds left
+  int get timeAttackSecondsLeft => _timeAttackSecondsLeft;
+
+  /// Get flip reveal mode
+  String? get flipRevealMode {
+    return _flipModeManager.flipRevealMode;
+  }
+
+  /// Get flipped tiles
+  List<bool> get flippedTiles {
+    return _flipModeManager.flippedTiles;
+  }
+
+  /// Get last correct answers
+  List<String> get lastCorrectAnswers {
+    return _stateManager.state.lastCorrectAnswers;
+  }
+
+  /// Get last selected answers
+  List<String> get lastSelectedAnswers {
+    return _stateManager.state.lastSelectedAnswers;
+  }
+
+  /// Get is shuffling
+  bool get isShuffling {
+    return _modeHandler.isShuffling;
+  }
+
+  /// Get shuffle count
+  int get shuffleCount {
+    return _modeHandler.shuffleCount;
+  }
+
+  /// Get reveal all uses
+  int get revealAllUses {
+    return _powerupManager.revealAllUses;
+  }
+
+  /// Get clear uses
+  int get clearUses {
+    return _powerupManager.clearUses;
+  }
+
+  /// Get skip uses
+  int get skipUses {
+    return _powerupManager.skipUses;
+  }
+
+  /// Reveal all words power-up
+  PowerupResult revealAllWords() {
+    return _powerupManager.revealAllWords(
+      phase: phase,
+      isGameOver: isGameOver,
+      currentTrivia: currentTrivia,
+      revealedWords: _revealedWords,
+    );
+  }
+
+  /// Clear selections power-up
+  PowerupResult clearSelections() {
+    final result = _powerupManager.clearSelections(
+      phase: phase,
+      isGameOver: isGameOver,
+      selectedAnswers: Set.from(selectedAnswers),
+    );
+    if (result.success) {
+      _roundManager.clearSelectedAnswers();
+      notifyListeners();
+    }
+    return result;
+  }
+
+  /// Skip round power-up
+  PowerupResult skipRound({required List<TriviaItem> triviaPool}) {
+    if (skipUses <= 0) {
+      return PowerupResult.noUses('No skip uses remaining');
+    }
+    if (phase != GamePhase.play) {
+      return PowerupResult.notAllowed('Power-up can only be used during play phase');
+    }
+    if (isGameOver) {
+      return PowerupResult.notAllowed('Cannot use power-ups when game is over');
+    }
+    
+    // Decrement uses
+    _powerupManager.skipUses = (_powerupManager.skipUses - 1).clamp(0, GameConstants.maxPowerUpUses);
+    
+    // Start next round with provided trivia pool
+    if (triviaPool.isNotEmpty) {
+      startNewRound(triviaPool, mode: _currentMode);
+      return PowerupResult.success();
+    }
+    
+    return PowerupResult.error('No trivia available to skip to');
+  }
+
+  /// Get streak shield uses
+  int get streakShieldUses {
+    return _powerupManager.streakShieldUses;
+  }
+
+  /// Get has streak shield
+  bool get hasStreakShield {
+    return _powerupManager.hasStreakShield;
+  }
+
+  /// Activate streak shield power-up
+  PowerupResult activateStreakShield() {
+    return _powerupManager.activateStreakShield(
+      phase: phase,
+      isGameOver: isGameOver,
+    );
+  }
+
+  /// Get time freeze uses
+  int get timeFreezeUses {
+    return _powerupManager.timeFreezeUses;
+  }
+
+  /// Activate time freeze power-up
+  PowerupResultWithCallback activateTimeFreeze({
+    required VoidCallback onResumeTimer,
+    required Function(int) onUpdatePlayTime,
+  }) {
+    return _powerupManager.activateTimeFreeze(
+      phase: phase,
+      isGameOver: isGameOver,
+      currentPlayTimeLeft: playTimeLeft,
+      onResumeTimer: onResumeTimer,
+      onUpdatePlayTime: onUpdatePlayTime,
+    );
+  }
+
+  /// Get hint uses
+  int get hintUses {
+    return _powerupManager.hintUses;
+  }
+
+  /// Activate hint power-up
+  PowerupResult activateHint() {
+    return _powerupManager.activateHint(
+      phase: phase,
+      isGameOver: isGameOver,
+      currentMode: _currentMode,
+      currentTrivia: currentTrivia,
+      shuffledWords: shuffledWords,
+    );
+  }
+
+  /// Get double score uses
+  int get doubleScoreUses {
+    return _powerupManager.doubleScoreUses;
+  }
+
+  /// Get has double score
+  bool get hasDoubleScore {
+    return _powerupManager.hasDoubleScore;
+  }
+
+  /// Activate double score power-up
+  PowerupResult activateDoubleScore() {
+    return _powerupManager.activateDoubleScore(
+      phase: phase,
+      isGameOver: isGameOver,
+    );
+  }
+
+  /// Get session correct answers
+  int get sessionCorrectAnswers => _sessionCorrectAnswers;
+
+  /// Get session wrong answers
+  int get sessionWrongAnswers => _sessionWrongAnswers;
+
+  /// Get AI mode response time (stub - not currently used)
+  int get aiModeResponseTime {
+    // Stub implementation - AI mode response time not yet integrated
+    return 0;
+  }
+
+  /// Start next round
+  void nextRound() {
+    if (_isDisposed) return;
+    final remainingPool = _roundManager.currentTriviaPool;
+    
+    // Handle random mode: select a random mode for each round
+    GameMode? modeForRound = _currentMode;
+    if (_currentMode == GameMode.random) {
+      final availableModes = [
+        GameMode.classic,
+        GameMode.classicII,
+        GameMode.speed,
+        GameMode.regular,
+        GameMode.shuffle,
+        GameMode.timeAttack,
+        GameMode.challenge,
+        GameMode.streak,
+        GameMode.blitz,
+        GameMode.marathon,
+        GameMode.perfect,
+        GameMode.survival,
+        GameMode.precision,
+        GameMode.flip,
+      ];
+      // Exclude random mode itself and premium modes (ai, practice, learning)
+      final random = Random();
+      modeForRound = availableModes[random.nextInt(availableModes.length)];
+      LoggerService.debug('Random mode selected: ${modeForRound.name}');
+    }
+    
+    if (remainingPool.isNotEmpty) {
+      startNewRound(remainingPool, mode: modeForRound);
+    } else {
+      // If pool is empty, try to get more trivia from trivia manager
+      final triviaPool = _triviaManager.currentTriviaPool;
+      if (triviaPool.isNotEmpty) {
+        startNewRound(triviaPool, mode: modeForRound);
+      } else {
+        // No more trivia available - end game
+        LoggerService.warning('Cannot start next round: both trivia pools are empty');
+        final currentState = _stateManager.state;
+        _stateManager.updateState(
+          currentState.copyWith(isGameOver: true),
+        );
+        notifyListeners();
+      }
+    }
   }
 }

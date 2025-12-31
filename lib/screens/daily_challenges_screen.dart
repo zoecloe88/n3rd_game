@@ -70,7 +70,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
         // Check if user has online access (Base or Premium)
         if (!subscriptionService.hasOnlineAccess) {
           return Scaffold(
-            backgroundColor: AppColors.overlayDark,
+            backgroundColor: Colors.black,
             body: BackgroundImageWidget(
               imagePath: 'assets/background n3rd.png',
               child: SafeArea(
@@ -133,6 +133,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
             return ChangeNotifierProvider.value(
               value: _viewModel!,
               child: Scaffold(
+                backgroundColor: Colors.black, // Black background to prevent white flash
                 body: VideoBackgroundWidget(
                   videoPath: 'assets/modeselectionscreen.mp4',
                   fit: BoxFit.cover,
@@ -683,7 +684,8 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     fontWeight: FontWeight.w600,
                     color: colors.onDarkText,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
                 ),
               ),
               // Score

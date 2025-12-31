@@ -220,8 +220,8 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
         Expanded(
           child: _buildStatCard(
             'Avg Rating',
-            _surveyAnalytics != null && _surveyAnalytics.totalSurveys > 0
-                ? '${_surveyAnalytics.averageRating.toStringAsFixed(1)}/5'
+            _surveyAnalytics != null && _surveyAnalytics!.totalSurveys > 0
+                ? '${_surveyAnalytics!.averageRating.toStringAsFixed(1)}/5'
                 : 'N/A',
             Icons.star,
             AppColors.warning,
@@ -325,6 +325,10 @@ class _SupportDashboardScreenState extends State<SupportDashboardScreen> {
   }
 
   Widget _buildAISection() {
+    // CRITICAL: Add null check to prevent type casting crash
+    if (_aiAnalytics == null) {
+      return const SizedBox.shrink();
+    }
     final aiData = _aiAnalytics!;
     return Container(
       padding: const EdgeInsets.all(20),

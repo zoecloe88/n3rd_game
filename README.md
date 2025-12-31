@@ -263,7 +263,9 @@ firebase deploy --only functions
 
 ## 📄 License
 
-[Add your license here]
+Copyright (c) 2025 Girard Clairsaint. All rights reserved.
+
+See [LICENSE](LICENSE) file for full license terms.
 
 ## 👤 Author
 

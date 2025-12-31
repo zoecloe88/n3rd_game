@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Application color system with light and dark mode support
 ///
@@ -83,17 +83,14 @@ class AppColors {
   /// Falls back to theme brightness if accessibility service is not available
   static AppColorScheme of(BuildContext context) {
     // Check for high contrast mode in accessibility settings
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
-      if (accessibilityService.settings.highContrastMode) {
-        return AppColorScheme.highContrast();
-      }
-    } catch (e) {
-      // AccessibilityService not available, fall back to theme
-      // This is expected in some contexts (e.g., during app initialization)
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null &&
+        accessibilityService.settings.highContrastMode) {
+      return AppColorScheme.highContrast();
     }
 
     // Use theme brightness to determine color scheme

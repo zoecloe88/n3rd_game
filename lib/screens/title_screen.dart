@@ -19,6 +19,7 @@ import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:n3rd_game/utils/accessibility_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -70,7 +71,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track screen view analytics (non-blocking)
   void _trackScreenView() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logScreenView('title').catchError((e) {
         // Non-critical
       });
@@ -82,7 +83,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track menu drawer open (non-blocking)
   void _trackMenuDrawerOpen() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('title_menu_drawer_open').catchError((e) {
         // Non-critical
       });
@@ -94,7 +95,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track menu item click (non-blocking)
   void _trackMenuItemClick(String itemName) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent(
         'title_menu_item_click',
         parameters: {
@@ -113,7 +114,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track upgrade dialog shown (non-blocking)
   void _trackUpgradeDialogShown(String feature) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics
           .logUpgradeDialogShown(
         source: feature.toLowerCase().replaceAll(' ', '_'),
@@ -130,7 +131,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track about dialog shown (non-blocking)
   void _trackAboutDialogShown() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('title_about_dialog_shown').catchError((e) {
         // Non-critical
       });
@@ -142,7 +143,7 @@ class _TitleScreenState extends State<TitleScreen> {
   /// Track sign out attempt (non-blocking)
   void _trackSignOutAttempt() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('title_sign_out_attempt').catchError((e) {
         // Non-critical
       });
@@ -157,6 +158,8 @@ class _TitleScreenState extends State<TitleScreen> {
     required String label,
     required VoidCallback onPressed,
     bool isPrimary = false,
+    Color? backgroundColor,
+    Color? foregroundColor,
   }) {
     final colors = AppColors.of(context);
     final screenWidth = ResponsiveHelper.responsiveWidth(context, 1.0);
@@ -181,6 +184,10 @@ class _TitleScreenState extends State<TitleScreen> {
     // Ensures icons are not too small on small screens or too large on tablets
     final iconSize = (fontSize * 1.1).clamp(16.0, 28.0);
 
+    // Use custom colors if provided, otherwise use default
+    final buttonBgColor = backgroundColor ?? colors.primaryButton;
+    final buttonFgColor = foregroundColor ?? colors.buttonText;
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: SizedBox(
@@ -192,8 +199,8 @@ class _TitleScreenState extends State<TitleScreen> {
             onPressed();
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: colors.primaryButton,
-            foregroundColor: colors.buttonText,
+            backgroundColor: buttonBgColor,
+            foregroundColor: buttonFgColor,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -203,7 +210,7 @@ class _TitleScreenState extends State<TitleScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: colors.buttonText, size: iconSize),
+              Icon(icon, color: buttonFgColor, size: iconSize),
               SizedBox(
                 width: ResponsiveHelper.responsiveWidth(context, 0.02)
                     .clamp(4.0, 12.0),
@@ -213,10 +220,14 @@ class _TitleScreenState extends State<TitleScreen> {
                   label,
                   style: AccessibilityHelper.getScaledTextStyle(
                     context,
-                    AppTypography.labelLarge.copyWith(fontSize: fontSize),
+                    AppTypography.labelLarge.copyWith(
+                      fontSize: fontSize,
+                      color: buttonFgColor,
+                    ),
                   ),
                   textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
                 ),
               ),
             ],
@@ -722,7 +733,7 @@ class _TitleScreenState extends State<TitleScreen> {
               }
               try {
                 final authService =
-                    Provider.of<AuthService>(context, listen: false);
+                    ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
                 await authService.signOut();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -997,6 +1008,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                 label: 'Choose Mode',
                                 onPressed: () => _switchToModeTab(context),
                                 isPrimary: true,
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
                               ),
 
                               Builder(
@@ -1026,6 +1039,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                         'Upgrade to Premium to access daily challenges and leaderboards!',
                                       ),
                                       isPrimary: false,
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black,
                                     );
                                   }
                                   return _buildMenuButton(
@@ -1039,6 +1054,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                       );
                                     },
                                     isPrimary: false,
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                   );
                                 },
                               ),
@@ -1070,6 +1087,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                         'Upgrade to Premium to access multiplayer and social features!',
                                       ),
                                       isPrimary: false,
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black,
                                     );
                                   }
                                   return _buildMenuButton(
@@ -1081,6 +1100,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                       NavigationHelper.switchToTab(context, 3);
                                     },
                                     isPrimary: false,
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                   );
                                 },
                               ),
@@ -1112,6 +1133,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                         'Upgrade to Premium to access all editions!',
                                       ),
                                       isPrimary: false,
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black,
                                     );
                                   }
                                   return _buildMenuButton(
@@ -1128,6 +1151,8 @@ class _TitleScreenState extends State<TitleScreen> {
                                       },
                                     ),
                                     isPrimary: false,
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                   );
                                 },
                               ),
@@ -1143,13 +1168,15 @@ class _TitleScreenState extends State<TitleScreen> {
                                 },
                               ),
 
-                              // Settings Button - goes to More tab
+                              // Settings Button - goes to More tab (white with black text)
                               _buildMenuButton(
                                 context,
                                 icon: Icons.settings_outlined,
                                 label: 'Settings',
                                 onPressed: () => _switchToMoreTab(context),
                                 isPrimary: false,
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
                               ),
                             ],
                           ),

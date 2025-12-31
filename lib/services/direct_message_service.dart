@@ -3,18 +3,20 @@ import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/direct_message.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/utils/firestore_error_handler.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 class DirectMessageService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      Firebase.app();
       return FirebaseFirestore.instance;
     } catch (e) {
       return null;
@@ -22,8 +24,11 @@ class DirectMessageService extends ChangeNotifier {
   }
 
   String? get _userId {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      return FirebaseHelper.getCurrentUser()?.uid;
     } catch (e) {
       return null;
     }

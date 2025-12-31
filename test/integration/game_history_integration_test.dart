@@ -3,18 +3,17 @@ import 'package:n3rd_game/services/game_history_service.dart';
 import 'package:n3rd_game/models/game_history_entry.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
 import '../utils/test_helpers.dart';
-import '../utils/firebase_test_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
     await TestHelpers.setupAllTestInfrastructure();
-    await FirebaseTestHelper.initializeFirebaseForTests();
+    // Firebase is already initialized by setupAllTestInfrastructure()
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
   });
 
   group('Game History Integration Tests', () {
@@ -22,16 +21,7 @@ void main() {
 
     setUp(() async {
       TestHelpers.setupMockSharedPreferences();
-      // Ensure Firebase is initialized before creating service
-      await FirebaseTestHelper.initializeFirebaseForTests();
-      // Verify Firebase is actually initialized
-      if (!FirebaseTestHelper.isFirebaseInitialized()) {
-        // If initialization failed, try again with a longer delay
-        await Future.delayed(const Duration(milliseconds: 100));
-        await FirebaseTestHelper.initializeFirebaseForTests();
-      }
-      // Small delay to ensure Firebase is fully ready
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Firebase is already initialized by setUpAll()
       try {
         service = GameHistoryService();
         await service.init();

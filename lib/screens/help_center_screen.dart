@@ -19,6 +19,7 @@ import 'package:n3rd_game/widgets/app_chip.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 /// Help Center screen providing access to quick tips, FAQ, and knowledge base articles
 ///
@@ -132,6 +133,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                     AppButton(
                       icon: Icons.feedback_outlined,
                       onPressed: () {
+                        HapticService().lightImpact();
                         showDialog(
                           context: context,
                           builder: (context) => const FeedbackScreen(),
@@ -215,7 +217,10 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         label: '$label tab',
         hint: isSelected ? 'Selected' : 'Tap to select',
         selected: isSelected,
-        onTap: () => setState(() => _selectedTab = value),
+        onTap: () {
+          HapticService().lightImpact();
+          setState(() => _selectedTab = value);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
@@ -524,7 +529,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
               color: colors.secondaryText,
             ),
             maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+            overflow: TextOverflow.visible,
+            softWrap: true,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(

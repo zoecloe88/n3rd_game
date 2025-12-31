@@ -155,10 +155,14 @@ class GameRoom { // Whether spectator mode is enabled
     List<String>? spectators,
     this.maxSpectators = 10,
     this.isSpectatorMode = true,
+    this.isPublic = false,
+    this.isPersistent = false,
   })  : players = players ?? [],
         createdAt = createdAt ?? DateTime.now(),
-        expiresAt = expiresAt ??
-            (createdAt ?? DateTime.now()).add(const Duration(hours: 1)),
+        expiresAt = isPersistent
+            ? null // Persistent lobbies don't expire
+            : (expiresAt ??
+                (createdAt ?? DateTime.now()).add(const Duration(hours: 1))),
         invitedFriends = invitedFriends ?? [],
         spectators = spectators ?? [];
 
@@ -210,6 +214,11 @@ class GameRoom { // Whether spectator mode is enabled
             [],
         maxSpectators: json['maxSpectators'] as int? ?? 10,
         isSpectatorMode: json['isSpectatorMode'] as bool? ?? true,
+        isPublic: json['isPublic'] as bool? ?? false,
+        isPersistent: json['isPersistent'] as bool? ?? false,
+        expiresAt: json['expiresAt'] != null
+            ? DateTime.parse(json['expiresAt'] as String)
+            : null,
       );
 
   factory GameRoom.fromFirestore(DocumentSnapshot doc) {
@@ -241,6 +250,8 @@ class GameRoom { // Whether spectator mode is enabled
   final List<String> spectators; // List of spectator user IDs
   final int maxSpectators; // Maximum number of spectators allowed
   final bool isSpectatorMode;
+  final bool isPublic; // If true, lobby is public and visible to all users
+  final bool isPersistent; // If true, lobby stays open 24/7 and doesn't expire
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -266,6 +277,9 @@ class GameRoom { // Whether spectator mode is enabled
         'spectators': spectators,
         'maxSpectators': maxSpectators,
         'isSpectatorMode': isSpectatorMode,
+        'isPublic': isPublic,
+        'isPersistent': isPersistent,
+        if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
       };
 
   GameRoom copyWith({
@@ -292,6 +306,8 @@ class GameRoom { // Whether spectator mode is enabled
     List<String>? spectators,
     int? maxSpectators,
     bool? isSpectatorMode,
+    bool? isPublic,
+    bool? isPersistent,
   }) {
     return GameRoom(
       id: id ?? this.id,
@@ -310,13 +326,15 @@ class GameRoom { // Whether spectator mode is enabled
       createdAt: createdAt ?? this.createdAt,
       startedAt: startedAt ?? this.startedAt,
       finishedAt: finishedAt ?? this.finishedAt,
-      expiresAt: expiresAt ?? this.expiresAt,
+      expiresAt: expiresAt,
       friendsOnly: friendsOnly ?? this.friendsOnly,
       invitedFriends: invitedFriends ?? this.invitedFriends,
       allowedPlayers: allowedPlayers ?? this.allowedPlayers,
       spectators: spectators ?? this.spectators,
       maxSpectators: maxSpectators ?? this.maxSpectators,
       isSpectatorMode: isSpectatorMode ?? this.isSpectatorMode,
+      isPublic: isPublic ?? this.isPublic,
+      isPersistent: isPersistent ?? this.isPersistent,
     );
   }
 

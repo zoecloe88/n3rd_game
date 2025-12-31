@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Standardized button component with variants, sizes, and states
 ///
@@ -183,16 +183,15 @@ class AppButton extends StatelessWidget {
     final iconSize = sizeConfig.iconSize;
     
     // Enforce 48px minimum when largerTouchTargets setting is enabled
-    try {
-      final accessibilityService = Provider.of<AccessibilityService>(
-        context,
-        listen: false,
-      );
-      if (accessibilityService.settings.largerTouchTargets && minHeight < 48) {
-        minHeight = 48;
-      }
-    } catch (e) {
-      // AccessibilityService not available, use default
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final accessibilityService = ProviderHelper.safeGet<AccessibilityService>(
+      context,
+      listen: false,
+    );
+    if (accessibilityService != null &&
+        accessibilityService.settings.largerTouchTargets &&
+        minHeight < 48) {
+      minHeight = 48;
     }
 
     // Get variant-specific styling

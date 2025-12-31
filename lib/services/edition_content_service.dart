@@ -208,10 +208,28 @@ class EditionContentService extends ChangeNotifier {
       return [];
     }
 
-    // Use existing generator or create new one
-    // Note: New instance won't have analytics/personalization services
-    // This is acceptable for edition-specific content but analytics won't be tracked
-    final generator = existingGenerator ?? TriviaGeneratorService();
+    // Use existing generator or create new one with error handling
+    TriviaGeneratorService generator;
+    if (existingGenerator != null) {
+      generator = existingGenerator;
+    } else {
+      try {
+        generator = TriviaGeneratorService();
+        // Check if generator has valid templates
+        if (generator.totalPossibleCombinations == 0) {
+          LoggerService.warning(
+            'TriviaGeneratorService created with no templates, using fallback',
+          );
+          // Generator is in fallback mode - will return empty list when used
+        }
+      } catch (e) {
+        LoggerService.error(
+          'Failed to create TriviaGeneratorService for edition $editionId',
+          error: e,
+        );
+        return []; // Return empty list on creation failure
+      }
+    }
 
     // Add edition-specific templates to generator
     generator.addTemplates(templates);

@@ -25,11 +25,13 @@ import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/services/data_export_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/widgets/settings/email_settings_dialog.dart';
 import 'package:n3rd_game/widgets/settings/notifications_settings_dialog.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -143,8 +145,9 @@ class SettingsScreen extends StatelessWidget {
                                     fontSize: 15,
                                     color: colors.primaryText,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.visible,
+                                  softWrap: true,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -729,203 +732,9 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showEditProfileDialog(BuildContext context, AuthService authService) {
-    final userEmail = authService.userEmail;
-    final nameController = TextEditingController(
-      text: userEmail != null && userEmail.contains('@')
-          ? userEmail.split('@')[0]
-          : userEmail ?? '',
-    );
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.transparent,
-        contentPadding: EdgeInsets.zero,
-        content: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/background n3rd.png'),
-              fit: BoxFit.cover,
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
-          padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)?.editProfile ?? 'Edit Profile',
-                style: AppTypography.headlineLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onDarkText,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Avatar upload
-              Center(
-                child: GestureDetector(
-                  onTap: () async {
-                    final ImagePicker picker = ImagePicker();
-                    try {
-                      final XFile? image = await picker.pickImage(
-                        source: ImageSource.gallery,
-                        maxWidth: 512,
-                        maxHeight: 512,
-                        imageQuality: 85,
-                      );
-                      if (image != null && context.mounted) {
-                        // Avatar upload functionality - Firebase Storage integration needed
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppLocalizations.of(context)
-                                      ?.avatarUploadComingSoon ??
-                                  'Avatar upload coming soon',
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ErrorHandler.showSnackBar(
-                          context,
-                          AppLocalizations.of(context)?.imagePickError ??
-                              'Failed to pick image. Please try again.',
-                          error: e,
-                        );
-                      }
-                    }
-                  },
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor:
-                        AppColors.onDarkText.withValues(alpha: 0.2),
-                    child: const Icon(
-                      Icons.person,
-                      size: 50,
-                      color: AppColors.onDarkText,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameController,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.onDarkText,
-                ),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.displayName ??
-                      'Display Name',
-                  labelStyle: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.onDarkText.withValues(alpha: 0.7),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppColors.onDarkText.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppColors.onDarkText.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppColors.of(context).focus,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Buttons inside tile
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      if (context.mounted) {
-                        NavigationHelper.safePop(context);
-                      }
-                    },
-                    child: Text(
-                      AppLocalizations.of(context)?.cancel ?? 'Cancel',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.onDarkText,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final displayName = nameController.text.trim();
-                      if (displayName.isNotEmpty) {
-                        // Show loading indicator
-                        unawaited(showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),);
-                        try {
-                          await authService.updateDisplayName(displayName);
-                          if (context.mounted) {
-                            NavigationHelper.safePop(context); // Close loading
-                            NavigationHelper.safePop(context); // Close dialog
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppLocalizations.of(context)
-                                          ?.profileUpdated ??
-                                      'Profile updated',
-                                ),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            NavigationHelper.safePop(context); // Close loading
-                            ErrorHandler.showSnackBar(
-                              context,
-                              AppLocalizations.of(context)
-                                      ?.failedToUpdateProfile ??
-                                  'Failed to update profile. Please try again.',
-                              error: e,
-                            );
-                          }
-                        }
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppLocalizations.of(context)
-                                      ?.pleaseEnterDisplayName ??
-                                  'Please enter a display name',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(
-                      AppLocalizations.of(context)?.save ?? 'Save',
-                      style: AppTypography.labelLarge,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (context) => _EditProfileDialog(authService: authService),
     );
   }
 
@@ -1321,7 +1130,7 @@ class SettingsScreen extends StatelessWidget {
   void _showLanguageSettings(BuildContext context) async {
     if (!context.mounted) return;
     final languageService =
-        Provider.of<LanguageService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<LanguageService>(context, listen: false);
     String selectedLanguage = 'English';
     // Get current language from service
     final currentLocale = languageService.currentLocale;
@@ -1336,60 +1145,78 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
     unawaited(showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            'Language',
-            style: AppTypography.headlineLarge.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ['English', 'Spanish', 'French', 'German'].map((lang) {
-              return RadioListTile<String>(
-                title: Text(lang, style: AppTypography.bodyMedium),
-                value: lang,
-                // ignore: deprecated_member_use
-                groupValue: selectedLanguage,
-                // ignore: deprecated_member_use
-                onChanged: (value) async {
-                  if (value != null) {
-                    setState(() {
-                      selectedLanguage = value;
-                    });
-                    // Change language immediately using LanguageService
-                    await languageService.setLanguage(value);
-                    if (!context.mounted) return;
-                    // Close dialog first
-                    NavigationHelper.safePop(context);
-                    // Show message
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            'Language changed to $value. Restart the app to see changes.',),
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                },
-              );
-            }).toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (context.mounted) {
-                  NavigationHelper.safePop(context);
-                }
-              },
-              child: Text(
-                AppLocalizations.of(context)?.done ?? 'Done',
-                style: AppTypography.labelLarge,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(
+              'Language',
+              style: AppTypography.headlineLarge.copyWith(
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: ['English', 'Spanish', 'French', 'German'].map((lang) {
+                return RadioListTile<String>(
+                  title: Text(lang, style: AppTypography.bodyMedium),
+                  value: lang,
+                  // ignore: deprecated_member_use
+                  groupValue: selectedLanguage,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) async {
+                    if (value != null) {
+                      try {
+                        // Update dialog state
+                        setDialogState(() {
+                          selectedLanguage = value;
+                        });
+                        // Change language immediately using LanguageService
+                        await languageService.setLanguage(value);
+                        // Close dialog first
+                        if (dialogContext.mounted) {
+                          NavigationHelper.safePop(dialogContext);
+                        }
+                        // Show message in the original context
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Language changed to $value. Restart the app to see changes.',
+                              ),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        LoggerService.error('Failed to change language', error: e);
+                        if (dialogContext.mounted) {
+                          ErrorHandler.showSnackBar(
+                            dialogContext,
+                            'Failed to change language. Please try again.',
+                            error: e,
+                          );
+                        }
+                      }
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (dialogContext.mounted) {
+                    NavigationHelper.safePop(dialogContext);
+                  }
+                },
+                child: Text(
+                  AppLocalizations.of(context)?.done ?? 'Done',
+                  style: AppTypography.labelLarge,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     ),);
   }
@@ -1606,7 +1433,7 @@ class SettingsScreen extends StatelessWidget {
                     );
                     // Reload game settings in GameService
                     final gameService =
-                        Provider.of<GameService>(context, listen: false);
+                        ProviderHelper.safeGetOrThrow<GameService>(context, listen: false);
                     await gameService.loadGameSettings();
                   }
                 } catch (e) {
@@ -1631,7 +1458,7 @@ class SettingsScreen extends StatelessWidget {
 
   void _exportUserData(BuildContext context) async {
     try {
-      final exportService = Provider.of<DataExportService>(
+      final exportService = ProviderHelper.safeGetOrThrow<DataExportService>(
         context,
         listen: false,
       );
@@ -1979,6 +1806,346 @@ class SettingsScreen extends StatelessWidget {
         label,
         style: AppTypography.labelLarge.copyWith(fontSize: 13),
       ),
+      ),
+    );
+  }
+}
+
+/// Stateful dialog for editing profile with avatar upload
+class _EditProfileDialog extends StatefulWidget {
+  final AuthService authService;
+
+  const _EditProfileDialog({required this.authService});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late TextEditingController _nameController;
+  File? _selectedImage;
+  String? _imageUrl;
+  bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final userEmail = widget.authService.userEmail;
+    _nameController = TextEditingController(
+      text: userEmail != null && userEmail.contains('@')
+          ? userEmail.split('@')[0]
+          : userEmail ?? '',
+    );
+    // Load existing profile image if available
+    final currentUser = widget.authService.currentUser;
+    if (currentUser?.photoURL != null) {
+      _imageUrl = currentUser!.photoURL;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      // Check and request permissions based on source
+      if (source == ImageSource.camera) {
+        // Check camera permission
+        final cameraStatus = await Permission.camera.status;
+        if (!cameraStatus.isGranted) {
+          final result = await Permission.camera.request();
+          if (!result.isGranted) {
+            if (mounted && context.mounted) {
+              ErrorHandler.showSnackBar(
+                context,
+                'Camera permission is required to take photos. Please enable it in settings.',
+              );
+            }
+            return;
+          }
+        }
+      } else if (source == ImageSource.gallery) {
+        // Check photos permission (iOS) or storage permission (Android)
+        Permission permission;
+        if (Platform.isIOS) {
+          permission = Permission.photos;
+        } else {
+          permission = Permission.storage;
+        }
+        final status = await permission.status;
+        if (!status.isGranted) {
+          final result = await permission.request();
+          if (!result.isGranted) {
+            if (mounted && context.mounted) {
+              ErrorHandler.showSnackBar(
+                context,
+                'Storage permission is required to access photos. Please enable it in settings.',
+              );
+            }
+            return;
+          }
+        }
+      }
+
+      // Proceed with image picking
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (image != null && mounted) {
+        setState(() {
+          _selectedImage = File(image.path);
+          _imageUrl = null; // Clear existing URL when new image is selected
+        });
+      }
+    } catch (e) {
+      LoggerService.error('Failed to pick image', error: e);
+      if (mounted && context.mounted) {
+        ErrorHandler.showSnackBar(
+          context,
+          AppLocalizations.of(context)?.imagePickError ??
+              'Failed to pick image. Please try again.',
+          error: e,
+        );
+      }
+    }
+  }
+
+  Future<void> _showImageSourceDialog() async {
+    if (!mounted) return;
+    final choice = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          AppLocalizations.of(context)?.selectImageSource ??
+              'Select Image Source',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice != null) {
+      await _pickImage(choice);
+    }
+  }
+
+  Future<void> _uploadAndSave() async {
+    final displayName = _nameController.text.trim();
+    if (displayName.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.pleaseEnterDisplayName ??
+                  'Please enter a display name',
+            ),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).clearSnackBars();
+              },
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // Upload image if selected
+      if (_selectedImage != null) {
+        await widget.authService.updateProfileImage(_selectedImage!);
+      }
+
+      // Update display name
+      await widget.authService.updateDisplayName(displayName);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.profileUpdated ?? 'Profile updated',
+            ),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).clearSnackBars();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ErrorHandler.showSnackBar(
+          context,
+          AppLocalizations.of(context)?.failedToUpdateProfile ??
+              'Failed to update profile. Please try again.',
+          error: e,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.transparent,
+      contentPadding: EdgeInsets.zero,
+      content: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/background n3rd.png'),
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppLocalizations.of(context)?.editProfile ?? 'Edit Profile',
+              style: AppTypography.headlineLarge.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.onDarkText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Avatar upload
+            Center(
+              child: GestureDetector(
+                onTap: _isUploading ? null : _showImageSourceDialog,
+                child: _isUploading
+                    ? const CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.onDarkText,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                      )
+                    : CircleAvatar(
+                        radius: 50,
+                        backgroundColor:
+                            AppColors.onDarkText.withValues(alpha: 0.2),
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : (_imageUrl != null
+                                ? NetworkImage(_imageUrl!) as ImageProvider
+                                : null),
+                        child: _selectedImage == null && _imageUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: AppColors.onDarkText,
+                              )
+                            : null,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.onDarkText,
+              ),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)?.displayName ??
+                    'Display Name',
+                labelStyle: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.onDarkText.withValues(alpha: 0.7),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: AppColors.onDarkText.withValues(alpha: 0.7),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: AppColors.onDarkText.withValues(alpha: 0.7),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: AppColors.of(context).focus,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isUploading
+                      ? null
+                      : () {
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                  child: Text(
+                    AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.onDarkText,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isUploading ? null : _uploadAndSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)?.save ?? 'Save',
+                    style: AppTypography.labelLarge,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -14,6 +13,8 @@ import 'package:n3rd_game/services/trivia_personalization_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/rate_limiter_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/json_helper.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
     deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/config/app_config.dart';
@@ -237,18 +238,21 @@ class AIEditionService extends ChangeNotifier {
 
       if (rateLimitData != null) {
         try {
-          final data = jsonDecode(rateLimitData) as Map<String, dynamic>;
-          final lastDate = data['date'] as String;
-          final count = data['count'] as int;
-
-          if (lastDate == todayKey) {
-            return (
-              count < _dailyGenerationLimit,
-              _dailyGenerationLimit - count,
-            );
+          final decoded = jsonDecode(rateLimitData);
+          if (decoded is Map<String, dynamic>) {
+            final data = decoded;
+            final lastDate = data['date'] as String?;
+            final count = data['count'] as int?;
+            
+            if (lastDate != null && count != null && lastDate == todayKey) {
+              return (
+                count < _dailyGenerationLimit,
+                _dailyGenerationLimit - count,
+              );
+            }
           }
         } catch (e) {
-          LoggerService.error('Error parsing rate limit data', error: e);
+          LoggerService.debug('Failed to parse rate limit data', error: e);
           // If parsing fails, treat as no rate limit data and allow generation
         }
       }
@@ -271,13 +275,18 @@ class AIEditionService extends ChangeNotifier {
       int count = 1;
       if (rateLimitData != null) {
         try {
-          final data = jsonDecode(rateLimitData) as Map<String, dynamic>;
-          final lastDate = data['date'] as String;
-          if (lastDate == todayKey) {
-            count = (data['count'] as int) + 1;
+          final decoded = jsonDecode(rateLimitData);
+          if (decoded is Map<String, dynamic>) {
+            final data = decoded;
+            final lastDate = data['date'] as String?;
+            final countValue = data['count'] as int?;
+            
+            if (lastDate != null && countValue != null && lastDate == todayKey) {
+              count = countValue + 1;
+            }
           }
         } catch (e) {
-          LoggerService.error('Error parsing rate limit data for increment', error: e);
+          LoggerService.debug('Failed to parse rate limit data for increment', error: e);
           // If parsing fails, start fresh with count = 1
         }
       }
@@ -652,7 +661,7 @@ class AIEditionService extends ChangeNotifier {
         return null;
       }
 
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       if (user == null) {
         LoggerService.debug('User not authenticated for AI generation');
         _lastError = 'Please sign in to use AI generation.';
@@ -724,8 +733,11 @@ class AIEditionService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         try {
-          final responseData =
-              jsonDecode(response.body) as Map<String, dynamic>;
+          final responseData = JsonHelper.safeDecodeMap(response.body);
+          if (responseData == null) {
+            LoggerService.error('Invalid response format from AI Edition service');
+            throw Exception('Invalid response format');
+          }
 
           // Callable functions return { result: {...} }
           final result = responseData['result'] as Map<String, dynamic>?;
@@ -898,10 +910,14 @@ class AIEditionService extends ChangeNotifier {
         // For other errors, try to parse error response
         String errorMessage = 'Unknown error';
         try {
-          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-          final error = errorData['error'] as Map<String, dynamic>?;
-          errorMessage = error?['message'] as String? ?? response.body;
-          LoggerService.error('Cloud Function error: $errorMessage');
+          final errorData = JsonHelper.safeDecodeMap(response.body);
+          if (errorData == null) {
+            errorMessage = response.body;
+          } else {
+            final error = errorData['error'];
+            errorMessage = error?['message'] as String? ?? response.body;
+            LoggerService.error('Cloud Function error: $errorMessage');
+          }
         } catch (e) {
           if (kDebugMode) {
             debugPrint(
@@ -1015,7 +1031,14 @@ class AIEditionService extends ChangeNotifier {
 
       if (cacheData != null) {
         try {
-          final data = jsonDecode(cacheData) as Map<String, dynamic>;
+          final data = JsonHelper.safeDecodeMap(cacheData);
+          if (data == null) {
+            LoggerService.warning('Invalid cache data format, clearing cache');
+            // Clear invalid cache entry
+            final prefs = await _getPrefs();
+            await prefs.remove(cacheKey);
+            return null;
+          }
           final triviaList = (data['trivia'] as List)
               .map((item) {
                 try {
@@ -1162,7 +1185,7 @@ class AIEditionService extends ChangeNotifier {
       }
 
       // Check per-hour rate limit (additional protection)
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       final userId = user?.uid ?? 'anonymous';
       final canGenerateHourly = await _rateLimiter.isAllowed(
         'ai_edition_hourly_$userId',
@@ -1229,14 +1252,29 @@ class AIEditionService extends ChangeNotifier {
       if (_generatorService != null) {
         generator = _generatorService!;
       } else {
-        generator = TriviaGeneratorService();
-        // If we have personalization service, inject it
-        if (_personalizationService != null) {
-          generator.setPersonalizationService(_personalizationService!);
+        try {
+          generator = TriviaGeneratorService();
+          // Check if generator has valid templates
+          if (generator.totalPossibleCombinations == 0) {
+            LoggerService.warning(
+              'TriviaGeneratorService created with no templates, using fallback',
+            );
+            // Generator is in fallback mode - will return empty list when used
+          }
+          // If we have personalization service, inject it
+          if (_personalizationService != null) {
+            generator.setPersonalizationService(_personalizationService!);
+          }
+        } catch (e) {
+          LoggerService.error(
+            'Failed to create TriviaGeneratorService for AI Edition',
+            error: e,
+          );
+          // Return empty list - AI generation will fail gracefully
+          _isGenerating = false;
+          notifyListeners();
+          return [];
         }
-        // If we have generator service (from Provider) with analytics, preserve it
-        // Otherwise, analytics will be injected by Provider when available
-        // Note: Analytics tracking for AI Edition is handled at the service level
       }
       final relevantTemplates = _findRelevantTemplates(topic, isYouthEdition);
 
@@ -1446,7 +1484,7 @@ class AIEditionService extends ChangeNotifier {
     int itemCount,
   ) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       if (user == null) return;
 
       final history = {
@@ -1459,6 +1497,11 @@ class AIEditionService extends ChangeNotifier {
 
       // Save to Firestore (async, don't wait)
       if (!_isOfflineMode) {
+        // CRITICAL: Check Firebase is initialized before accessing Firestore
+        if (!FirebaseHelper.isInitialized()) {
+          LoggerService.debug('Firebase not initialized, skipping history save');
+          return;
+        }
         try {
           await FirebaseFirestore.instance
               .collection(_collectionName)
@@ -1498,11 +1541,16 @@ class AIEditionService extends ChangeNotifier {
     int limit = 20,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       if (user == null) return [];
 
       // Try Firestore first
       if (!_isOfflineMode) {
+        // CRITICAL: Check Firebase is initialized before accessing Firestore
+        if (!FirebaseHelper.isInitialized()) {
+          LoggerService.debug('Firebase not initialized, returning empty history');
+          return [];
+        }
         try {
           final snapshot = await FirebaseFirestore.instance
               .collection(_collectionName)
@@ -1523,7 +1571,8 @@ class AIEditionService extends ChangeNotifier {
       final prefs = await _getPrefs();
       final stored = prefs.getStringList(_localStorageKey) ?? [];
       final history = stored
-          .map((json) => jsonDecode(json) as Map<String, dynamic>)
+          .map((json) => JsonHelper.safeDecodeMap(json))
+          .whereType<Map<String, dynamic>>()
           .where((item) => item['userId'] == user.uid)
           .toList()
         ..sort(

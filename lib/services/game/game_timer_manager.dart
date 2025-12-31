@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+
 /// Manages all game timers (memorize, play, shuffle, flip, time attack)
 ///
 /// This service centralizes timer management to prevent memory leaks

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/settings_service.dart';
+import 'package:n3rd_game/services/notification_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Notifications settings dialog widget
 /// Extracted from SettingsScreen for better code organization
@@ -51,9 +54,31 @@ class _NotificationsSettingsDialogState
                 ),
                 value: settingsService.pushNotifications,
                 onChanged: (value) async {
+                  // Save preference first
                   final success =
                       await settingsService.setPushNotifications(value);
                   if (success) {
+                    // Enable/disable notifications in NotificationService
+                    try {
+                      if (!context.mounted) return;
+                      final notificationService =
+                          ProviderHelper.safeGet<NotificationService>(
+                        context,
+                        listen: false,
+                      );
+                      if (notificationService != null) {
+                        if (value) {
+                          await notificationService.enableNotifications();
+                        } else {
+                          await notificationService.disableNotifications();
+                        }
+                      }
+                    } catch (e) {
+                      LoggerService.debug(
+                        'NotificationService not available',
+                        error: e,
+                      );
+                    }
                     setState(() {});
                   } else {
                     if (context.mounted) {

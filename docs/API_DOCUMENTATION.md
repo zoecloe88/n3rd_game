@@ -18,6 +18,9 @@ This document provides API documentation for public service methods in the N3RD 
 - [NavigationStateService](#navigationstateservice)
 - [RouteRegistry](#routeregistry)
 - [SecureHttpClient](#securehttpclient)
+- [FirebaseHelper](#firebasehelper)
+- [ProviderHelper](#providerhelper)
+- [JsonHelper](#jsonhelper)
 
 ---
 
@@ -1054,5 +1057,143 @@ final response = await SecureHttpClient.instance.get(
 
 ---
 
-**Last Updated:** December 2024
+## FirebaseHelper
+
+Centralized utility for safe Firebase access with initialization checks.
+
+**Location**: `lib/utils/firebase_helper.dart`
+
+### Methods
+
+#### `static bool isInitialized()`
+
+Check if Firebase is initialized.
+
+**Returns:** `true` if Firebase is initialized, `false` otherwise. This method never throws - it catches all exceptions.
+
+**Example:**
+```dart
+if (FirebaseHelper.isInitialized()) {
+  final user = FirebaseHelper.getCurrentUser();
+  // Safe to use Firebase services
+}
+```
+
+#### `static User? getCurrentUser()`
+
+Safely get current Firebase user.
+
+**Returns:** The current Firebase user if Firebase is initialized and a user is logged in. Returns `null` otherwise. This method never throws - it catches all exceptions.
+
+**Example:**
+```dart
+final user = FirebaseHelper.getCurrentUser();
+if (user != null) {
+  // User is logged in
+}
+```
+
+---
+
+## ProviderHelper
+
+Utility for safe provider access with error handling.
+
+**Location**: `lib/utils/provider_helper.dart`
+
+### Methods
+
+#### `static T? safeGet<T>(BuildContext context, {bool listen = false})`
+
+Safely get a provider, returning null if not found.
+
+Use this when the provider is optional and the code can handle its absence.
+
+**Parameters:**
+- `context` (required): BuildContext for provider access
+- `listen` (optional): Whether to listen to provider changes (default: false)
+
+**Returns:** The provider instance if found, `null` otherwise.
+
+**Example:**
+```dart
+final service = ProviderHelper.safeGet<GameService>(context);
+if (service != null) {
+  service.doSomething();
+}
+```
+
+#### `static T safeGetOrThrow<T>(BuildContext context, {bool listen = false})`
+
+Get a provider or throw with better error message.
+
+Use this when the provider is required and its absence indicates a bug.
+
+**Parameters:**
+- `context` (required): BuildContext for provider access
+- `listen` (optional): Whether to listen to provider changes (default: false)
+
+**Returns:** The provider instance (guaranteed non-null).
+
+**Throws:** ProviderNotFoundException with detailed error message if provider not found.
+
+**Example:**
+```dart
+final service = ProviderHelper.safeGetOrThrow<GameService>(context);
+service.doSomething(); // Guaranteed to be non-null
+```
+
+---
+
+## JsonHelper
+
+Utility for safe JSON decoding with type checking.
+
+**Location**: `lib/utils/json_helper.dart`
+
+### Methods
+
+#### `static Map<String, dynamic>? safeDecodeMap(String jsonString)`
+
+Safely decode a JSON string as a Map.
+
+Returns null if the JSON is not a Map or if decoding fails.
+
+**Parameters:**
+- `jsonString` (required): JSON string to decode
+
+**Returns:** Decoded Map if successful, `null` otherwise.
+
+**Example:**
+```dart
+final data = JsonHelper.safeDecodeMap(jsonString);
+if (data != null) {
+  final value = data['key'];
+}
+```
+
+#### `static List<dynamic>? safeDecodeList(String jsonString)`
+
+Safely decode a JSON string as a List.
+
+Returns null if the JSON is not a List or if decoding fails.
+
+**Parameters:**
+- `jsonString` (required): JSON string to decode
+
+**Returns:** Decoded List if successful, `null` otherwise.
+
+**Example:**
+```dart
+final list = JsonHelper.safeDecodeList(jsonString);
+if (list != null) {
+  for (final item in list) {
+    // Process item
+  }
+}
+```
+
+---
+
+**Last Updated:** January 2025
 

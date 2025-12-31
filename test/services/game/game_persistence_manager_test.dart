@@ -14,7 +14,7 @@ void main() {
       TestHelpers.setupMockSharedPreferences();
     });
 
-    tearDownAll(() {
+    tearDownAll(() async {
       TestHelpers.clearMockSharedPreferences();
     });
 

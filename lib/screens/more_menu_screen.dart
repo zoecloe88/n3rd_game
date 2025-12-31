@@ -8,9 +8,11 @@ import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 class MoreMenuScreen extends StatelessWidget {
   const MoreMenuScreen({super.key});
@@ -136,20 +138,6 @@ class MoreMenuScreen extends StatelessWidget {
                       onTap: () =>
                           NavigationHelper.safeNavigate(context, '/practice'),
                     ),
-                    _buildMenuItem(
-                      context,
-                      icon: Icons.create_outlined,
-                      title: AppLocalizations.of(context)?.triviaCreator ??
-                          'Trivia Creator',
-                      subtitle:
-                          AppLocalizations.of(context)?.triviaCreatorSubtitle ??
-                              'Create your own trivia',
-                      onTap: () => NavigationHelper.safeNavigate(
-                        context,
-                        '/trivia-creator',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
 
                     // Support Section
                     _buildSectionHeader(
@@ -267,11 +255,10 @@ class MoreMenuScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.transparent, // Transparent background to match Stats tab
+        color: Colors.white, // White background
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white
-              .withValues(alpha: 0.2), // White border to match Stats tab
+          color: Colors.black.withValues(alpha: 0.1), // Subtle border
           width: 1,
         ),
       ),
@@ -279,26 +266,28 @@ class MoreMenuScreen extends StatelessWidget {
         label: '$title. $subtitle',
         button: true,
         child: ListTile(
-        leading: Icon(icon, color: Colors.white, size: 24), // White icons
+        leading: Icon(icon, color: Colors.black, size: 24), // Black icons
         title: Text(
           title,
           style: AppTypography.titleLarge.copyWith(
-            color: Colors.white, // White text
+            color: Colors.black, // Black text
             fontWeight: FontWeight.w600,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: AppTypography.bodyMedium.copyWith(
-            color:
-                Colors.white.withValues(alpha: 0.8), // White text with opacity
+            color: Colors.black.withValues(alpha: 0.7), // Black text with opacity
           ),
         ),
         trailing: Icon(
           Icons.chevron_right,
-          color: Colors.white.withValues(alpha: 0.8), // White chevron
+          color: Colors.black.withValues(alpha: 0.7), // Black chevron
         ),
-        onTap: onTap,
+        onTap: () {
+          HapticService().lightImpact();
+          onTap();
+        },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       ),
@@ -341,7 +330,7 @@ class MoreMenuScreen extends StatelessWidget {
               NavigationHelper.safePop(context);
               try {
                 final authService =
-                    Provider.of<AuthService>(context, listen: false);
+                    ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
                 await authService.signOut();
                 if (context.mounted) {
                   unawaited(NavigationHelper.safeNavigate(context, '/login',

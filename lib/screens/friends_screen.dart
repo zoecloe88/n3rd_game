@@ -11,6 +11,10 @@ import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/feedback_helper.dart';
+import 'package:n3rd_game/widgets/app_text_field.dart';
+import 'package:n3rd_game/widgets/app_button.dart';
+import 'package:n3rd_game/widgets/app_card.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -359,7 +363,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         color: AppColors.of(context).primaryText,
                       ),
                     ),
-                    if (friend.email != null) ...[
+                    if (friend.email != null && friend.email!.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         friend.email!,
@@ -444,6 +448,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                Semantics(
+                  label: 'Online Multiplayer',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.videogame_asset, color: Colors.white),
+                    tooltip: 'Online Multiplayer',
+                    onPressed: () {
+                      HapticService().lightImpact();
+                      NavigationHelper.safeNavigate(
+                        context,
+                        '/multiplayer-lobby',
+                      );
+                    },
+                  ),
+                ),
                 Semantics(
                   label: 'Friend Suggestions',
                   button: true,
@@ -537,9 +556,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildFriendItem(BuildContext context, dynamic friend) {
+    // CRITICAL: Add null check for friend object to prevent crashes
+    if (friend == null) {
+      return const SizedBox.shrink();
+    }
+
     final itemColors = AppColors.of(context);
     final displayName =
         friend.displayName ?? friend.email?.split('@').first ?? 'Unknown';
+
+    // CRITICAL: Ensure displayName is not empty before using substring
+    final displayInitial = displayName.isNotEmpty
+        ? displayName.substring(0, 1).toUpperCase()
+        : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -556,7 +585,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 radius: 24,
                 backgroundColor: itemColors.primaryButton,
                 child: Text(
-                  displayName.substring(0, 1).toUpperCase(),
+                  displayInitial,
                   style: AppTypography.titleLarge.copyWith(
                     fontWeight: FontWeight.bold,
                     color: itemColors.buttonText,
@@ -594,7 +623,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     color: itemColors.primaryText,
                   ),
                 ),
-                if (friend.email != null)
+                if (friend.email != null && friend.email!.isNotEmpty)
                   Text(
                     friend.email!,
                     style: AppTypography.labelSmall.copyWith(
@@ -753,35 +782,35 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _showAddFriendDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final dialogColors = AppColors.of(context);
-        return AlertDialog(
-          backgroundColor: dialogColors.cardBackground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Add Friend',
-            style: AppTypography.headlineLarge.copyWith(
-              fontWeight: FontWeight.bold,
-              color: dialogColors.primaryText,
-            ),
-          ),
-          content: Column(
+    unawaited(HapticService().lightImpact());
+    _searchController.clear();
+    if (mounted) {
+      setState(() => _searchResults = []);
+    }
+    final colors = AppColors.of(context);
+    unawaited(FeedbackHelper.showBottomSheet(
+      context,
+      child: StatefulBuilder(
+        builder: (context, setDialogState) => Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  labelText: 'Search by email',
-                  hintText: 'user@example.com',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+              Text(
+                'Add Friend',
+                style: AppTypography.headlineMedium.copyWith(
+                  color: colors.onDarkText,
                 ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                controller: _searchController,
+                label: 'Search by email',
+                hint: 'user@example.com',
                 keyboardType: TextInputType.emailAddress,
+                leadingIcon: Icons.email,
+                semanticsLabel: 'Email Address',
+                semanticsHint: 'Enter friend\'s email',
               ),
               const SizedBox(height: AppSpacing.md),
               if (_searching)
@@ -793,68 +822,83 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     itemCount: _searchResults.length,
                     itemBuilder: (context, index) {
                       final user = _searchResults[index];
-                      return ListTile(
-                        title: Text(
-                          user['displayName'] ?? user['email'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
+                      return AppCard.filled(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        backgroundColor: Colors.white,
+                        onTap: () => _sendFriendRequest(
+                          user['userId'],
                           user['email'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          user['displayName'],
                         ),
-                        trailing: Semantics(
-                          label: AppLocalizations.of(context)?.addFriend ??
-                              'Add Friend',
-                          button: true,
-                          child: IconButton(
-                            icon: const Icon(Icons.person_add),
-                            onPressed: () => _sendFriendRequest(
-                              user['userId'],
-                              user['email'],
-                              user['displayName'],
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: colors.accent,
+                            child: Text(
+                              (user['displayName'] ?? user['email'] ?? '?')
+                                  .substring(0, 1)
+                                  .toUpperCase(),
+                              style: TextStyle(color: colors.onDarkText),
                             ),
-                            tooltip: AppLocalizations.of(context)?.addFriend ??
-                                'Add Friend',
+                          ),
+                          title: Text(
+                            user['displayName'] ?? user['email'],
+                            maxLines: 2,
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
+                            style: AppTypography.titleLarge.copyWith(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            user['email'],
+                            maxLines: 2,
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: Colors.black.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          trailing: Icon(
+                            Icons.person_add,
+                            color: colors.accent,
                           ),
                         ),
                       );
                     },
                   ),
                 ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AppButton(
+                    label: 'Cancel',
+                    onPressed: () {
+                      NavigationHelper.safePop(context);
+                      _searchController.clear();
+                      if (mounted) {
+                        setState(() => _searchResults = []);
+                      }
+                    },
+                    variant: AppButtonVariant.text,
+                    foregroundColor: colors.onDarkText.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  AppButton(
+                    variant: AppButtonVariant.primary,
+                    label: 'Search',
+                    onPressed: _searchUsers,
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onDarkText,
+                  ),
+                ],
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                NavigationHelper.safePop(context);
-                _searchController.clear();
-                if (mounted) {
-                  setState(() => _searchResults = []);
-                }
-              },
-              child: Text(
-                'Cancel',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.of(context).secondaryText,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: _searchUsers,
-              child: Text(
-                'Search',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.of(context).primaryButton,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+        ),
+      ),
+    ),);
   }
 
   Future<void> _showFriendSuggestions() async {
@@ -873,58 +917,32 @@ class _FriendsScreenState extends State<FriendsScreen> {
         return;
       }
 
-      unawaited(showDialog(
-        context: context,
-        builder: (context) {
-          final dialogColors = AppColors.of(context);
-          return AlertDialog(
-            backgroundColor: dialogColors.cardBackground,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'Friend Suggestions',
-              style: AppTypography.headlineLarge.copyWith(
-                fontWeight: FontWeight.bold,
-                color: dialogColors.primaryText,
+      final colors = AppColors.of(context);
+      unawaited(FeedbackHelper.showBottomSheet(
+        context,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Friend Suggestions',
+                style: AppTypography.headlineMedium.copyWith(
+                  color: colors.onDarkText,
+                ),
               ),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: suggestions.length,
-                itemBuilder: (context, index) {
-                  final user = suggestions[index];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: dialogColors.primaryButton,
-                      child: Text(
-                        (user['displayName'] ??
-                                user['email']?.split('@').first ??
-                                (AppLocalizations.of(context)?.userInitial ??
-                                    'U'))
-                            .substring(0, 1)
-                            .toUpperCase(),
-                        style: AppTypography.titleLarge.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      user['displayName'] ??
-                          user['email']?.split('@').first ??
-                          'Unknown',
-                      style: AppTypography.labelLarge,
-                    ),
-                    subtitle: Text(
-                      user['email'] ?? '',
-                      style: AppTypography.labelSmall,
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.person_add),
-                      onPressed: () {
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: suggestions.length,
+                  itemBuilder: (context, index) {
+                    final user = suggestions[index];
+                    return AppCard.filled(
+                      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      backgroundColor: Colors.white,
+                      onTap: () {
                         NavigationHelper.safePop(context);
                         _sendFriendRequest(
                           user['userId'],
@@ -932,24 +950,55 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           user['displayName'],
                         );
                       },
-                    ),
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => NavigationHelper.safePop(context),
-                child: Text(
-                  'Close',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: dialogColors.secondaryText,
-                  ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: colors.accent,
+                          child: Text(
+                            (user['displayName'] ??
+                                    user['email']?.split('@').first ??
+                                    (AppLocalizations.of(context)?.userInitial ??
+                                        'U'))
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: TextStyle(color: colors.onDarkText),
+                          ),
+                        ),
+                        title: Text(
+                          user['displayName'] ??
+                              user['email']?.split('@').first ??
+                              'Unknown',
+                          style: TextStyle(color: colors.onDarkText),
+                        ),
+                        subtitle: Text(
+                          user['email'] ?? '',
+                          style: TextStyle(
+                            color: colors.onDarkText.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.person_add,
+                          color: colors.accent,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AppButton(
+                    variant: AppButtonVariant.text,
+                    label: 'Close',
+                    onPressed: () => NavigationHelper.safePop(context),
+                    foregroundColor: colors.onDarkText.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
             ],
-          );
-        },
+          ),
+        ),
       ),);
     } catch (e) {
       if (mounted) {

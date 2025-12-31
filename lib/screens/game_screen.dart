@@ -36,8 +36,12 @@ import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/accessibility_service.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/edition_validator.dart';
-import 'package:n3rd_game/widgets/video_background_widget.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/services/game/game_validation_manager.dart';
+import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/widgets/celebration_animation.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -88,19 +92,30 @@ class _GameScreenState extends State<GameScreen>
         });
       }
 
-      final service = Provider.of<GameService>(buildContext, listen: false);
-      final subscriptionService = Provider.of<SubscriptionService>(
-        buildContext,
-        listen: false,
-      );
-      final freeTierService = Provider.of<FreeTierService>(
+      // CRITICAL: Safely get required services with error handling
+      game_service.GameService? service;
+      SubscriptionService? subscriptionService;
+      try {
+        service = ProviderHelper.safeGetOrThrow<game_service.GameService>(buildContext, listen: false);
+        subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
+          buildContext,
+          listen: false,
+        );
+      } catch (e) {
+        LoggerService.error('Required services not available in game screen initialization', error: e);
+        // Return early if critical services are missing
+        if (!buildContext.mounted) return;
+        NavigationHelper.safePop(buildContext);
+        return;
+      }
+      final freeTierService = ProviderHelper.safeGetOrThrow<FreeTierService>(
         buildContext,
         listen: false,
       );
       
       // Set extended time multiplier from AccessibilityService
       try {
-        final accessibilityService = Provider.of<AccessibilityService>(
+        final accessibilityService = ProviderHelper.safeGetOrThrow<AccessibilityService>(
           buildContext,
           listen: false,
         );
@@ -152,7 +167,7 @@ class _GameScreenState extends State<GameScreen>
         if (!freeTierService.canPlay()) {
           if (buildContext.mounted) {
             // Log free tier limit reached
-            final analyticsService = Provider.of<AnalyticsService>(
+            final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
               buildContext,
               listen: false,
             );
@@ -186,7 +201,7 @@ class _GameScreenState extends State<GameScreen>
       _trackNavigationEntry(null, argsMap);
 
       final args = routeArgs;
-      GameMode? mode;
+      game_mode_config.GameMode? mode;
       String? difficulty;
       List<TriviaItem>? customTriviaPool;
       bool argumentValidationSuccess = true;
@@ -284,9 +299,14 @@ class _GameScreenState extends State<GameScreen>
         final revealMode = args['revealMode'] as String?;
         if (revealMode != null && mode == game_mode_config.GameMode.flip) {
           // Set reveal mode in GameService if provided
-          final gameService =
-              Provider.of<GameService>(buildContext, listen: false);
-          unawaited(gameService.setFlipRevealMode(revealMode));
+          try {
+            final gameService =
+                ProviderHelper.safeGetOrThrow<game_service.GameService>(buildContext, listen: false);
+            unawaited(gameService.setFlipRevealMode(revealMode));
+          } catch (e) {
+            LoggerService.warning('GameService not available to set reveal mode', error: e);
+            // Non-critical, continue without setting reveal mode
+          }
         }
 
         // Handle edition-specific arguments
@@ -334,7 +354,7 @@ class _GameScreenState extends State<GameScreen>
       if (mode == game_mode_config.GameMode.ai && !subscriptionService.isPremium) {
         if (buildContext.mounted) {
           // Log game mode selection attempt
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             buildContext,
             listen: false,
           );
@@ -354,7 +374,7 @@ class _GameScreenState extends State<GameScreen>
 
       // Log successful game mode selection
       if (buildContext.mounted) {
-        final analyticsService = Provider.of<AnalyticsService>(
+        final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
           buildContext,
           listen: false,
         );
@@ -382,7 +402,7 @@ class _GameScreenState extends State<GameScreen>
 
       // Handle AI mode timing
       if (mode == game_mode_config.GameMode.ai) {
-        final aiModeService = Provider.of<AIModeService>(
+        final aiModeService = ProviderHelper.safeGetOrThrow<AIModeService>(
           context,
           listen: false,
         );
@@ -395,14 +415,50 @@ class _GameScreenState extends State<GameScreen>
       List<TriviaItem> triviaPool;
       try {
         if (!mounted) return;
-        final analyticsService = Provider.of<AnalyticsService>(
+        final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
           // ignore: use_build_context_synchronously
           buildContext,
           listen: false,
         );
 
         if (customTriviaPool != null && customTriviaPool.isNotEmpty) {
-          triviaPool = customTriviaPool;
+          // Filter custom trivia pool for validity
+          final validationManager = GameValidationManager();
+          final originalCustomSize = customTriviaPool.length;
+          final validCustomPool = customTriviaPool.where((item) {
+            final validationResult = validationManager.validateTriviaItem(item);
+            if (!validationResult.isValid) {
+              LoggerService.warning(
+                'Filtering invalid custom trivia item: ${validationResult.errorMessage}',
+              );
+              return false;
+            }
+            return true;
+          }).toList();
+          
+          if (validCustomPool.isEmpty) {
+            LoggerService.error(
+              'All $originalCustomSize custom trivia items failed validation',
+            );
+            if (buildContext.mounted) {
+              await analyticsService.logTriviaGeneration('custom', false, error: 'All custom trivia items failed validation');
+              if (!buildContext.mounted) return;
+              unawaited(_showTriviaErrorDialog(
+                buildContext,
+                'All custom trivia content failed validation. Please try again or restart the app.',
+                recoveryAction: 'This may indicate corrupted trivia data. Restarting the app usually resolves this.',
+                canRetry: true,
+              ),);
+            }
+            return;
+          }
+          
+          triviaPool = validCustomPool;
+          if (validCustomPool.length < originalCustomSize) {
+            LoggerService.warning(
+              'Filtered out ${originalCustomSize - validCustomPool.length} invalid custom trivia items. Valid pool size: ${validCustomPool.length}',
+            );
+          }
           await analyticsService.logTriviaGeneration('custom', true);
           if (!mounted) return;
         } else if (_currentEdition != null) {
@@ -426,6 +482,48 @@ class _GameScreenState extends State<GameScreen>
             mode.name,
           );
           if (!mounted) return;
+          
+          // Filter out invalid trivia items before starting game
+          final validationManagerEdition = GameValidationManager();
+          final originalEditionSize = triviaPool.length;
+          final validEditionPool = triviaPool.where((item) {
+            final validationResult = validationManagerEdition.validateTriviaItem(item);
+            if (!validationResult.isValid) {
+              LoggerService.warning(
+                'Filtering invalid edition trivia item: ${validationResult.errorMessage}',
+              );
+              return false;
+            }
+            return true;
+          }).toList();
+          
+          if (validEditionPool.isEmpty) {
+            LoggerService.error(
+              'All $originalEditionSize edition trivia items failed validation',
+            );
+            if (buildContext.mounted) {
+              await analyticsService.logTriviaGeneration(
+                mode.name,
+                false,
+                error: 'All edition trivia items failed validation',
+              );
+              if (!buildContext.mounted) return;
+              unawaited(_showTriviaErrorDialog(
+                buildContext,
+                'All edition trivia content failed validation. Please try again or restart the app.',
+                recoveryAction: 'This may indicate corrupted trivia data. Restarting the app usually resolves this.',
+                canRetry: true,
+              ),);
+            }
+            return;
+          }
+          
+          triviaPool = validEditionPool;
+          if (validEditionPool.length < originalEditionSize) {
+            LoggerService.warning(
+              'Filtered out ${originalEditionSize - validEditionPool.length} invalid edition trivia items. Valid pool size: ${validEditionPool.length}',
+            );
+          }
         } else {
           // Standard game mode - generate trivia
           // Generate trivia using Provider service with retry logic
@@ -469,12 +567,60 @@ class _GameScreenState extends State<GameScreen>
             mode.name,
             true,
           );
+          
+          // Filter out invalid trivia items before starting game
+          final validationManager = GameValidationManager();
+          final originalPoolSize = triviaPool.length;
+          final validTriviaPool = triviaPool.where((item) {
+            final validationResult = validationManager.validateTriviaItem(item);
+            if (!validationResult.isValid) {
+              LoggerService.warning(
+                'Filtering invalid trivia item: ${validationResult.errorMessage}',
+              );
+              return false;
+            }
+            return true;
+          }).toList();
+          
+          if (validTriviaPool.isEmpty) {
+            // All trivia items were invalid - this is a serious issue
+            LoggerService.error(
+              'All $originalPoolSize generated trivia items failed validation',
+            );
+            if (buildContext.mounted) {
+              await analyticsService.logTriviaGeneration(
+                mode.name,
+                false,
+                error: 'All trivia items failed validation',
+              );
+              if (!buildContext.mounted) return;
+              unawaited(_showTriviaErrorDialog(
+                buildContext,
+                'All trivia content failed validation. Please try again or restart the app.',
+                recoveryAction: 'This may indicate corrupted trivia data. Restarting the app usually resolves this.',
+                canRetry: true,
+              ),);
+            }
+            return;
+          }
+          
+          // Use filtered valid trivia pool
+          triviaPool = validTriviaPool;
+          
+          if (validTriviaPool.length < originalPoolSize) {
+            LoggerService.warning(
+              'Filtered out ${originalPoolSize - validTriviaPool.length} invalid trivia items. Valid pool size: ${validTriviaPool.length}',
+            );
+          }
         }
       } on GameException catch (e) {
         // Handle game-specific errors with user-friendly messages
-        LoggerService.warning('Game error in GameScreen initialization', error: e);
+        LoggerService.warning(
+          'Game error in GameScreen initialization - mode: ${mode.name}, error: ${e.toString()}',
+          error: e,
+        );
         if (buildContext.mounted) {
-          final catchAnalyticsService = Provider.of<AnalyticsService>(
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             buildContext,
             listen: false,
           );
@@ -490,7 +636,12 @@ class _GameScreenState extends State<GameScreen>
           if (buildContext.mounted) {
             final errorMessage =
                 ErrorHandler.getLocalizedErrorMessage(e, buildContext);
-            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              errorMessage,
+              recoveryAction: 'Please try again or select a different game mode.',
+              canRetry: true,
+            ),);
           }
         }
         return;
@@ -501,9 +652,12 @@ class _GameScreenState extends State<GameScreen>
           });
         }
         // Handle validation errors (template/content issues)
-        LoggerService.warning('Validation error in GameScreen initialization', error: e);
+        LoggerService.warning(
+          'Validation error in GameScreen initialization - mode: ${mode.name}, error: ${e.toString()}',
+          error: e,
+        );
         if (buildContext.mounted) {
-          final catchAnalyticsService = Provider.of<AnalyticsService>(
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             buildContext,
             listen: false,
           );
@@ -519,7 +673,123 @@ class _GameScreenState extends State<GameScreen>
           if (buildContext.mounted) {
             final errorMessage =
                 ErrorHandler.getLocalizedErrorMessage(e, buildContext);
-            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              errorMessage,
+              recoveryAction: 'This may be due to content validation issues. Please try again or restart the app.',
+              canRetry: true,
+            ),);
+          }
+        }
+        return;
+      } on StateError catch (e, stackTrace) {
+        // Handle null pointer or state errors
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
+        LoggerService.error(
+          'GameScreen: State error during initialization - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()}',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
+        if (buildContext.mounted) {
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+            buildContext,
+            listen: false,
+          );
+          try {
+            await catchAnalyticsService.logTriviaGeneration(
+              mode.name,
+              false,
+              error: 'StateError: ${e.toString()}',
+            );
+          } catch (_) {
+            // Ignore analytics errors
+          }
+          if (buildContext.mounted) {
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              'Game initialization failed. Please restart the app.',
+              recoveryAction: 'This may be due to a temporary state issue. Restarting the app usually resolves this.',
+              canRetry: true,
+            ),);
+          }
+        }
+        return;
+      } on NoSuchMethodError catch (e, stackTrace) {
+        // Handle method not found errors
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
+        LoggerService.error(
+          'GameScreen: Method not found during initialization - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()}',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
+        if (buildContext.mounted) {
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+            buildContext,
+            listen: false,
+          );
+          try {
+            await catchAnalyticsService.logTriviaGeneration(
+              mode.name,
+              false,
+              error: 'NoSuchMethodError: ${e.toString()}',
+            );
+          } catch (_) {
+            // Ignore analytics errors
+          }
+          if (buildContext.mounted) {
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              'Game service error. Please restart the app.',
+              recoveryAction: 'A required service method is missing. Restarting the app will reload all services.',
+              canRetry: true,
+            ),);
+          }
+        }
+        return;
+      } on StackOverflowError catch (e, stackTrace) {
+        // Handle stack overflow errors explicitly
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
+        LoggerService.error(
+          'GameScreen: Stack overflow error during initialization - mode: ${mode.name}, error: ${e.toString()}',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
+        if (buildContext.mounted) {
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+            buildContext,
+            listen: false,
+          );
+          try {
+            await catchAnalyticsService.logTriviaGeneration(
+              mode.name,
+              false,
+              error: 'StackOverflowError: ${e.toString()}',
+            );
+          } catch (_) {
+            // Ignore analytics errors
+          }
+          if (buildContext.mounted) {
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              '(StackOverflowError). Please try again or restart the app.',
+              recoveryAction: 'This error indicates excessive recursion. Restarting the app usually resolves this.',
+              canRetry: true,
+            ),);
           }
         }
         return;
@@ -531,14 +801,15 @@ class _GameScreenState extends State<GameScreen>
         }
         // Handle any other unexpected errors
         LoggerService.error(
-          'Failed to load trivia in GameScreen initialization',
+          'GameScreen: Failed to load trivia in initialization - mode: ${mode.name}, error_type: ${e.runtimeType}, error_message: ${e.toString()}',
           error: e,
           stack: stackTrace,
+          fatal: false,
         );
         // Log trivia generation failure
         // Check buildContext.mounted before accessing Provider
         if (buildContext.mounted) {
-          final catchAnalyticsService = Provider.of<AnalyticsService>(
+          final catchAnalyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             buildContext,
             listen: false,
           );
@@ -546,7 +817,7 @@ class _GameScreenState extends State<GameScreen>
             await catchAnalyticsService.logTriviaGeneration(
               mode.name,
               false,
-              error: e.toString(),
+              error: '${e.runtimeType}: ${e.toString()}',
             );
           } catch (_) {
             // Ignore analytics errors
@@ -555,7 +826,12 @@ class _GameScreenState extends State<GameScreen>
           if (buildContext.mounted) {
             final errorMessage =
                 ErrorHandler.getLocalizedErrorMessage(e, buildContext);
-            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+            unawaited(_showTriviaErrorDialog(
+              buildContext,
+              errorMessage,
+              recoveryAction: 'Please try again or restart the app if the problem persists.',
+              canRetry: true,
+            ),);
           }
         }
         return;
@@ -583,6 +859,38 @@ class _GameScreenState extends State<GameScreen>
           'GameScreen: Starting game with mode=${gameMode.name}, triviaPool size=${triviaPool.length}',
         );
 
+        // Initialize competitive challenge if provided
+        if (!buildContext.mounted) return;
+        final routeArgs = ModalRoute.of(buildContext)?.settings.arguments;
+        final argsMap = routeArgs is Map<String, dynamic> ? routeArgs : null;
+        if (argsMap != null && argsMap['competitiveChallengeId'] != null) {
+          final challengeId = argsMap['competitiveChallengeId'] as String?;
+          final targetRounds = argsMap['targetRounds'] as int?;
+          if (challengeId != null && challengeId.isNotEmpty) {
+            try {
+              if (!buildContext.mounted) return;
+              final leaderboardService = ProviderHelper.safeGetOrThrow<DailyChallengeLeaderboardService>(
+                buildContext,
+                listen: false,
+              );
+              service.setCompetitiveChallenge(
+                challengeId,
+                targetRounds: targetRounds,
+                leaderboardService: leaderboardService,
+              );
+              LoggerService.debug(
+                'GameScreen: Competitive challenge initialized - challengeId=$challengeId, targetRounds=$targetRounds',
+              );
+            } catch (e) {
+              LoggerService.warning(
+                'GameScreen: Failed to initialize competitive challenge',
+                error: e,
+              );
+              // Continue without competitive challenge - non-critical
+            }
+          }
+        }
+
         if (gameMode == game_mode_config.GameMode.timeAttack) {
           // Pass List<TriviaItem> for timeAttack
           service.startNewRound(
@@ -604,7 +912,7 @@ class _GameScreenState extends State<GameScreen>
 
         // Track game start phase completion
         if (buildContext.mounted) {
-          final analyticsService = Provider.of<AnalyticsService>(
+          final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
             buildContext,
             listen: false,
           );
@@ -627,7 +935,7 @@ class _GameScreenState extends State<GameScreen>
             // This shouldn't happen since we checked canPlay() earlier,
             // but handle it gracefully - game already started successfully, so continue
             if (buildContext.mounted) {
-              final analyticsService = Provider.of<AnalyticsService>(
+              final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
                 buildContext,
                 listen: false,
               );
@@ -661,57 +969,106 @@ class _GameScreenState extends State<GameScreen>
         // Game failed to start (startNewRound() threw GameException) - slot is NOT recorded
         // Show user-friendly error dialog directly
         LoggerService.error(
-          'GameScreen: Game failed to start (GameException); - Game slot NOT recorded',
+          'GameScreen: Game failed to start (GameException) - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()} - Game slot NOT recorded',
           error: e,
           stack: stackTrace,
           fatal: false,
         );
-        LoggerService.warning(
-          'Game failed to start - Game slot NOT recorded (preserving user\'s daily limit);',
-          error: e,
-        );
         if (buildContext.mounted) {
           final errorMessage =
               ErrorHandler.getLocalizedErrorMessage(e, buildContext);
-          unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+          unawaited(_showTriviaErrorDialog(
+            buildContext,
+            errorMessage,
+            recoveryAction: 'Please try again or select a different game mode.',
+            canRetry: true,
+          ),);
         }
       } on ValidationException catch (e, stackTrace) {
         // Game failed due to validation error - slot is NOT recorded
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
         LoggerService.error(
-          'GameScreen: Validation error in game start - Game slot NOT recorded',
+          'GameScreen: Validation error in game start - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()} - Game slot NOT recorded',
           error: e,
           stack: stackTrace,
           fatal: false,
-        );
-        LoggerService.warning(
-          'Validation error in game start - Game slot NOT recorded',
-          error: e,
         );
         if (buildContext.mounted) {
           final errorMessage =
               ErrorHandler.getLocalizedErrorMessage(e, buildContext);
-          unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+          unawaited(_showTriviaErrorDialog(
+            buildContext,
+            errorMessage,
+            recoveryAction: 'This may be due to content validation issues. Please try again or restart the app.',
+            canRetry: true,
+          ),);
         }
-      } catch (e, stackTrace) {
-        // Game failed to start (unexpected exception) - slot is NOT recorded
-        // Log the error and show user-friendly message
+      } on StateError catch (e, stackTrace) {
+        // Handle state errors during game start
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
         LoggerService.error(
-          'GameScreen: Unexpected error starting game - Game slot NOT recorded',
+          'GameScreen: State error starting game - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()} - Game slot NOT recorded',
           error: e,
           stack: stackTrace,
           fatal: false,
-        );
-        LoggerService.error(
-          'Game failed to start (unexpected); - Game slot NOT recorded',
-          error: e,
-          stack: stackTrace,
         );
         if (buildContext.mounted) {
           unawaited(_showTriviaErrorDialog(
             buildContext,
-            'Failed to start game. Please try again or restart the app.',
-            recoveryAction:
-                'This could be due to a temporary issue. Please try again or restart the app.',
+            'Game initialization failed. Please restart the app.',
+            recoveryAction: 'This may be due to a temporary state issue. Restarting the app usually resolves this.',
+            canRetry: true,
+          ),);
+        }
+      } on NoSuchMethodError catch (e, stackTrace) {
+        // Handle method not found errors during game start
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
+        LoggerService.error(
+          'GameScreen: Method not found starting game - mode: ${mode.name}, error_type: ${e.runtimeType}, error: ${e.toString()} - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
+        if (buildContext.mounted) {
+          unawaited(_showTriviaErrorDialog(
+            buildContext,
+            'Game service error. Please restart the app.',
+            recoveryAction: 'A required service method is missing. Restarting the app will reload all services.',
+            canRetry: true,
+          ),);
+        }
+      } catch (e, stackTrace) {
+        // Game failed to start (unexpected exception) - slot is NOT recorded
+        // Log the error and show user-friendly message
+        if (mounted) {
+          setState(() {
+            _isInitializing = false;
+          });
+        }
+        LoggerService.error(
+          'GameScreen: Unexpected error starting game - mode: ${mode.name}, error_type: ${e.runtimeType}, error_message: ${e.toString()} - Game slot NOT recorded',
+          error: e,
+          stack: stackTrace,
+          fatal: false,
+        );
+        if (buildContext.mounted) {
+          final errorMessage = ErrorHandler.getLocalizedErrorMessage(e, buildContext);
+          unawaited(_showTriviaErrorDialog(
+            buildContext,
+            errorMessage,
+            recoveryAction: 'This could be due to a temporary issue. Please try again or restart the app.',
             canRetry: true,
           ),);
         }
@@ -752,21 +1109,26 @@ class _GameScreenState extends State<GameScreen>
 
   void _showDoubleTapInstruction() {
     // Wait for play phase to start
-    final service = Provider.of<GameService>(context, listen: false);
-    if (service.phase == game_mode_config.GamePhase.play &&
-        !service.currentConfig.showWordsWithQuestion) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          _showDoubleTapDialog();
-        }
-      });
+    try {
+      final service = ProviderHelper.safeGetOrThrow<game_service.GameService>(context, listen: false);
+      if (service.phase == game_mode_config.GamePhase.play &&
+          !service.currentConfig.showWordsWithQuestion) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _showDoubleTapDialog();
+          }
+        });
+      }
+    } catch (e) {
+      LoggerService.warning('GameService not available for double tap instruction', error: e);
+      // Non-critical, continue without showing instruction
     }
   }
 
   /// Check and show mode-specific instruction if available
   Future<void> _checkAndShowModeInstruction(
     BuildContext context,
-    GameMode mode,
+    game_mode_config.GameMode mode,
   ) async {
     if (!mounted || !context.mounted) return;
 
@@ -860,6 +1222,7 @@ class _GameScreenState extends State<GameScreen>
               if (instruction.showOnce)
                 TextButton(
                   onPressed: () async {
+                    HapticService().lightImpact();
                     await GameInstructions.markInstructionShown(
                       instruction.id,
                       dontShowAgain: true,
@@ -924,6 +1287,7 @@ class _GameScreenState extends State<GameScreen>
             actions: [
               TextButton(
                 onPressed: () async {
+                  HapticService().lightImpact();
                   await GameInstructions.markInstructionShown(
                     'double_tap',
                     dontShowAgain: false,
@@ -1069,7 +1433,7 @@ class _GameScreenState extends State<GameScreen>
     _isValidatingSubscription = true;
 
     try {
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -1077,10 +1441,17 @@ class _GameScreenState extends State<GameScreen>
         context,
         listen: false,
       );
-      final gameService = Provider.of<GameService>(context, listen: false);
+      game_service.GameService? gameService;
+      try {
+        gameService = ProviderHelper.safeGetOrThrow<game_service.GameService>(context, listen: false);
+      } catch (e) {
+        LoggerService.error('GameService not available for subscription validation', error: e);
+        _isValidatingSubscription = false;
+        return;
+      }
 
       // Get FamilyGroupService to check family subscription status
-      final familyGroupService = Provider.of<FamilyGroupService>(
+      final familyGroupService = ProviderHelper.safeGetOrThrow<FamilyGroupService>(
         context,
         listen: false,
       );
@@ -1200,7 +1571,7 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    return Consumer<GameService>(
+    return Consumer<game_service.GameService>(
       builder: (context, service, _) {
         // Check for save failure notifications and show warnings
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1342,13 +1713,14 @@ class _GameScreenState extends State<GameScreen>
               }
             } else {
               // Non-competitive mode: check if game is active
-              final gameService =
-                  Provider.of<GameService>(context, listen: false);
-              final isGameActive = !gameService.state.isGameOver &&
-                  (gameService.phase == game_mode_config.GamePhase.memorize ||
-                      gameService.phase == game_mode_config.GamePhase.play);
+              try {
+                final gameService =
+                    ProviderHelper.safeGetOrThrow<game_service.GameService>(context, listen: false);
+                final isGameActive = !gameService.state.isGameOver &&
+                    (gameService.phase == game_mode_config.GamePhase.memorize ||
+                        gameService.phase == game_mode_config.GamePhase.play);
 
-              if (isGameActive) {
+                if (isGameActive) {
                 // Show confirmation dialog for active games
                 if (!mounted || !context.mounted) return;
                 final shouldPop = await showDialog<bool>(
@@ -1388,18 +1760,21 @@ class _GameScreenState extends State<GameScreen>
                   NavigationHelper.safePop(context);
                 }
               }
+              } catch (e) {
+                LoggerService.warning('GameService not available for exit check', error: e);
+                // Allow navigation if service unavailable
+                if (mounted && context.mounted) {
+                  NavigationHelper.safePop(context);
+                }
+              }
             }
           },
-          child: VideoBackgroundWidget(
-            videoPath: 'assets/titlescreen.mp4',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            loop: true,
-            autoplay: true,
+          child: BackgroundImageWidget(
+            imagePath: 'assets/background n3rd.png',
             child: Scaffold(
               backgroundColor: Colors.transparent,
               body: SafeArea(
-                child: Consumer<GameService>(
+                child: Consumer<game_service.GameService>(
                   builder: (context, service, _) {
                     // Show Precision mode error feedback
                     if (service.precisionError != null) {
@@ -1430,7 +1805,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildGameplayScreen(BuildContext context, GameService service) {
+  Widget _buildGameplayScreen(BuildContext context, game_service.GameService service) {
     // Check if competitive challenge
     final args = ModalRoute.of(context)?.settings.arguments;
     final isCompetitive =
@@ -1477,7 +1852,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   Widget _buildAppBar(
-    GameService service, {
+    game_service.GameService service, {
     bool isCompetitive = false,
     int? targetRounds,
   }) {
@@ -1683,6 +2058,7 @@ class _GameScreenState extends State<GameScreen>
                         size: 20,
                       ),
                       onPressed: () async {
+                        HapticService().lightImpact();
                         if (!mounted) return;
                         // Capture context before async call
                         final capturedContext = context;
@@ -1711,8 +2087,10 @@ class _GameScreenState extends State<GameScreen>
                         color: AppColors.of(context).onDarkText,
                         size: 20,
                       ),
-                      onPressed: () =>
-                          NavigationHelper.safeNavigate(context, '/settings'),
+                      onPressed: () {
+                        HapticService().lightImpact();
+                        NavigationHelper.safeNavigate(context, '/settings');
+                      },
                       tooltip: AppLocalizations.of(context)?.settingsButton ??
                           'Settings',
                       padding: EdgeInsets.zero,
@@ -1728,7 +2106,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildTimer(BuildContext context, GameService service) {
+  Widget _buildTimer(BuildContext context, game_service.GameService service) {
     final colors = AppColors.of(context);
     // Responsive timer font size: 12% of screen width, min 36px, max 64px
     final timerFontSize = ResponsiveHelper.responsiveFontSize(
@@ -1746,8 +2124,7 @@ class _GameScreenState extends State<GameScreen>
     );
 
     // Time Attack timer
-    if (service.currentMode == game_mode_config.GameMode.timeAttack &&
-        service.timeAttackSecondsLeft != null) {
+    if (service.currentMode == game_mode_config.GameMode.timeAttack) {
       return Column(
         children: [
           Text(
@@ -1766,7 +2143,7 @@ class _GameScreenState extends State<GameScreen>
                 '${service.timeAttackSecondsLeft}',
                 style: AppTypography.displayLarge.copyWith(
                   fontSize: timerFontSize,
-                  color: service.timeAttackSecondsLeft! <= 10
+                  color: service.timeAttackSecondsLeft <= 10
                       ? colors.error
                       : AppColors.of(context).onDarkText,
                 ),
@@ -1846,7 +2223,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildCategory(BuildContext context, GameService service) {
+  Widget _buildCategory(BuildContext context, game_service.GameService service) {
     // Responsive category font size: 7.5% of screen width, min 20px, max 32px
     final categoryFontSize = ResponsiveHelper.responsiveFontSize(
       context,
@@ -1861,7 +2238,8 @@ class _GameScreenState extends State<GameScreen>
         service.currentTrivia?.category ?? '',
         textAlign: TextAlign.center,
         maxLines: 3,
-        overflow: TextOverflow.ellipsis,
+        overflow: TextOverflow.visible,
+        softWrap: true,
         style: AppTypography.displayMedium.copyWith(
           fontSize: categoryFontSize,
           color: Colors.white,
@@ -1871,7 +2249,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildPhaseInstruction(BuildContext context, GameService service) {
+  Widget _buildPhaseInstruction(BuildContext context, game_service.GameService service) {
     String instruction = '';
 
     if (service.phase == game_mode_config.GamePhase.memorize) {
@@ -1886,12 +2264,12 @@ class _GameScreenState extends State<GameScreen>
       final isMounted = mounted;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!isMounted) return;
-        final subscriptionService = Provider.of<SubscriptionService>(
+        final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
           capturedContext,
           listen: false,
         );
         if (subscriptionService.isPremium) {
-          final ttsService = Provider.of<TextToSpeechService>(
+          final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
             capturedContext,
             listen: false,
           );
@@ -1912,12 +2290,12 @@ class _GameScreenState extends State<GameScreen>
       final isMounted = mounted;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!isMounted) return;
-        final subscriptionService = Provider.of<SubscriptionService>(
+        final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
           capturedContext,
           listen: false,
         );
         if (subscriptionService.isPremium) {
-          final ttsService = Provider.of<TextToSpeechService>(
+          final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
             capturedContext,
             listen: false,
           );
@@ -1956,7 +2334,8 @@ class _GameScreenState extends State<GameScreen>
       instruction,
       textAlign: TextAlign.center,
       maxLines: 3,
-      overflow: TextOverflow.ellipsis,
+      overflow: TextOverflow.visible,
+      softWrap: true,
       style: AppTypography.bodyMedium.copyWith(
         fontSize: 14,
         color: isPerfect
@@ -1979,7 +2358,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Build Flip Mode reveal setting indicator (shows current reveal mode)
-  Widget _buildFlipModeRevealIndicator(GameService service) {
+  Widget _buildFlipModeRevealIndicator(game_service.GameService service) {
     final revealMode = service.flipRevealMode;
     String modeText = '';
     IconData icon = Icons.visibility;
@@ -2021,7 +2400,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildTiles(BuildContext context, GameService service) {
+  Widget _buildTiles(BuildContext context, game_service.GameService service) {
     // Ensure we have exactly 6 tiles
     final tileCount = service.shuffledWords.length.clamp(0, 6);
 
@@ -2041,7 +2420,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildTile(BuildContext context, GameService service, String word) {
+  Widget _buildTile(BuildContext context, game_service.GameService service, String word) {
     // Responsive tile font size: 5.5% of screen width, min 16px, max 26px
     final tileFontSize = ResponsiveHelper.responsiveFontSize(
       context,
@@ -2149,6 +2528,7 @@ class _GameScreenState extends State<GameScreen>
           child: GestureDetector(
             onTap: isPlay
                 ? () {
+                    HapticService().selectionClick();
                     // Tap once to reveal AND SELECT
                     if (!showWord) {
                       service.revealWord(word);
@@ -2159,12 +2539,12 @@ class _GameScreenState extends State<GameScreen>
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!isMounted) return;
                         final subscriptionService =
-                            Provider.of<SubscriptionService>(
+                            ProviderHelper.safeGetOrThrow<SubscriptionService>(
                           capturedContext,
                           listen: false,
                         );
                         if (subscriptionService.isPremium) {
-                          final ttsService = Provider.of<TextToSpeechService>(
+                          final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
                             capturedContext,
                             listen: false,
                           );
@@ -2286,7 +2666,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildActionButtons(GameService service) {
+  Widget _buildActionButtons(game_service.GameService service) {
     return Consumer<SubscriptionService>(
       builder: (context, subscriptionService, _) {
         return Padding(
@@ -2309,7 +2689,7 @@ class _GameScreenState extends State<GameScreen>
                           service.revealAllWords();
                           // Read revealed words with TTS if enabled (premium only)
                           if (subscriptionService.isPremium) {
-                            final ttsService = Provider.of<TextToSpeechService>(
+                            final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
                               context,
                               listen: false,
                             );
@@ -2379,7 +2759,7 @@ class _GameScreenState extends State<GameScreen>
                             final generator =
                                 _getTriviaGeneratorService(buildContext);
                             final analyticsService =
-                                Provider.of<AnalyticsService>(
+                                ProviderHelper.safeGetOrThrow<AnalyticsService>(
                               buildContext,
                               listen: false,
                             );
@@ -2394,11 +2774,13 @@ class _GameScreenState extends State<GameScreen>
 
                             if (!mounted || !buildContext.mounted) return;
                             if (triviaPool.isNotEmpty) {
-                              service.skipRound(triviaPool);
+                              service.skipRound(triviaPool: triviaPool);
                             } else {
                               unawaited(_showTriviaErrorDialog(
                                 buildContext,
                                 'No trivia content available after multiple attempts. Please try again.',
+                                recoveryAction: 'This may be due to content exhaustion. Try restarting the app or selecting a different game mode.',
+                                canRetry: true,
                               ),);
                             }
                           } catch (e) {
@@ -2417,7 +2799,12 @@ class _GameScreenState extends State<GameScreen>
                             } else {
                               errorMessage += 'Please try again.';
                             }
-                            unawaited(_showTriviaErrorDialog(buildContext, errorMessage));
+                            unawaited(_showTriviaErrorDialog(
+                              buildContext,
+                              errorMessage,
+                              recoveryAction: 'Please try again or restart the app if the problem persists.',
+                              canRetry: true,
+                            ),);
                           }
                         }
                       : null,
@@ -2506,7 +2893,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   // Advanced power-ups row (Premium only)
-  Widget _buildAdvancedPowerUps(GameService service) {
+  Widget _buildAdvancedPowerUps(game_service.GameService service) {
     return Consumer<SubscriptionService>(
       builder: (context, subscriptionService, _) {
         if (!subscriptionService.isPremium) return const SizedBox.shrink();
@@ -2552,7 +2939,18 @@ class _GameScreenState extends State<GameScreen>
                 enabled: service.timeFreezeUses > 0 && !service.isTimeFrozen,
                 child: IconButton(
                   onPressed: service.timeFreezeUses > 0 && !service.isTimeFrozen
-                      ? () => service.activateTimeFreeze()
+                      ? () {
+                          final result = service.activateTimeFreeze(
+                            onResumeTimer: () {
+                              service.resumeGame();
+                            },
+                            onUpdatePlayTime: (time) {
+                              // Timer update is handled internally by GameService
+                            },
+                          );
+                          // Handle cleanup callback if needed
+                          result.cleanupCallback?.call();
+                        }
                       : null,
                   icon: Icon(
                     Icons.pause_circle_outline,
@@ -2662,7 +3060,7 @@ class _GameScreenState extends State<GameScreen>
 
   void _handleVoiceInput(
     BuildContext context,
-    GameService gameService,
+    game_service.GameService gameService,
     VoiceRecognitionService voiceService,
     PronunciationDictionaryService pronunciationService,
     VoiceCalibrationService calibrationService,
@@ -2697,11 +3095,11 @@ class _GameScreenState extends State<GameScreen>
             
             // Log calibration usage for analytics
             if (capturedContext.mounted) {
-              final analyticsService = Provider.of<AnalyticsService>(
+              final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
                 capturedContext,
                 listen: false,
               );
-              final calibrationService = Provider.of<VoiceCalibrationService>(
+              final calibrationService = ProviderHelper.safeGetOrThrow<VoiceCalibrationService>(
                 capturedContext,
                 listen: false,
               );
@@ -2735,12 +3133,12 @@ class _GameScreenState extends State<GameScreen>
 
             // Provide feedback with TTS
             if (!isMounted) return;
-            final subscriptionService = Provider.of<SubscriptionService>(
+            final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
               capturedContext,
               listen: false,
             );
             if (subscriptionService.isPremium) {
-              final ttsService = Provider.of<TextToSpeechService>(
+              final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
                 capturedContext,
                 listen: false,
               );
@@ -2751,12 +3149,12 @@ class _GameScreenState extends State<GameScreen>
           } else {
             // No match found
             if (!isMounted) return;
-            final subscriptionService = Provider.of<SubscriptionService>(
+            final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
               capturedContext,
               listen: false,
             );
             if (subscriptionService.isPremium) {
-              final ttsService = Provider.of<TextToSpeechService>(
+              final ttsService = ProviderHelper.safeGetOrThrow<TextToSpeechService>(
                 capturedContext,
                 listen: false,
               );
@@ -2770,7 +3168,7 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  Widget _buildSubmitButton(GameService service) {
+  Widget _buildSubmitButton(game_service.GameService service) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: SizedBox(
@@ -2781,7 +3179,10 @@ class _GameScreenState extends State<GameScreen>
           button: true,
           enabled: service.canSubmit,
           child: AnimatedButton(
-            onTap: service.canSubmit ? () => service.submitAnswers() : null,
+            onTap: service.canSubmit ? () {
+              HapticService().mediumImpact();
+              service.submitAnswers();
+            } : null,
             child: ElevatedButton(
               onPressed:
                   null, // Disable default onPressed, use AnimatedButton's onTap
@@ -2802,7 +3203,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildNextRoundButton(BuildContext context, GameService service) {
+  Widget _buildNextRoundButton(BuildContext context, game_service.GameService service) {
     // Capture context and mounted before callbacks
     final capturedContext = context;
     final isMounted = mounted;
@@ -2817,6 +3218,7 @@ class _GameScreenState extends State<GameScreen>
           button: true,
           child: ElevatedButton(
             onPressed: () async {
+              HapticService().lightImpact();
               if (!isMounted) return;
               // Capture context references before async calls
               final scaffoldMessenger = ScaffoldMessenger.of(capturedContext);
@@ -2824,7 +3226,7 @@ class _GameScreenState extends State<GameScreen>
               // Track AI mode performance before next round
               if (service.currentMode == game_mode_config.GameMode.ai) {
                 if (!isMounted) return;
-                final aiModeService = Provider.of<AIModeService>(
+                final aiModeService = ProviderHelper.safeGetOrThrow<AIModeService>(
                   capturedContext,
                   listen: false,
                 );
@@ -2835,14 +3237,13 @@ class _GameScreenState extends State<GameScreen>
                   final category = currentTrivia.category;
 
                   // Calculate actual response time from round start
-                  final actualResponseTime = service.aiModeResponseTime ??
-                      30.0; // Fallback to 30s if not available
+                  final actualResponseTime = service.aiModeResponseTime.toDouble();
                   final config = service.currentConfig;
 
                   await aiModeService.updatePerformance(
                     wasCorrect: wasCorrect,
                     category: category,
-                    responseTime: actualResponseTime,
+                    responseTime: actualResponseTime.toDouble(),
                     memorizeTime: config.memorizeTime,
                     playTime: config.playTime,
                   );
@@ -2861,7 +3262,7 @@ class _GameScreenState extends State<GameScreen>
 
               try {
                 final generator = _getTriviaGeneratorService(capturedContext);
-                final analyticsService = Provider.of<AnalyticsService>(
+                final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
                   capturedContext,
                   listen: false,
                 );
@@ -2875,12 +3276,14 @@ class _GameScreenState extends State<GameScreen>
                 );
 
                 if (triviaPool.isNotEmpty) {
-                  service.nextRound(triviaPool);
+                  service.nextRound();
                 } else {
                   if (isMounted && capturedContext.mounted) {
                     unawaited(_showTriviaErrorDialog(
                       capturedContext,
                       'No trivia content available after multiple attempts. Please try again.',
+                      recoveryAction: 'This may be due to content exhaustion. Try restarting the app or selecting a different game mode.',
+                      canRetry: true,
                     ),);
                   }
                 }
@@ -2900,7 +3303,12 @@ class _GameScreenState extends State<GameScreen>
                   } else {
                     errorMessage += 'Please try again.';
                   }
-                  unawaited(_showTriviaErrorDialog(capturedContext, errorMessage));
+                  unawaited(_showTriviaErrorDialog(
+                    capturedContext,
+                    errorMessage,
+                    recoveryAction: 'Please try again or restart the app if the problem persists.',
+                    canRetry: true,
+                  ),);
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text(errorMessage),
@@ -2926,7 +3334,7 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildGameOverScreen(BuildContext context, GameService service) {
+  Widget _buildGameOverScreen(BuildContext context, game_service.GameService service) {
     // Check if competitive challenge
     final args = ModalRoute.of(context)?.settings.arguments;
     final isCompetitive =
@@ -2941,7 +3349,7 @@ class _GameScreenState extends State<GameScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!isMounted || !capturedContext.mounted) return;
         final scaffoldMessenger = ScaffoldMessenger.of(capturedContext);
-        final challengeService = Provider.of<ChallengeService>(
+        final challengeService = ProviderHelper.safeGetOrThrow<ChallengeService>(
           capturedContext,
           listen: false,
         );
@@ -3164,7 +3572,7 @@ class _GameScreenState extends State<GameScreen>
   /// Safely get TriviaGeneratorService from Provider with fallback
   TriviaGeneratorService _getTriviaGeneratorService(BuildContext context) {
     try {
-      return Provider.of<TriviaGeneratorService>(
+      return ProviderHelper.safeGetOrThrow<TriviaGeneratorService>(
         context,
         listen: false,
       );
@@ -3174,13 +3582,18 @@ class _GameScreenState extends State<GameScreen>
         error: e,
       );
       // Fallback: create instance directly (non-ideal but prevents crash)
-      return TriviaGeneratorService();
+      try {
+        return TriviaGeneratorService();
+      } catch (e2) {
+        LoggerService.error('Failed to create TriviaGeneratorService fallback', error: e2);
+        return TriviaGeneratorService.fallback();
+      }
     }
   }
 
   /// Parse GameMode from string representation
   /// Returns null if string doesn't match any GameMode
-  GameMode? _parseGameModeFromString(String modeString) {
+  game_mode_config.GameMode? _parseGameModeFromString(String modeString) {
     try {
       return game_mode_config.GameMode.values.firstWhere(
         (mode) => mode.name.toLowerCase() == modeString.toLowerCase(),
@@ -3192,9 +3605,9 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Track navigation entry for analytics
-  void _trackNavigationEntry(GameMode? mode, Map<String, dynamic>? args) {
+  void _trackNavigationEntry(game_mode_config.GameMode? mode, Map<String, dynamic>? args) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent(
         'game_screen_navigation',
         parameters: {
@@ -3213,7 +3626,7 @@ class _GameScreenState extends State<GameScreen>
   /// Track argument validation for analytics
   void _trackArgumentValidation(bool success, String? error) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent(
         'game_screen_argument_validation',
         parameters: {
@@ -3230,9 +3643,9 @@ class _GameScreenState extends State<GameScreen>
 
   /// Track mode fallback for analytics
   void _trackModeFallback(
-      GameMode originalMode, GameMode fallbackMode, String reason,) {
+      game_mode_config.GameMode originalMode, game_mode_config.GameMode fallbackMode, String reason,) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent(
         'game_screen_mode_fallback',
         parameters: {
@@ -3255,8 +3668,8 @@ class _GameScreenState extends State<GameScreen>
     String mode,
   ) async {
     final startTime = DateTime.now();
-    final networkService = Provider.of<NetworkService>(context, listen: false);
-    final offlineService = Provider.of<OfflineService>(context, listen: false);
+    final networkService = ProviderHelper.safeGetOrThrow<NetworkService>(context, listen: false);
+    final offlineService = ProviderHelper.safeGetOrThrow<OfflineService>(context, listen: false);
 
     // Track retry attempts for analytics
     int retryAttempt = 0;
@@ -3366,10 +3779,10 @@ class _GameScreenState extends State<GameScreen>
       );
 
       // Try to load the most recently downloaded pack
-      // CRITICAL: Check list is not empty before accessing .last to prevent crash
-      if (offlineService.downloadedPacks.isNotEmpty) {
+      // CRITICAL: Use safe list access to prevent crash
+      final mostRecentPack = ListHelper.safeLast(offlineService.downloadedPacks);
+      if (mostRecentPack != null) {
         try {
-          final mostRecentPack = offlineService.downloadedPacks.last;
           final offlineTrivia = await offlineService.loadPack(mostRecentPack);
           if (offlineTrivia != null && offlineTrivia.isNotEmpty) {
             LoggerService.info(
@@ -3638,7 +4051,7 @@ class _GameScreenState extends State<GameScreen>
         context,
         listen: false,
       );
-      final subscriptionService = Provider.of<SubscriptionService>(
+      final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
         context,
         listen: false,
       );
@@ -3661,13 +4074,15 @@ class _GameScreenState extends State<GameScreen>
           '$feature - Premium Feature',
           style: AppTypography.displayMedium.copyWith(fontSize: 20),
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          overflow: TextOverflow.visible,
+          softWrap: true,
         ),
         content: Text(
           message,
           style: AppTypography.bodyMedium,
           maxLines: 5,
-          overflow: TextOverflow.ellipsis,
+          overflow: TextOverflow.visible,
+          softWrap: true,
         ),
         actions: [
           TextButton(
@@ -3703,7 +4118,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   Future<void> _showGameOverLimitDialog(BuildContext context) async {
-    final freeTierService = Provider.of<FreeTierService>(
+    final freeTierService = ProviderHelper.safeGetOrThrow<FreeTierService>(
       context,
       listen: false,
     );
@@ -3824,7 +4239,7 @@ class _GameScreenState extends State<GameScreen>
   void _showWordInfoDialog(
     BuildContext context,
     String word,
-    GameService service,
+    game_service.GameService service,
   ) {
     final trivia = service.currentTrivia;
     final isCorrect = service.lastCorrectAnswers.contains(word);
@@ -3900,6 +4315,7 @@ class _GameScreenState extends State<GameScreen>
                           Text(localizations?.googleSearch ?? 'Google Search'),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
+                        HapticService().lightImpact();
                         try {
                           final url = Uri.parse(
                             'https://www.google.com/search?q=${Uri.encodeComponent(word)}',
@@ -3997,6 +4413,7 @@ class _GameScreenState extends State<GameScreen>
                           localizations?.dictionaryCom ?? 'Dictionary.com',),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
+                        HapticService().lightImpact();
                         try {
                           final url = Uri.parse(
                             'https://www.dictionary.com/browse/${Uri.encodeComponent(word)}',
@@ -4047,6 +4464,7 @@ class _GameScreenState extends State<GameScreen>
                           localizations?.merriamWebster ?? 'Merriam-Webster',),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
+                        HapticService().lightImpact();
                         try {
                           final url = Uri.parse(
                             'https://www.merriam-webster.com/dictionary/${Uri.encodeComponent(word)}',
@@ -4115,47 +4533,52 @@ class _GameScreenState extends State<GameScreen>
     // CRITICAL: Check mounted before any context operations
     if (!mounted || !context.mounted) return;
 
-    final gameService = Provider.of<GameService>(context, listen: false);
+    try {
+      final gameService = ProviderHelper.safeGetOrThrow<game_service.GameService>(context, listen: false);
 
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // Pause game when app backgrounds or becomes inactive
-      // This ensures timers don't continue running when user switches apps
-      LoggerService.debug('App backgrounded - pausing game timers');
-      // CRITICAL: Check context.mounted before service operations that might trigger UI updates
-      if (mounted && context.mounted) {
-        gameService.pauseGame();
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      // Resume game when app comes to foreground
-      // This restores timers and game state
-      LoggerService.debug('App foregrounded - resuming game timers');
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.inactive) {
+        // Pause game when app backgrounds or becomes inactive
+        // This ensures timers don't continue running when user switches apps
+        LoggerService.debug('App backgrounded - pausing game timers');
+        // CRITICAL: Check context.mounted before service operations that might trigger UI updates
+        if (mounted && context.mounted) {
+          gameService.pauseGame();
+        }
+      } else if (state == AppLifecycleState.resumed) {
+        // Resume game when app comes to foreground
+        // This restores timers and game state
+        LoggerService.debug('App foregrounded - resuming game timers');
 
-      // CRITICAL: Check context.mounted before accessing context
-      if (!mounted || !context.mounted) return;
+        // CRITICAL: Check context.mounted before accessing context
+        if (!mounted || !context.mounted) return;
 
-      // Check if game state was recovered (game is in progress)
-      final hasActiveGame =
-          !gameService.state.isGameOver && gameService.currentTrivia != null;
+        // Check if game state was recovered (game is in progress)
+        final hasActiveGame =
+            !gameService.state.isGameOver && gameService.currentTrivia != null;
 
-      if (hasActiveGame && mounted && context.mounted) {
-        // Show subtle notification that game state was recovered
-        final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.gameStateRecovered ?? 'Game state recovered',
+        if (hasActiveGame && mounted && context.mounted) {
+          // Show subtle notification that game state was recovered
+          final localizations = AppLocalizations.of(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                localizations?.gameStateRecovered ?? 'Game state recovered',
+              ),
+              duration: const Duration(seconds: 2),
+              backgroundColor: AppColors.of(context).success,
             ),
-            duration: const Duration(seconds: 2),
-            backgroundColor: AppColors.of(context).success,
-          ),
-        );
-      }
+          );
+        }
 
-      // CRITICAL: Check context.mounted before resuming game
-      if (mounted && context.mounted) {
-        gameService.resumeGame();
+        // CRITICAL: Check context.mounted before resuming game
+        if (mounted && context.mounted) {
+          gameService.resumeGame();
+        }
       }
+    } catch (e) {
+      LoggerService.warning('GameService not available for lifecycle state change', error: e);
+      // Non-critical, continue without lifecycle handling
     }
   }
 }

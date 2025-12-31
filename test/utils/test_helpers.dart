@@ -292,7 +292,16 @@ class TestHelpers {
 
   /// Tear down all test infrastructure
   /// Cleans up all mocks and handlers
-  static void tearDownAllTestInfrastructure() {
+  static Future<void> tearDownAllTestInfrastructure() async {
+    // Clean up Firebase apps first to prevent memory accumulation
+    // This deletes all named apps (non-default) while keeping default app for test isolation
+    try {
+      await FirebaseTestHelper.cleanupFirebaseApps();
+    } catch (e) {
+      // Firebase cleanup errors should not prevent other cleanup
+      // This is safe - Firebase apps will be cleaned up on next tearDownAll
+    }
+    
     clearMockSharedPreferences();
     clearMockConnectivity();
     VideoPlayerTestHelper.clearVideoPlayerMocks();
@@ -308,8 +317,6 @@ class TestHelpers {
     FeatureFlagService.resetForTesting();
     EditionContentService.resetForTesting();
     VideoCacheService.resetForTesting();
-    // Note: Firebase is not torn down as it may be used by other tests
-    // If needed, individual tests should handle Firebase cleanup
     // Note: PerformanceMonitoringService instances should be disposed individually
     // as they are not singletons - tests that create them should dispose them
   }

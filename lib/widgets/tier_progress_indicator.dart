@@ -5,6 +5,7 @@ import 'package:n3rd_game/services/free_tier_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Widget showing progress toward next subscription tier
 /// Only shown for free tier users
@@ -19,8 +20,14 @@ class TierProgressIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
-    final freeTierService = Provider.of<FreeTierService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    final freeTierService = ProviderHelper.safeGet<FreeTierService>(context, listen: false);
+    
+    // Hide if services not available
+    if (subscriptionService == null || freeTierService == null) {
+      return const SizedBox.shrink();
+    }
 
     // Only show for free tier users
     if (!subscriptionService.isFree) {

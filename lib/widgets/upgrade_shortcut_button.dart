@@ -5,6 +5,7 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Floating upgrade shortcut button for free users
 /// Provides quick access to subscription management
@@ -18,7 +19,11 @@ class UpgradeShortcutButton extends StatelessWidget { // Always show, or only sh
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    if (subscriptionService == null) {
+      return const SizedBox.shrink(); // Hide if service not available
+    }
 
     // Only show for free users (or always if persistent)
     if (!persistent && !subscriptionService.isFree) {
@@ -30,11 +35,12 @@ class UpgradeShortcutButton extends StatelessWidget { // Always show, or only sh
       right: 16,
       child: FloatingActionButton.extended(
         onPressed: () {
-          final analyticsService = Provider.of<AnalyticsService>(
+          // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+          final analyticsService = ProviderHelper.safeGet<AnalyticsService>(
             context,
             listen: false,
           );
-          analyticsService.logConversionFunnelStep(
+          analyticsService?.logConversionFunnelStep(
             step: 1,
             stepName: 'upgrade_shortcut_clicked',
             source: 'floating_button',

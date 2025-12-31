@@ -17,6 +17,7 @@ import 'package:n3rd_game/widgets/app_text_field.dart';
 import 'package:n3rd_game/widgets/app_card.dart';
 import 'package:n3rd_game/utils/feedback_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/game_mode_extensions.dart';
 import 'package:intl/intl.dart';
@@ -117,7 +118,7 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
     });
 
     try {
-      final service = Provider.of<GameHistoryService>(context, listen: false);
+      final service = ProviderHelper.safeGetOrThrow<GameHistoryService>(context, listen: false);
       final games = await service.getGameHistory(
         limit: 20,
         startAfter: _lastDocument,

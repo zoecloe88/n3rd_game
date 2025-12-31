@@ -16,8 +16,8 @@ void main() {
     await TestHelpers.setupAllTestInfrastructure();
   });
 
-  tearDownAll(() {
-    TestHelpers.tearDownAllTestInfrastructure();
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
   });
 
   group('PracticeModeScreen', () {

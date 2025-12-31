@@ -78,6 +78,15 @@ Detailed architecture and implementation guides for major features:
 
 - **[CHANGELOG.md](./CHANGELOG.md)** - Project changelog and version history
 
+### Archived Documentation
+
+Historical investigations and completed verification reports:
+
+- **[archive/BACKGROUND_IMAGE_INVESTIGATION.md](./archive/BACKGROUND_IMAGE_INVESTIGATION.md)** - Background image investigation results (archived)
+- **[archive/RESOURCE_DISPOSAL_VERIFICATION.md](./archive/RESOURCE_DISPOSAL_VERIFICATION.md)** - Resource disposal verification summary (archived - see [MAINTAINABILITY.md](./MAINTAINABILITY.md) for current status)
+- **[archive/BUG_FIXES_MEMORY_LEAKS.md](./archive/BUG_FIXES_MEMORY_LEAKS.md)** - Memory leak fixes documentation (archived)
+- **[archive/FLUTTER_TEST_CRASH_INVESTIGATION.md](./archive/FLUTTER_TEST_CRASH_INVESTIGATION.md)** - Flutter test crash investigation (archived)
+
 ## 🎯 Quick Links
 
 ### 🚀 Getting Started

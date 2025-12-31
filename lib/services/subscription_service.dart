@@ -3,12 +3,13 @@ import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/services/revenue_cat_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service to manage subscription tiers
 /// Integrates with RevenueCat for actual subscription management
@@ -201,14 +202,15 @@ class SubscriptionService extends ChangeNotifier {
     );
 
     // Try to load from Firestore if user is authenticated
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
+    final user = FirebaseHelper.getCurrentUser();
+    if (user != null) {
+      try {
         await _loadFromFirestore(user.uid);
+      } catch (e) {
+        // Firestore error - continue with local value
+        LoggerService.debug('Failed to load subscription tier from Firestore', error: e);
+        // Continue with local value - app will work with cached tier
       }
-    } catch (e) {
-      LoggerService.error('Failed to load subscription tier from Firestore', error: e);
-      // Continue with local value
     }
 
     notifyListeners();
@@ -336,14 +338,15 @@ class SubscriptionService extends ChangeNotifier {
       await prefs.setString(_prefKeyTier, tierString);
 
       // Sync to Firestore if user is authenticated (only when tier changed)
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
+      final user = FirebaseHelper.getCurrentUser();
+      if (user != null) {
+        try {
           await _syncToFirestore(user.uid, tier);
+        } catch (e) {
+          // Firestore error - continue with local value
+          LoggerService.debug('Failed to sync subscription tier to Firestore', error: e);
+          // Continue - local tier is set
         }
-      } catch (e) {
-        LoggerService.error('Failed to sync subscription tier to Firestore', error: e);
-        // Continue - local tier is set
       }
 
       // Notify listeners of tier change
@@ -365,6 +368,14 @@ class SubscriptionService extends ChangeNotifier {
   Future<void> _syncToFirestore(String userId, SubscriptionTier tier) async {
     const maxRetries = 3;
     String? lastError;
+
+    // CRITICAL: Check Firebase is initialized before accessing Firestore
+    try {
+      Firebase.app();
+    } catch (e) {
+      LoggerService.debug('Firebase not available for subscription sync', error: e);
+      return; // Exit early if Firebase not initialized
+    }
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
@@ -419,6 +430,14 @@ class SubscriptionService extends ChangeNotifier {
   /// Load subscription tier from Firestore on init with retry logic
   Future<void> _loadFromFirestore(String userId) async {
     const maxRetries = 2; // Fewer retries for read operations
+
+    // CRITICAL: Check Firebase is initialized before accessing Firestore
+    try {
+      Firebase.app();
+    } catch (e) {
+      LoggerService.debug('Firebase not available for subscription load', error: e);
+      return; // Exit early if Firebase not initialized
+    }
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {

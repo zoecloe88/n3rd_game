@@ -14,6 +14,7 @@ import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/utils/edition_validator.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 
 /// Game initialization result
@@ -63,7 +64,7 @@ class GameInitialization {
 
       // Set extended time multiplier from AccessibilityService
       try {
-        final accessibilityService = Provider.of<AccessibilityService>(
+        final accessibilityService = ProviderHelper.safeGetOrThrow<AccessibilityService>(
           context,
           listen: false,
         );
@@ -98,7 +99,7 @@ class GameInitialization {
         if (!context.mounted) {
           return GameInitializationResult(success: false, error: 'Widget disposed');
         }
-        final analyticsService = Provider.of<AnalyticsService>(
+        final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
           context,
           listen: false,
         );
@@ -238,11 +239,11 @@ class GameInitialization {
     required Function(String) showErrorDialog,
   }) async {
     try {
-      final generator = Provider.of<TriviaGeneratorService>(
+      final generator = ProviderHelper.safeGetOrThrow<TriviaGeneratorService>(
         context,
         listen: false,
       );
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );

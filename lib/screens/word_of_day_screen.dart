@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:n3rd_game/services/word_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/onboarding_service.dart';
@@ -11,6 +9,7 @@ import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
@@ -48,7 +47,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   /// Track screen view analytics (non-blocking)
   void _trackScreenView() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logScreenView('word_of_day').catchError((e) {
         // Non-critical - analytics failure shouldn't block app
         LoggerService.error('Failed to track screen view', error: e);
@@ -88,7 +87,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
     if (!mounted || !context.mounted) return;
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
       if (!authService.isAuthenticated) {
         if (mounted && context.mounted) {
           unawaited(NavigationHelper.safeNavigate(context, '/login', replace: true));
@@ -149,7 +148,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   /// Track word load success (non-blocking)
   void _trackWordLoadSuccess() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('word_of_day_load_success').catchError((e) {
         // Non-critical
         LoggerService.error('Failed to track word load success', error: e);
@@ -162,7 +161,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   /// Track word load failure (non-blocking)
   void _trackWordLoadFailure(String error) {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent(
         'word_of_day_load_failure',
         parameters: {'error': error},
@@ -178,7 +177,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   /// Track continue button click (non-blocking)
   void _trackContinueClick() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('word_of_day_continue_clicked').catchError((e) {
         // Non-critical
         LoggerService.error('Failed to track continue click', error: e);
@@ -191,7 +190,7 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
   /// Track retry attempt (non-blocking)
   void _trackRetryAttempt() {
     try {
-      final analytics = Provider.of<AnalyticsService>(context, listen: false);
+      final analytics = ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
       analytics.logCustomEvent('word_of_day_retry').catchError((e) {
         // Non-critical
         LoggerService.error('Failed to track retry', error: e);
@@ -366,35 +365,13 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
 
     return Stack(
       children: [
-        // Continue button - bottom right
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: () {
-                _trackContinueClick();
-                NavigationHelper.safeNavigate(context, '/title');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black, // Black button with white text
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                'Continue',
-                style: AppTypography.labelLarge.copyWith(color: Colors.white),
-              ),
-            ),
-          ),
-        ),
         // Content positioned higher up and centered
         Center(
           child: SingleChildScrollView(
             padding: EdgeInsetsDirectional.fromSTEB(
               horizontalPadding,
-              ResponsiveHelper.responsiveHeight(context, 0.15).clamp(60.0,
-                  120.0,), // Reduced top padding to move content up ~1 inch
+              ResponsiveHelper.responsiveHeight(context, 0.20).clamp(80.0,
+                  140.0,), // Increased top padding to move content down
               horizontalPadding,
               verticalPadding + 80, // Space for continue button
             ),
@@ -482,30 +459,45 @@ class _WordOfDayScreenState extends State<WordOfDayScreen> {
                         ),
                       ),
                     ],
-                    // Date display with same styling as Youth Edition header
-                    const SizedBox(height: 24),
-                    Text(
-                      DateFormat('EEEE, MMMM d yyyy').format(_word!.date),
-                      textAlign: TextAlign.center,
-                      style: AppTypography.orbitron(
-                        fontSize: isTablet ? 20 : 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ).copyWith(
-                        letterSpacing: 2,
-                        shadows: const [
-                          Shadow(
-                            color: Color(0xFF70F3FF),
-                            offset: Offset(-1, 0),
-                          ),
-                          Shadow(
-                            color: Color(0xFFB000E8),
-                            offset: Offset(1, 0),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Continue button - bottom right (placed last in Stack to ensure it's on top)
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: Material(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  if (!mounted || !context.mounted) {
+                    return;
+                  }
+                  _trackContinueClick();
+                  try {
+                    NavigationHelper.safeNavigate(context, '/title', replace: true);
+                  } catch (e, stackTrace) {
+                    LoggerService.error('Navigation failed from word of day to title', error: e, stack: stackTrace);
+                    // Show error to user
+                    if (mounted && context.mounted) {
+                      ErrorHandler.showSnackBar(context, null, error: e);
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black, // Black button with white text
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(120, 48), // Ensure adequate touch target
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text(
+                  'Continue',
+                  style: AppTypography.labelLarge.copyWith(color: Colors.white),
                 ),
               ),
             ),

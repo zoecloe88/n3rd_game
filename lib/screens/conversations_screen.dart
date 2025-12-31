@@ -10,6 +10,7 @@ import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/unawaited_helper.dart';
 
@@ -220,7 +221,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         itemCount: conversations.length,
                         itemBuilder: (context, index) {
                           final conversation = conversations[index];
-                          final authService = Provider.of<AuthService>(
+                          final authService = ProviderHelper.safeGetOrThrow<AuthService>(
                             context,
                             listen: false,
                           );
@@ -332,8 +333,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     if (conversation.lastMessage != null)
                       Text(
                         conversation.lastMessage?.message ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        overflow: TextOverflow.visible,
+                        softWrap: true,
                         style: AppTypography.bodyMedium.copyWith(
                           color: itemColors.secondaryText,
                         ),

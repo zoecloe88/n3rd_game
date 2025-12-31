@@ -20,7 +20,11 @@ import 'package:n3rd_game/widgets/app_text_field.dart';
 import 'package:n3rd_game/widgets/app_card.dart';
 import 'package:n3rd_game/utils/feedback_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/list_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:n3rd_game/services/friends_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// More tab screen for Friends section
 /// Provides additional friend management features: Add Friend, Suggestions, Invite, Block, Report
@@ -460,7 +464,11 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
       return;
     }
 
-    final user = results.first;
+    final user = ListHelper.safeFirst(results);
+    if (user == null) {
+      LoggerService.warning('No user found in search results');
+      return;
+    }
     final success = await viewModel.sendFriendRequest(
       user['userId'] as String,
       friendEmail: user['email'] as String?,
@@ -501,7 +509,11 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
       return;
     }
 
-    final user = results.first;
+    final user = ListHelper.safeFirst(results);
+    if (user == null) {
+      LoggerService.warning('No user found in search results');
+      return;
+    }
     final success = await viewModel.sendFriendRequest(
       user['userId'] as String,
       friendEmail: user['email'] as String?,
@@ -627,118 +639,276 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
     );
   }
 
-  /// Show send invite dialog
+  /// Show send invite dialog with multiple methods
   Future<void> _showSendInviteDialog() async {
     unawaited(HapticService().lightImpact());
     _emailController.clear();
-    final colors = AppColors.of(context);
+    int selectedTab = 0; // 0 = Link, 1 = QR Code, 2 = SMS, 3 = Social
+    String? inviteCode;
+    String? inviteLink;
 
+    final colors = AppColors.of(context);
+    final friendsService = ProviderHelper.safeGetOrThrow<FriendsService>(
+      context,
+      listen: false,
+    );
+
+    // Generate invite code and link
+    try {
+      inviteCode = await friendsService.generateInviteCode();
+      inviteLink = 'n3rdgame://friend/invite?code=$inviteCode';
+    } catch (e) {
+      LoggerService.error('Error generating invite code', error: e);
+      if (mounted) {
+        FeedbackHelper.showError(
+          context,
+          'Failed to generate invite code. Please try again.',
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
     await FeedbackHelper.showBottomSheet(
       context,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Send Invite',
-              style: AppTypography.headlineMedium.copyWith(
-                color: colors.onDarkText,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Invite a friend to join N3RD Trivia!',
-              style: AppTypography.bodyMedium.copyWith(
-                color: colors.onDarkText,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              controller: _emailController,
-              label: 'Email Address',
-              hint: 'Enter email to invite',
-              keyboardType: TextInputType.emailAddress,
-              leadingIcon: Icons.email,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AppButton(
-                  variant: AppButtonVariant.text,
-                  label: 'Cancel',
-                  onPressed: () => NavigationHelper.safePop(context),
-                  foregroundColor: colors.onDarkText.withValues(alpha: 0.7),
+      child: StatefulBuilder(
+        builder: (context, setDialogState) => Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Send Invite',
+                style: AppTypography.headlineMedium.copyWith(
+                  color: colors.onDarkText,
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                AppButton(
-                  variant: AppButtonVariant.primary,
-                  label: AppLocalizations.of(context)?.sendButton ?? 'Send',
-                  onPressed: () async {
-                    final email = _emailController.text.trim();
-                    final localizations = AppLocalizations.of(context);
-                    if (email.isEmpty) {
-                      FeedbackHelper.showError(
-                        context,
-                        localizations?.pleaseEnterEmailAddress ??
-                            'Please enter an email address',
-                      );
-                      return;
-                    }
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Tab selector
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTabButton(
+                      'Link',
+                      selectedTab == 0,
+                      () => setDialogState(() => selectedTab = 0),
+                      context,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildTabButton(
+                      'QR Code',
+                      selectedTab == 1,
+                      () => setDialogState(() => selectedTab = 1),
+                      context,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildTabButton(
+                      'SMS',
+                      selectedTab == 2,
+                      () => setDialogState(() => selectedTab = 2),
+                      context,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildTabButton(
+                      'Social',
+                      selectedTab == 3,
+                      () => setDialogState(() => selectedTab = 3),
+                      context,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Content based on selected tab
+              if (selectedTab == 0)
+                Column(
+                  children: [
+                    Text(
+                      'Share your invite link',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: colors.onDarkText.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.medium),
+                      ),
+                      child: SelectableText(
+                        inviteLink ?? '',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: colors.onDarkText,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else if (selectedTab == 1)
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: colors.onDarkText,
+                        borderRadius: BorderRadius.circular(AppRadius.medium),
+                      ),
+                      child: QrImageView(
+                        data: inviteLink ?? '',
+                        version: QrVersions.auto,
+                        size: 200.0,
+                        backgroundColor: colors.onDarkText,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Scan this code to join N3RD Trivia',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                )
+              else if (selectedTab == 2)
+                Column(
+                  children: [
+                    AppTextField(
+                      controller: _phoneController,
+                      label: 'Phone Number',
+                      hint: 'Enter phone number',
+                      keyboardType: TextInputType.phone,
+                      leadingIcon: Icons.phone,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'We\'ll open your SMS app with a pre-filled message',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    Text(
+                      'Share via any app',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Choose from email, messaging apps, or social media',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AppButton(
+                    label: 'Cancel',
+                    onPressed: () => NavigationHelper.safePop(context),
+                    variant: AppButtonVariant.text,
+                    foregroundColor: colors.onDarkText.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  AppButton(
+                    variant: AppButtonVariant.primary,
+                    onPressed: () async {
+                      final viewModel = context.read<FriendsMoreViewModel>();
+                      try {
+                        if (selectedTab == 0) {
+                          // Share link
+                          final inviteMessage =
+                              'Join me on N3RD Trivia! Use my invite code: $inviteCode\n\nDownload: $inviteLink';
+                          await Share.share(inviteMessage);
+                          await viewModel.sendInvitation(null);
+                        } else if (selectedTab == 1) {
+                          // Share QR code image
+                          NavigationHelper.safePop(context);
+                          await _shareQRCodeImage(inviteLink ?? '');
+                          await viewModel.sendInvitation(null);
+                          return; // Early return since dialog already closed
+                        } else if (selectedTab == 2) {
+                          // Send SMS
+                          final phone = _phoneController.text.trim();
+                          if (phone.isEmpty) {
+                            FeedbackHelper.showError(
+                              context,
+                              'Please enter a phone number',
+                            );
+                            return;
+                          }
+                          final smsMessage =
+                              'Join me on N3RD Trivia! Use my invite code: $inviteCode\n\nDownload: $inviteLink';
+                          final smsUri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(smsMessage)}');
+                          if (await canLaunchUrl(smsUri)) {
+                            await launchUrl(smsUri);
+                            await viewModel.sendInvitation(null);
+                          } else {
+                            if (!context.mounted) return;
+                            FeedbackHelper.showError(
+                              context,
+                              'Could not open SMS app',
+                            );
+                            return;
+                          }
+                        } else {
+                          // Share via social media
+                          final inviteMessage =
+                              'Join me on N3RD Trivia! Use my invite code: $inviteCode\n\nDownload: $inviteLink';
+                          await Share.share(
+                            inviteMessage,
+                            subject: 'Join me on N3RD Trivia!',
+                          );
+                          await viewModel.sendInvitation(null);
+                        }
 
-                    NavigationHelper.safePop(context);
-
-                    // Send invitation via share_plus
-                    final viewModel = context.read<FriendsMoreViewModel>();
-                    try {
-                      // Create invite link (can be customized with deep link)
-                      const inviteMessage =
-                          'Join me on N3RD Trivia! Download the app and challenge me: https://n3rdtrivia.app/invite';
-
-                      // Share via native share sheet (email/SMS/social media)
-                      await Share.share(
-                        inviteMessage,
-                        subject: 'Join me on N3RD Trivia!',
-                      );
-
-                      // Also save invitation record to Firestore
-                      final success = await viewModel.sendInvitation(email);
-
-                      if (!mounted) return;
-                      final localizations2 = AppLocalizations.of(context);
-                      if (success) {
+                        if (!context.mounted) return;
+                        NavigationHelper.safePop(context);
+                        if (!context.mounted) return;
                         FeedbackHelper.showSuccess(
                           context,
-                          localizations2?.inviteSharedSuccessfully ??
-                              'Invite shared successfully',
+                          'Invite shared successfully!',
                         );
-                      } else {
+                      } catch (e) {
+                        LoggerService.error('Error sending invitation', error: e);
+                        if (!context.mounted) return;
                         FeedbackHelper.showError(
                           context,
-                          viewModel.errorMessage ??
-                              (localizations2?.sendInviteError ??
-                                  'Failed to send invite. Please try again.'),
+                          'Failed to send invite. Please try again.',
                         );
                       }
-                    } catch (e) {
-                      LoggerService.error('Error sending invitation', error: e);
-                      if (!mounted) return;
-                      final localizations = AppLocalizations.of(context);
-                      FeedbackHelper.showError(
-                        context,
-                        localizations?.sendInviteError ??
-                            'Failed to send invite. Please try again.',
-                      );
-                    }
-                  },
-                  backgroundColor: colors.accent,
-                  foregroundColor: colors.onDarkText,
-                ),
-              ],
-            ),
-          ],
+                    },
+                    label: () {
+                      return selectedTab == 1
+                          ? 'Share QR'
+                          : (selectedTab == 2
+                              ? 'Send SMS'
+                              : 'Share');
+                    }(),
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onDarkText,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -839,7 +1009,11 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
       return;
     }
 
-    final user = results.first;
+    final user = ListHelper.safeFirst(results);
+    if (user == null) {
+      LoggerService.warning('No user found in search results');
+      return;
+    }
     final success = await viewModel.blockUser(user['userId'] as String);
 
     if (mounted) {
@@ -947,7 +1121,12 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
                         return;
                       }
 
-                      final reportedUserId = users.first['userId'] as String;
+                      final firstUser = ListHelper.safeFirst(users);
+                      if (firstUser == null) {
+                        LoggerService.warning('No users found for reporting');
+                        return;
+                      }
+                      final reportedUserId = firstUser['userId'] as String;
                       final success =
                           await viewModel.reportUser(reportedUserId, reason);
 
@@ -1000,12 +1179,13 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
     return Builder(
       builder: (context) {
         final colors = AppColors.of(context);
+        // Use white background with black text for consistency (except red buttons)
         final backgroundColor =
-            isRedButton ? colors.error : colors.cardBackground;
-        final textColor = isRedButton ? colors.onDarkText : colors.primaryText;
+            isRedButton ? colors.error : Colors.white;
+        final textColor = isRedButton ? Colors.white : Colors.black;
         final subtitleColor = isRedButton
-            ? colors.onDarkText.withValues(alpha: 0.9)
-            : colors.secondaryText;
+            ? Colors.white.withValues(alpha: 0.9)
+            : Colors.black.withValues(alpha: 0.7);
 
         return AppCard.filled(
           margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -1015,8 +1195,8 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
             leading: Icon(
               icon,
               color: isRedButton
-                  ? colors.onDarkText
-                  : (iconColor ?? colors.primaryText),
+                  ? Colors.white
+                  : (iconColor ?? Colors.black),
               size: 24,
             ),
             title: Text(
@@ -1270,6 +1450,19 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
                             // Friend scores section
                             _buildFriendScoresSection(viewModel),
                             // Action buttons
+                            _buildActionButton(
+                              icon: Icons.videogame_asset,
+                              title: 'Online Multiplayer',
+                              subtitle:
+                                  'Play against friends in real-time multiplayer matches',
+                              onTap: () {
+                                NavigationHelper.safeNavigate(
+                                  context,
+                                  '/multiplayer-lobby',
+                                );
+                              },
+                              isRedButton: false,
+                            ),
                             _buildActionButton(
                               icon: Icons.person_add,
                               title: 'Add Friend',
