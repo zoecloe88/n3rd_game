@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/services/multiplayer_service.dart';
+import '../utils/test_helpers.dart';
 
 /// MultiplayerService Unit Tests
-/// 
+///
 /// These tests verify the service logic and structure.
 /// They test:
 /// - Service initialization and state management
@@ -11,28 +11,21 @@ import 'package:n3rd_game/services/multiplayer_service.dart';
 /// - Room state transitions
 /// - Connectivity handling
 /// - Rate limiting integration
-/// 
-/// Note: These are structural/logic tests. For full integration tests with 
+///
+/// Note: These are structural/logic tests. For full integration tests with
 /// Firebase operations, use Firebase Emulator Suite.
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase for testing (required for MultiplayerService constructor)
   setUpAll(() async {
-    try {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'test-api-key',
-          appId: 'test-app-id',
-          messagingSenderId: 'test-sender-id',
-          projectId: 'test-project-id',
-        ),
-      );
-    } catch (e) {
-      // Firebase may already be initialized, which is fine
-      // This allows tests to run even if Firebase is already set up
-    }
+    await TestHelpers.setupAllTestInfrastructure();
+    // Firebase is already initialized by setupAllTestInfrastructure()
+  });
+
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
   });
 
   group('MultiplayerService Initialization', () {
@@ -67,7 +60,10 @@ void main() {
       } catch (e) {
         // If Firebase is not initialized, that's expected
         // The logic structure is still correct
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -78,14 +74,17 @@ void main() {
         final service = MultiplayerService();
         await service.init();
         expect(service.isInitialized, isTrue);
-        
+
         // Second init should not cause issues (idempotent check)
         await service.init();
         expect(service.isInitialized, isTrue);
         service.dispose();
       } catch (e) {
         // If Firebase is not initialized, that's expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -103,7 +102,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // If Firebase is not initialized, that's expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -112,7 +114,7 @@ void main() {
     test('validatePlayerMembership logic handles null userId correctly', () {
       // Test the logic structure - actual Firebase call would return false for null userId
       // This verifies the method signature and expected behavior
-      
+
       MultiplayerService? service;
       try {
         service = MultiplayerService();
@@ -122,7 +124,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -138,7 +143,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -157,7 +165,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -173,7 +184,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -186,7 +200,10 @@ void main() {
         expect(service.currentRoom, isNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -198,7 +215,10 @@ void main() {
         expect(service.isReconnecting, isFalse);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -212,7 +232,10 @@ void main() {
         expect(service, isNotNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -226,7 +249,10 @@ void main() {
         expect(service.isInitialized, isTrue);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -238,7 +264,10 @@ void main() {
         expect(service, isNotNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -251,7 +280,10 @@ void main() {
         expect(service.isReconnecting, isFalse);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -264,7 +296,10 @@ void main() {
         expect(service, isNotNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -282,7 +317,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -298,7 +336,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -313,7 +354,10 @@ void main() {
         expect(service, isNotNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -329,7 +373,10 @@ void main() {
         expect(service, isNotNull);
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -343,7 +390,10 @@ void main() {
         expect(service.currentUserId, anyOf(isNull, isA<String>()));
         service.dispose();
       } catch (e) {
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -361,7 +411,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -377,7 +430,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
 
@@ -393,7 +449,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });
@@ -411,7 +470,10 @@ void main() {
         service.dispose();
       } catch (e) {
         // Firebase not available in test environment - this is expected
-        expect(e.toString(), anyOf(contains('Firebase'), contains('Firestore')));
+        expect(
+          e.toString(),
+          anyOf(contains('Firebase'), contains('Firestore')),
+        );
       }
     });
   });

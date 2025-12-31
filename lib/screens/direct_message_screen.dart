@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,9 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 
 class DirectMessageScreen extends StatefulWidget {
@@ -52,7 +55,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     if (!mounted) return;
 
     // CRITICAL: Check subscription access first using SubscriptionService
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
@@ -78,8 +81,16 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     }
 
     // Get current user ID before any async operations
-    final currentUserId =
-        Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final authService = ProviderHelper.safeGet<AuthService>(context, listen: false);
+    final currentUserId = authService?.currentUser?.uid ?? '';
+    
+    // If no auth service or user, exit early
+    if (authService == null || currentUserId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
 
     // Double-check premium access via message service
     final hasPremium = await _messageService.hasPremiumAccess();
@@ -161,10 +172,10 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
     _typingTimer?.cancel();
     if (_isTyping) {
       _isTyping = false;
-      _messageService.setTypingIndicator(_otherUserId!, false);
+      unawaited(_messageService.setTypingIndicator(_otherUserId!, false));
     }
 
-    HapticService().lightImpact();
+    unawaited(HapticService().lightImpact());
     final message = _messageController.text.trim();
     _messageController.clear();
 
@@ -183,7 +194,10 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(
+              AppLocalizations.of(context)?.messageError ??
+                  'Message operation failed. Please try again.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -256,23 +270,27 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                ElevatedButton(
-                  onPressed: () {
-                    HapticService().lightImpact();
-                    NavigationHelper.safePop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primaryButton,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.md,
+                Semantics(
+                  label: 'Go Back',
+                  button: true,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      HapticService().lightImpact();
+                      NavigationHelper.safePop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primaryButton,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xl,
+                        vertical: AppSpacing.md,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'Upgrade to Premium',
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                    child: Text(
+                      'Upgrade to Premium',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -312,7 +330,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: colors.primaryText),
             onSelected: (value) async {
-              HapticService().lightImpact();
+              unawaited(HapticService().lightImpact());
               if (value == 'delete' && _otherUserId != null) {
                 final confirmed = await showDialog<bool>(
                   context: context,
@@ -322,15 +340,25 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                       'Are you sure you want to delete this conversation? All messages will be permanently deleted.',
                     ),
                     actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
+                      Semantics(
+                        label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () =>
+                              NavigationHelper.safePop(context, false),
+                          child: const Text('Cancel'),
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(color: AppColors.error),
+                      Semantics(
+                        label: 'Delete Conversation',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () =>
+                              NavigationHelper.safePop(context, true),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(color: AppColors.error),
+                          ),
                         ),
                       ),
                     ],
@@ -355,10 +383,14 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                       );
                     }
                   } catch (e) {
-                    if (!mounted) return;
+                    if (!mounted || !context.mounted) return;
+                    final localizations = AppLocalizations.of(context);
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('Error: ${e.toString()}'),
+                        content: Text(
+                          localizations?.messageError ??
+                              'Message operation failed. Please try again.',
+                        ),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -371,8 +403,11 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    const Icon(Icons.delete_outline,
-                        size: 20, color: AppColors.error,),
+                    const Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Delete Conversation',
@@ -392,8 +427,26 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
           children: [
             // Messages list
             Expanded(
-              child: Consumer<DirectMessageService>(
+              child: Consumer<DirectMessageService?>(
                 builder: (context, messageService, _) {
+                  // Handle null provider gracefully
+                  if (messageService == null) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            'Loading messages...',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                   final messages = messageService.messages;
 
                   if (messages.isEmpty) {
@@ -465,23 +518,28 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: colors.tertiaryText),
+                    child: Semantics(
+                      label: 'Message input',
+                      hint: 'Type a message',
+                      textField: true,
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: colors.tertiaryText),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
+                        maxLines: null,
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: _onTextChanged,
+                        onSubmitted: (_) => _sendMessage(),
                       ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      onChanged: _onTextChanged,
-                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -510,7 +568,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
 
   Widget _buildMessageBubble(DirectMessage message, bool isMe) {
     final bubbleColors = AppColors.of(context);
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
     final isMyMessage = message.fromUserId == authService.currentUser?.uid;
 
     return GestureDetector(
@@ -638,7 +696,7 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
               onTap: () async {
                 if (!mounted) return;
                 final messenger = ScaffoldMessenger.of(context);
-                Navigator.pop(context);
+                NavigationHelper.safePop(context);
                 try {
                   await _messageService.deleteMessage(message.id);
                   if (!mounted) return;
@@ -649,12 +707,11 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                     ),
                   );
                 } catch (e) {
-                  if (!mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Error: ${e.toString()}'),
-                      backgroundColor: AppColors.error,
-                    ),
+                  if (!mounted || !context.mounted) return;
+                  ErrorHandler.showSnackBar(
+                    context,
+                    null,
+                    error: e,
                   );
                 }
               },

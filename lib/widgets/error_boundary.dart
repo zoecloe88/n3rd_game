@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Global error widget customizer that displays user-friendly error screens
 ///
@@ -28,9 +30,9 @@ import 'package:n3rd_game/theme/app_typography.dart';
 /// If multiple instances exist, reference counting ensures proper cleanup when all
 /// instances are disposed (though this is uncommon in practice).
 class ErrorBoundary extends StatefulWidget {
-  final Widget child;
 
   const ErrorBoundary({super.key, required this.child});
+  final Widget child;
 
   @override
   State<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -53,13 +55,13 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
     // This is a GLOBAL setting that affects the entire app
     // ErrorWidget.builder is called automatically when a widget build fails
     // synchronously, replacing the default red error screen with our custom UI
-    ErrorWidget.builder = (FlutterErrorDetails details) {
+    ErrorWidget.builder = (details) {
       // Log error to console in debug mode
       // Note: Context is not directly available here, so analytics are handled
       // via FlutterError.onError in main.dart which logs to Crashlytics
       if (kDebugMode) {
-        debugPrint('Widget build error: ${details.exception}');
-        debugPrint('Stack: ${details.stack}');
+        LoggerService.error('Widget build error: ${details.exception}');
+        LoggerService.debug('Stack: ${details.stack}');
       }
 
       // Return custom error widget instead of default red screen
@@ -94,9 +96,9 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
 /// Custom error widget that displays a user-friendly error screen
 /// This replaces the default red error screen with a branded error UI
 class _CustomErrorWidget extends StatelessWidget {
-  final FlutterErrorDetails errorDetails;
 
   const _CustomErrorWidget({required this.errorDetails});
+  final FlutterErrorDetails errorDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +118,8 @@ class _CustomErrorWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Something went wrong',
+                  AppLocalizations.of(context)?.somethingWentWrong ??
+                      'Something went wrong',
                   style: AppTypography.displayMedium.copyWith(
                     color: Colors.white,
                   ),
@@ -124,7 +127,8 @@ class _CustomErrorWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'We\'re sorry for the inconvenience. Please try restarting the app.',
+                  AppLocalizations.of(context)?.errorInconvenience ??
+                      'We\'re sorry for the inconvenience. Please try restarting the app.',
                   style: AppTypography.bodyMedium.copyWith(
                     color: Colors.white.withValues(alpha: 0.8),
                   ),
@@ -145,9 +149,7 @@ class _CustomErrorWidget extends StatelessWidget {
                       }
                     } catch (e) {
                       // If navigation fails, user may need to restart app
-                      if (kDebugMode) {
-                        debugPrint('Navigation failed: $e');
-                      }
+                      LoggerService.error('Navigation failed', error: e);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -158,7 +160,9 @@ class _CustomErrorWidget extends StatelessWidget {
                       vertical: 16,
                     ),
                   ),
-                  child: const Text('Go to Home'),
+                  child: Text(
+                    AppLocalizations.of(context)?.goToHome ?? 'Go to Home',
+                  ),
                 ),
                 if (kDebugMode) ...[
                   const SizedBox(height: 24),

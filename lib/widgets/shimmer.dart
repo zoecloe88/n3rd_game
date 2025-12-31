@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 /// Shimmer effect widget for skeleton loaders
 /// Provides animated shimmer effect during loading states
 class Shimmer extends StatefulWidget {
-  final Widget child;
-  final Color? baseColor;
-  final Color? highlightColor;
-  final Duration period;
 
   const Shimmer({
     super.key,
@@ -15,6 +11,10 @@ class Shimmer extends StatefulWidget {
     this.highlightColor,
     this.period = const Duration(milliseconds: 1500),
   });
+  final Widget child;
+  final Color? baseColor;
+  final Color? highlightColor;
+  final Duration period;
 
   @override
   State<Shimmer> createState() => _ShimmerState();
@@ -55,10 +55,6 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
 }
 
 class _ShimmerEffect extends StatelessWidget {
-  final Widget child;
-  final double progress;
-  final Color? baseColor;
-  final Color? highlightColor;
 
   const _ShimmerEffect({
     required this.child,
@@ -66,6 +62,10 @@ class _ShimmerEffect extends StatelessWidget {
     this.baseColor,
     this.highlightColor,
   });
+  final Widget child;
+  final double progress;
+  final Color? baseColor;
+  final Color? highlightColor;
 
   @override
   Widget build(BuildContext context) {

@@ -21,7 +21,8 @@ class _FriendsAndMessagesScreenState extends State<FriendsAndMessagesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // Changed from 2 to 3
+    _tabController =
+        TabController(length: 3, vsync: this); // Changed from 2 to 3
   }
 
   @override
@@ -33,42 +34,43 @@ class _FriendsAndMessagesScreenState extends State<FriendsAndMessagesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
           child: Column(
-          children: [
-            // Tabs at the top with proper styling
-            Container(
-              color: const Color(0xFF00D9FF), // Cyan background for tabs
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.black,
-                indicatorWeight: 3,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.black.withValues(alpha: 0.6),
-                tabs: const [
-                  Tab(text: 'Friends'),
-                  Tab(text: 'Messages'),
-                  Tab(text: 'More'),
-                ],
+            children: [
+              // Tabs at the top with proper styling
+              Container(
+                color: const Color(0xFF00D9FF), // Cyan background for tabs
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.black,
+                  indicatorWeight: 3,
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.black.withValues(alpha: 0.6),
+                  tabs: const [
+                    Tab(text: 'Friends'),
+                    Tab(text: 'Messages'),
+                    Tab(text: 'More'),
+                  ],
+                ),
               ),
-            ),
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: const [
-                  FriendsScreen(),
-                  ConversationsScreen(),
-                  FriendsMoreScreen(),
-                ],
+              // Tab content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [
+                    FriendsScreen(),
+                    ConversationsScreen(),
+                    FriendsMoreScreen(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

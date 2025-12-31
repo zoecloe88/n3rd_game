@@ -1,10 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for managing user satisfaction surveys and feedback
 class UserSurveyService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestore;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for UserSurveyService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      return FirebaseAuth.instance;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for UserSurveyService', error: e);
+      return null;
+    }
+  }
 
   /// Submit a user satisfaction survey
   Future<void> submitSurvey({
@@ -14,10 +40,15 @@ class UserSurveyService {
     Map<String, dynamic>? additionalData,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final auth = _authInstance;
+      final user = auth?.currentUser;
       final userId = user?.uid ?? 'anonymous';
 
-      await _firestore.collection('surveys').add({
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      await firestore.collection('surveys').add({
         'userId': userId,
         'userEmail': user?.email,
         'surveyType': surveyType,
@@ -28,9 +59,9 @@ class UserSurveyService {
         'appVersion': '1.0.0',
       });
 
-      debugPrint('Survey submitted successfully');
+      LoggerService.info('Survey submitted successfully');
     } catch (e) {
-      debugPrint('Error submitting survey: $e');
+      LoggerService.error('Error submitting survey', error: e);
       rethrow;
     }
   }
@@ -79,7 +110,11 @@ class UserSurveyService {
     DateTime? endDate,
   }) async {
     try {
-      Query query = _firestore.collection('surveys');
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      Query query = firestore.collection('surveys');
 
       if (surveyType != null) {
         query = query.where('surveyType', isEqualTo: surveyType);
@@ -142,7 +177,7 @@ class UserSurveyService {
         withComments: withComments,
       );
     } catch (e) {
-      debugPrint('Error getting survey analytics: $e');
+      LoggerService.error('Error getting survey analytics', error: e);
       return SurveyAnalytics.empty();
     }
   }
@@ -153,10 +188,15 @@ class UserSurveyService {
     int daysSinceLastSurvey = 7,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final auth = _authInstance;
+      final user = auth?.currentUser;
       if (user == null) return false;
 
-      final lastSurvey = await _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        return false;
+      }
+      final lastSurvey = await firestore
           .collection('surveys')
           .where('userId', isEqualTo: user.uid)
           .where('surveyType', isEqualTo: surveyType)
@@ -176,7 +216,7 @@ class UserSurveyService {
       final daysSince = DateTime.now().difference(lastSurveyDate).inDays;
       return daysSince >= daysSinceLastSurvey;
     } catch (e) {
-      debugPrint('Error checking if should show survey: $e');
+      LoggerService.error('Error checking if should show survey', error: e);
       return false; // Don't show if error
     }
   }
@@ -184,14 +224,6 @@ class UserSurveyService {
 
 /// Survey Analytics model
 class SurveyAnalytics {
-  final int totalSurveys;
-  final double averageRating;
-  final int rating1;
-  final int rating2;
-  final int rating3;
-  final int rating4;
-  final int rating5;
-  final int withComments;
 
   SurveyAnalytics({
     required this.totalSurveys,
@@ -216,4 +248,12 @@ class SurveyAnalytics {
       withComments: 0,
     );
   }
+  final int totalSurveys;
+  final double averageRating;
+  final int rating1;
+  final int rating2;
+  final int rating3;
+  final int rating4;
+  final int rating5;
+  final int withComments;
 }

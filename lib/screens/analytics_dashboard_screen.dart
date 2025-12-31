@@ -8,17 +8,100 @@ import 'package:n3rd_game/widgets/heat_map_widget.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/widgets/app_button.dart';
+import 'package:n3rd_game/widgets/app_card.dart';
+import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/theme/app_spacing.dart';
+import 'package:n3rd_game/widgets/error_recovery_widget.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
-class AnalyticsDashboardScreen extends StatelessWidget {
+/// Analytics Dashboard screen displaying comprehensive performance analytics
+///
+/// Features:
+/// - Personal bests tracking
+/// - Improvement tracking over time
+/// - Weekly and monthly performance trends
+/// - Accuracy trends visualization
+/// - Category performance breakdown (pie chart)
+/// - Time-of-day performance heat map
+/// - Requires Premium subscription (enforced by RouteGuard)
+///
+/// Usage:
+/// ```dart
+/// Navigator.pushNamed(context, '/analytics');
+/// ```
+class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
+
+  @override
+  State<AnalyticsDashboardScreen> createState() =>
+      _AnalyticsDashboardScreenState();
+}
+
+class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
+  // Constants
+  static const int _maxCategoriesToShow = 8;
+  static const double _pieChartHeight = 300.0;
+  static const double _pieChartRadius = 80.0;
+  static const double _pieChartCenterRadius = 60.0;
+  static const double _pieChartSectionsSpace = 2.0;
+  static const double _legendIndicatorSize = 12.0;
+  static const double _iconSize = 24.0;
+  static const String _labelHighestScore = 'Highest Score';
+  static const String _labelBestAccuracy = 'Best Accuracy';
+  static const String _labelBestDayScore = 'Best Day Score';
+  static const String _labelLongestStreak = 'Longest Streak';
+  static const String _labelScore = 'Score';
+  static const String _labelAccuracy = 'Accuracy';
+  static const String _titlePersonalBests = 'Personal Bests';
+  static const String _titleImprovementTracking = 'Improvement Tracking';
+  static const String _titleCategoryPerformance = 'Category Performance';
+
+  // Pie chart color palette (extracted to avoid duplication)
+  static const List<Color> _pieChartColors = [
+    Color(0xFF00D9FF), // Accent cyan
+    Color(0xFF00FF88), // Success green variant
+    Color(0xFFFF00FF), // Magenta
+    Color(0xFFFFD700), // Gold
+    Color(0xFFFF6B6B), // Coral red
+    Color(0xFF4ECDC4), // Teal
+    Color(0xFFFFA07A), // Light salmon
+    Color(0xFF9370DB), // Medium purple
+  ];
+
+  String? _errorMessage;
+
+  // Memoization cache
+  List<PerformanceMetric>? _cachedWeeklyTrends;
+  List<PerformanceMetric>? _cachedMonthlyTrends;
+  List<CategoryPerformance>? _cachedCategoryBreakdown;
+  List<TimeOfDayPerformance>? _cachedTimeOfDayData;
+  Map<String, double>? _cachedPersonalBests;
+  Map<String, double>? _cachedImprovements;
 
   @override
   Widget build(BuildContext context) {
     // NOTE: Subscription access is enforced by RouteGuard in main.dart
     // No need for redundant check here
+    final colors = AppColors.of(context);
+
+    // Show error state if data loading failed
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: ErrorRecoveryWidget(
+          errorMessage: _errorMessage!,
+          onRetry: () {
+            setState(() {
+              _errorMessage = null;
+            });
+          },
+        ),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback
+      backgroundColor: colors.background,
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
@@ -26,20 +109,23 @@ class AnalyticsDashboardScreen extends StatelessWidget {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    AppButton(
+                      icon: Icons.arrow_back,
                       onPressed: () => NavigationHelper.safePop(context),
+                      variant: AppButtonVariant.icon,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: colors.onDarkText,
+                      semanticsLabel:
+                          'Go back. Double tap to return to previous screen',
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Analytics Dashboard',
                       style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: colors.onDarkText,
                       ),
                     ),
                   ],
@@ -49,68 +135,125 @@ class AnalyticsDashboardScreen extends StatelessWidget {
               // Scrollable content
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   child: Consumer<AnalyticsService>(
                     builder: (context, analyticsService, _) {
-                      final weeklyTrends = analyticsService.getWeeklyTrends();
-                      final monthlyTrends = analyticsService.getMonthlyTrends();
-                      final categoryBreakdown =
-                          analyticsService.getCategoryBreakdown();
-                      final timeOfDayData =
-                          analyticsService.getTimeOfDayPerformance();
-                      final personalBests = analyticsService.getPersonalBests();
-                      final improvements =
-                          analyticsService.getImprovementTracking();
+                      try {
+                        // Memoize data fetching
+                        final weeklyTrends = analyticsService.getWeeklyTrends();
+                        final monthlyTrends =
+                            analyticsService.getMonthlyTrends();
+                        final categoryBreakdown =
+                            analyticsService.getCategoryBreakdown();
+                        final timeOfDayData =
+                            analyticsService.getTimeOfDayPerformance();
+                        final personalBests =
+                            analyticsService.getPersonalBests();
+                        final improvements =
+                            analyticsService.getImprovementTracking();
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Personal Bests Cards
-                          _buildPersonalBestsSection(personalBests),
-                          const SizedBox(height: 16),
+                        // Update cache if data changed
+                        if (_cachedWeeklyTrends != weeklyTrends ||
+                            _cachedMonthlyTrends != monthlyTrends ||
+                            _cachedCategoryBreakdown != categoryBreakdown ||
+                            _cachedTimeOfDayData != timeOfDayData ||
+                            _cachedPersonalBests != personalBests ||
+                            _cachedImprovements != improvements) {
+                          _cachedWeeklyTrends = weeklyTrends;
+                          _cachedMonthlyTrends = monthlyTrends;
+                          _cachedCategoryBreakdown = categoryBreakdown;
+                          _cachedTimeOfDayData = timeOfDayData;
+                          _cachedPersonalBests = personalBests;
+                          _cachedImprovements = improvements;
+                        }
 
-                          // Improvement Tracking
-                          _buildImprovementSection(improvements),
-                          const SizedBox(height: 16),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Personal Bests Cards
+                            _buildPersonalBestsSection(context, personalBests),
+                            const SizedBox(height: AppSpacing.md),
 
-                          // Weekly Trends
-                          if (weeklyTrends.isNotEmpty)
-                            PerformanceChartWidget(
-                              metrics: weeklyTrends,
-                              title: 'Weekly Performance Trends',
-                              showScore: true,
+                            // Improvement Tracking
+                            _buildImprovementSection(context, improvements),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // Weekly Trends
+                            if (weeklyTrends.isNotEmpty)
+                              Semantics(
+                                label:
+                                    'Weekly Performance Trends chart. Shows performance over the past week',
+                                child: PerformanceChartWidget(
+                                  metrics: weeklyTrends,
+                                  title: 'Weekly Performance Trends',
+                                  showScore: true,
+                                ),
+                              ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // Monthly Trends
+                            if (monthlyTrends.isNotEmpty)
+                              Semantics(
+                                label:
+                                    'Monthly Performance Trends chart. Shows performance over the past month',
+                                child: PerformanceChartWidget(
+                                  metrics: monthlyTrends,
+                                  title: 'Monthly Performance Trends',
+                                  showScore: true,
+                                ),
+                              ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // Accuracy Trends
+                            if (weeklyTrends.isNotEmpty)
+                              Semantics(
+                                label:
+                                    'Accuracy Trends chart. Shows accuracy percentage over time',
+                                child: PerformanceChartWidget(
+                                  metrics: weeklyTrends,
+                                  title: 'Accuracy Trends',
+                                  showScore: false,
+                                  showAccuracy: true,
+                                ),
+                              ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // Category Breakdown
+                            if (categoryBreakdown.isNotEmpty)
+                              _buildCategoryBreakdownCard(
+                                  context, categoryBreakdown,),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // Time-of-Day Heat Map
+                            Semantics(
+                              label:
+                                  'Time of day performance heat map. Shows when you perform best throughout the day',
+                              child:
+                                  HeatMapWidget(timeOfDayData: timeOfDayData),
                             ),
-                          const SizedBox(height: 16),
-
-                          // Monthly Trends
-                          if (monthlyTrends.isNotEmpty)
-                            PerformanceChartWidget(
-                              metrics: monthlyTrends,
-                              title: 'Monthly Performance Trends',
-                              showScore: true,
-                            ),
-                          const SizedBox(height: 16),
-
-                          // Accuracy Trends
-                          if (weeklyTrends.isNotEmpty)
-                            PerformanceChartWidget(
-                              metrics: weeklyTrends,
-                              title: 'Accuracy Trends',
-                              showScore: false,
-                              showAccuracy: true,
-                            ),
-                          const SizedBox(height: 16),
-
-                          // Category Breakdown
-                          if (categoryBreakdown.isNotEmpty)
-                            _buildCategoryBreakdownCard(categoryBreakdown),
-                          const SizedBox(height: 16),
-
-                          // Time-of-Day Heat Map
-                          HeatMapWidget(timeOfDayData: timeOfDayData),
-                          const SizedBox(height: 32),
-                        ],
-                      );
+                            const SizedBox(height: AppSpacing.xl),
+                          ],
+                        );
+                      } catch (e) {
+                        LoggerService.error(
+                          'AnalyticsDashboardScreen: Error loading analytics',
+                          error: e,
+                          stack: StackTrace.current,
+                          fatal: false,
+                        );
+                        if (mounted) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {
+                                _errorMessage =
+                                    'Failed to load analytics data. Please try again.';
+                              });
+                            }
+                          });
+                        }
+                        return const SizedBox.shrink();
+                      }
                     },
                   ),
                 ),
@@ -122,335 +265,391 @@ class AnalyticsDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPersonalBestsSection(Map<String, double> personalBests) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Personal Bests',
-            style: AppTypography.headlineLarge.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+  /// Build personal bests section
+  ///
+  /// Displays cards showing the user's personal best achievements.
+  ///
+  /// Parameters:
+  /// - [context]: Build context for accessing theme
+  /// - [personalBests]: Map containing personal best values
+  Widget _buildPersonalBestsSection(
+      BuildContext context, Map<String, double> personalBests,) {
+    final colors = AppColors.of(context);
+
+    return Semantics(
+      label: 'Personal Bests section. Your highest achievements',
+      child: AppCard.filled(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        backgroundColor: colors.onDarkText.withValues(alpha: 0.05),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _titlePersonalBests,
+              style: AppTypography.headlineMedium.copyWith(
+                color: colors.onDarkText,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildBestCard(
-                  'Highest Score',
-                  personalBests['highestScore']?.toStringAsFixed(0) ?? '0',
-                  Icons.emoji_events,
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildBestCard(
+                    context: context,
+                    label: _labelHighestScore,
+                    value: personalBests['highestScore']?.toStringAsFixed(0) ??
+                        '0',
+                    icon: Icons.emoji_events,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBestCard(
-                  'Best Accuracy',
-                  '${personalBests['bestAccuracy']?.toStringAsFixed(1) ?? '0'}%',
-                  Icons.track_changes,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _buildBestCard(
+                    context: context,
+                    label: _labelBestAccuracy,
+                    value:
+                        '${personalBests['bestAccuracy']?.toStringAsFixed(1) ?? '0'}%',
+                    icon: Icons.track_changes,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildBestCard(
-                  'Best Day Score',
-                  personalBests['bestDayScore']?.toStringAsFixed(0) ?? '0',
-                  Icons.calendar_today,
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildBestCard(
+                    context: context,
+                    label: _labelBestDayScore,
+                    value: personalBests['bestDayScore']?.toStringAsFixed(0) ??
+                        '0',
+                    icon: Icons.calendar_today,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBestCard(
-                  'Longest Streak',
-                  personalBests['longestStreak']?.toStringAsFixed(0) ?? '0',
-                  Icons.local_fire_department,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _buildBestCard(
+                    context: context,
+                    label: _labelLongestStreak,
+                    value: personalBests['longestStreak']?.toStringAsFixed(0) ??
+                        '0',
+                    icon: Icons.local_fire_department,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBestCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF00D9FF).withValues(alpha: 0.3),
-          width: 1,
+  /// Build best card widget
+  ///
+  /// Displays a single personal best metric with icon, value, and label.
+  ///
+  /// Parameters:
+  /// - [context]: Build context for accessing theme
+  /// - [label]: Label text for the metric
+  /// - [value]: Value to display
+  /// - [icon]: Icon to display
+  Widget _buildBestCard({
+    required BuildContext context,
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final colors = AppColors.of(context);
+
+    return Semantics(
+      label: '$label: $value',
+      child: AppCard.filled(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        backgroundColor: colors.onDarkText.withValues(alpha: 0.05),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: colors.accent,
+              size: _iconSize,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              value,
+              style: AppTypography.headlineMedium.copyWith(
+                color: colors.onDarkText,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall.copyWith(
+                color: colors.onDarkText.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: const Color(0xFF00D9FF), size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildImprovementSection(Map<String, double> improvements) {
+  /// Build improvement section
+  ///
+  /// Displays improvement tracking metrics showing score and accuracy changes.
+  ///
+  /// Parameters:
+  /// - [context]: Build context for accessing theme
+  /// - [improvements]: Map containing improvement values
+  Widget _buildImprovementSection(
+      BuildContext context, Map<String, double> improvements,) {
+    final colors = AppColors.of(context);
     final scoreImprovement = improvements['scoreImprovement'] ?? 0.0;
     final accuracyImprovement = improvements['accuracyImprovement'] ?? 0.0;
     final isImproving = scoreImprovement > 0 || accuracyImprovement > 0;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: (isImproving ? Colors.green : Colors.orange).withValues(
-            alpha: 0.3,
-          ),
-          width: 1,
+    return Semantics(
+      label:
+          'Improvement Tracking. ${isImproving ? "Improving" : "Declining"} performance',
+      child: AppCard.filled(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        backgroundColor: colors.onDarkText.withValues(alpha: 0.05),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isImproving ? Icons.trending_up : Icons.trending_down,
+                  color: isImproving ? colors.success : colors.warning,
+                  size: _iconSize,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  _titleImprovementTracking,
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: colors.onDarkText,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildImprovementCard(
+                    context: context,
+                    label: _labelScore,
+                    value: scoreImprovement,
+                    isPositive: isImproving,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _buildImprovementCard(
+                    context: context,
+                    label: _labelAccuracy,
+                    value: accuracyImprovement,
+                    isPositive: isImproving,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isImproving ? Icons.trending_up : Icons.trending_down,
-                color: isImproving ? Colors.green : Colors.orange,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Improvement Tracking',
-                style: AppTypography.headlineLarge.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildImprovementCard(
-                  'Score',
-                  scoreImprovement,
-                  isImproving,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildImprovementCard(
-                  'Accuracy',
-                  accuracyImprovement,
-                  isImproving,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildImprovementCard(String label, double value, bool isPositive) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: (isPositive ? Colors.green : Colors.orange).withValues(
-          alpha: 0.1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: (isPositive ? Colors.green : Colors.orange).withValues(
-            alpha: 0.3,
-          ),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            '${value >= 0 ? '+' : ''}${value.toStringAsFixed(1)}',
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: isPositive ? Colors.green : Colors.orange,
+  /// Build improvement card widget
+  ///
+  /// Displays a single improvement metric with value and label.
+  ///
+  /// Parameters:
+  /// - [context]: Build context for accessing theme
+  /// - [label]: Label text for the metric
+  /// - [value]: Improvement value to display
+  /// - [isPositive]: Whether the improvement is positive
+  Widget _buildImprovementCard({
+    required BuildContext context,
+    required String label,
+    required double value,
+    required bool isPositive,
+  }) {
+    final colors = AppColors.of(context);
+    final cardColor =
+        (isPositive ? colors.success : colors.warning).withValues(alpha: 0.1);
+    final textColor = isPositive ? colors.success : colors.warning;
+
+    return Semantics(
+      label:
+          '$label improvement: ${value >= 0 ? '+' : ''}${value.toStringAsFixed(1)}',
+      child: AppCard.filled(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        backgroundColor: cardColor,
+        child: Column(
+          children: [
+            Text(
+              '${value >= 0 ? '+' : ''}${value.toStringAsFixed(1)}',
+              style: AppTypography.headlineMedium.copyWith(
+                color: textColor,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTypography.bodyMedium.copyWith(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.7),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              style: AppTypography.bodySmall.copyWith(
+                color: colors.onDarkText.withValues(alpha: 0.7),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryBreakdownCard(List categoryBreakdown) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Category Performance',
-            style: AppTypography.headlineLarge.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 300,
-            child: PieChart(
-              PieChartData(
-                sections: categoryBreakdown
-                    .take(8)
-                    .toList()
-                    .asMap()
-                    .entries
-                    .map((entry) {
-                  final index = entry.key;
-                  final cat = entry.value as CategoryPerformance;
-                  final colors = [
-                    const Color(0xFF00D9FF),
-                    const Color(0xFF00FF88),
-                    const Color(0xFFFF00FF),
-                    const Color(0xFFFFD700),
-                    const Color(0xFFFF6B6B),
-                    const Color(0xFF4ECDC4),
-                    const Color(0xFFFFA07A),
-                    const Color(0xFF9370DB),
-                  ];
-                  return PieChartSectionData(
-                    value: cat.accuracy,
-                    title: '${cat.accuracy.toStringAsFixed(0)}%',
-                    color: colors[index % colors.length],
-                    radius: 80,
-                    titleStyle: AppTypography.bodyMedium.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
-                sectionsSpace: 2,
-                centerSpaceRadius: 60,
+  /// Build category breakdown card
+  ///
+  /// Displays a pie chart showing performance by category with legend.
+  ///
+  /// Parameters:
+  /// - [context]: Build context for accessing theme
+  /// - [categoryBreakdown]: List of category performance data
+  Widget _buildCategoryBreakdownCard(
+      BuildContext context, List<CategoryPerformance> categoryBreakdown,) {
+    final colors = AppColors.of(context);
+    final displayCategories =
+        categoryBreakdown.take(_maxCategoriesToShow).toList();
+
+    // Build pie chart sections
+    final pieSections = displayCategories.asMap().entries.map((entry) {
+      final index = entry.key;
+      final cat = entry.value;
+      return _buildPieChartSection(
+        category: cat,
+        index: index,
+        colors: colors,
+      );
+    }).toList();
+
+    // Build legend items
+    final legendItems = displayCategories.asMap().entries.map((entry) {
+      final index = entry.key;
+      final cat = entry.value;
+      return _buildLegendItem(
+        category: cat,
+        index: index,
+        colors: colors,
+      );
+    }).toList();
+
+    return Semantics(
+      label:
+          'Category Performance breakdown. Pie chart showing performance by category',
+      child: AppCard.filled(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        backgroundColor: colors.onDarkText.withValues(alpha: 0.05),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _titleCategoryPerformance,
+              style: AppTypography.headlineMedium.copyWith(
+                color: colors.onDarkText,
               ),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              height: _pieChartHeight,
+              child: PieChart(
+                PieChartData(
+                  sections: pieSections,
+                  sectionsSpace: _pieChartSectionsSpace,
+                  centerSpaceRadius: _pieChartCenterRadius,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: legendItems,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Get pie chart color palette
+  ///
+  /// Returns the color palette for pie chart sections.
+  List<Color> _getPieChartColors() {
+    return _pieChartColors;
+  }
+
+  /// Build pie chart section
+  ///
+  /// Creates a pie chart section for a category.
+  ///
+  /// Parameters:
+  /// - [category]: Category performance data
+  /// - [index]: Index in the category list
+  /// - [colors]: App colors for theming
+  PieChartSectionData _buildPieChartSection({
+    required CategoryPerformance category,
+    required int index,
+    required AppColorScheme colors,
+  }) {
+    final chartColors = _getPieChartColors();
+    return PieChartSectionData(
+      value: category.accuracy,
+      title: '${category.accuracy.toStringAsFixed(0)}%',
+      color: chartColors[index % chartColors.length],
+      radius: _pieChartRadius,
+      titleStyle: AppTypography.bodySmall.copyWith(
+        fontWeight: FontWeight.bold,
+        color: colors.onDarkText,
+      ),
+    );
+  }
+
+  /// Build legend item
+  ///
+  /// Creates a legend item for a category with color indicator and label.
+  ///
+  /// Parameters:
+  /// - [category]: Category performance data
+  /// - [index]: Index in the category list
+  /// - [colors]: App colors for theming
+  Widget _buildLegendItem({
+    required CategoryPerformance category,
+    required int index,
+    required AppColorScheme colors,
+  }) {
+    final chartColors = _getPieChartColors();
+    final indicatorColor = chartColors[index % chartColors.length];
+
+    return Semantics(
+      label:
+          '${category.category}: ${category.accuracy.toStringAsFixed(0)}% accuracy',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: _legendIndicatorSize,
+            height: _legendIndicatorSize,
+            decoration: BoxDecoration(
+              color: indicatorColor,
+              shape: BoxShape.circle,
+            ),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: categoryBreakdown.take(8).toList().asMap().entries.map((
-              entry,
-            ) {
-              final index = entry.key;
-              final cat = entry.value as CategoryPerformance;
-              final colors = [
-                const Color(0xFF00D9FF),
-                const Color(0xFF00FF88),
-                const Color(0xFFFF00FF),
-                const Color(0xFFFFD700),
-                const Color(0xFFFF6B6B),
-                const Color(0xFF4ECDC4),
-                const Color(0xFFFFA07A),
-                const Color(0xFF9370DB),
-              ];
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: colors[index % colors.length],
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${cat.category}: ${cat.accuracy.toStringAsFixed(0)}%',
-                    style: AppTypography.bodyMedium.copyWith(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            '${category.category}: ${category.accuracy.toStringAsFixed(0)}%',
+            style: AppTypography.bodySmall.copyWith(
+              color: colors.onDarkText.withValues(alpha: 0.8),
+            ),
           ),
         ],
       ),

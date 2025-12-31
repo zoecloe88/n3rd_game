@@ -1,0 +1,94 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Run tests with coverage
+        run: flutter test --coverage
+      
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+      
+      - name: Generate coverage report
+        run: |
+          chmod +x scripts/check_coverage.sh
+          ./scripts/check_coverage.sh || true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+      
+      - name: Check coverage threshold
+        run: |
+          if [ -f coverage/coverage_percent.txt ]; then
+            COVERAGE=$(cat coverage/coverage_percent.txt | cut -d. -f1)
+            if [ "$COVERAGE" -lt 80 ]; then
+              echo "❌ Coverage ($COVERAGE%) is below threshold (80%)"
+              exit 1
+            else
+              echo "✅ Coverage ($COVERAGE%) meets threshold (80%+)"
+            fi
+          else
+            echo "⚠️  Coverage percentage file not found"
+          fi
+      
+      - name: Generate HTML report
+        run: |
+          if command -v genhtml &> /dev/null; then
+            genhtml coverage/lcov.info -o coverage/html --no-function-coverage
+          fi
+      
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/html
+          retention-days: 30
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

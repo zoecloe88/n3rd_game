@@ -8,6 +8,8 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 class VoiceCalibrationScreen extends StatefulWidget {
   const VoiceCalibrationScreen({super.key});
@@ -26,14 +28,20 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
     // RouteGuard handles subscription checking at route level
 
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
           child: Consumer3<VoiceCalibrationService, VoiceRecognitionService,
               PronunciationDictionaryService>(
-            builder: (context, calibrationService, voiceService,
-                pronunciationService, _,) {
+            builder: (
+              context,
+              calibrationService,
+              voiceService,
+              pronunciationService,
+              _,
+            ) {
               if (!calibrationService.isCalibrating) {
                 // Start calibration
                 return Center(
@@ -55,7 +63,8 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Voice Calibration',
+                          AppLocalizations.of(context)?.voiceCalibrationTitle ??
+                              'Voice Calibration',
                           style: AppTypography.headlineLarge.copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -64,7 +73,9 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'We\'ll ask you to speak 3 words, 3 times each. This helps us recognize your voice better.',
+                          AppLocalizations.of(context)
+                                  ?.voiceCalibrationDescription ??
+                              'We\'ll ask you to speak 3 words, 3 times each. This helps us recognize your voice better.',
                           textAlign: TextAlign.center,
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 14,
@@ -75,6 +86,14 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ElevatedButton(
                           onPressed: () async {
                             try {
+                              // Ensure voice service is initialized and enabled
+                              if (!voiceService.isAvailable) {
+                                await voiceService.init();
+                              }
+                              if (!voiceService.isEnabled) {
+                                await voiceService.setEnabled(true);
+                              }
+                              
                               await calibrationService.startCalibration(
                                 pronunciationService: pronunciationService,
                                 recognitionService: voiceService,
@@ -83,13 +102,18 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                 setState(() {
                                   _currentSample = 0;
                                   _lastRecognizedText = null;
+                                  _isRecording = false;
                                 });
                               }
                             } catch (e) {
                               if (mounted && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to start calibration: ${e.toString()}'),
+                                    content: Text(
+                                      AppLocalizations.of(context)
+                                              ?.calibrationStartError ??
+                                          'Failed to start calibration. Please try again.',
+                                    ),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -106,7 +130,8 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                             ),
                           ),
                           child: Text(
-                            'Start Calibration',
+                            AppLocalizations.of(context)?.startCalibration ??
+                                'Start Calibration',
                             style: AppTypography.bodyMedium.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -144,7 +169,8 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Calibration Complete!',
+                          AppLocalizations.of(context)?.calibrationComplete ??
+                              'Calibration Complete!',
                           style: AppTypography.headlineLarge.copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -154,15 +180,70 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         const SizedBox(height: 8),
                         Text(
                           calibrationService.isCalibrated
-                              ? 'Your voice profile has been created successfully.'
-                              : 'Calibration accuracy was too low. Please try again.',
+                              ? (AppLocalizations.of(context)
+                                      ?.calibrationSuccessMessage ??
+                                  'Your voice profile has been created successfully.')
+                              : (AppLocalizations.of(context)
+                                      ?.calibrationLowAccuracyMessage ??
+                                  'Calibration accuracy was too low. Please try again.'),
                           textAlign: TextAlign.center,
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 14,
                             color: AppColors.of(context).secondaryText,
                           ),
                         ),
+                        if (calibrationService.isCalibrated &&
+                            calibrationService.profile?.accuracyScore != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            (AppLocalizations.of(context)
+                                    ?.calibrationAccuracyScore ??
+                                'Accuracy: {score}%')
+                                .replaceAll(
+                                  '{score}',
+                                  ((calibrationService.profile?.accuracyScore ?? 0.0) *
+                                          100)
+                                      .toInt()
+                                      .toString(),
+                                ),
+                            textAlign: TextAlign.center,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontSize: 12,
+                              color: AppColors.of(context).secondaryText,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
+                        if (calibrationService.isCalibrated) ...[
+                          ElevatedButton(
+                            onPressed: () {
+                              NavigationHelper.safeNavigate(
+                                context,
+                                '/modes',
+                                source: NavigationSource.buttonTap,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.of(
+                                context,
+                              ).primaryButton,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 16,
+                              ),
+                            ),
+                            child: Text(
+                              AppLocalizations.of(context)
+                                      ?.testCalibrationInGame ??
+                                  'Test in Game',
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         ElevatedButton(
                           onPressed: () {
                             NavigationHelper.safePop(context);
@@ -177,7 +258,7 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                             ),
                           ),
                           child: Text(
-                            'Done',
+                            AppLocalizations.of(context)?.done ?? 'Done',
                             style: AppTypography.bodyMedium.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -197,20 +278,26 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
+                        Semantics(
+                          label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                          button: true,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              calibrationService.cancelCalibration();
+                              NavigationHelper.safePop(context);
+                            },
+                            tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
                           ),
-                          onPressed: () {
-                            calibrationService.cancelCalibration();
-                            NavigationHelper.safePop(context);
-                          },
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Voice Calibration',
+                            AppLocalizations.of(context)?.voiceCalibrationTitle ??
+                                'Voice Calibration',
                             style: AppTypography.headlineLarge.copyWith(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -259,7 +346,8 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                     child: Column(
                       children: [
                         Text(
-                          'Say this word:',
+                          AppLocalizations.of(context)?.sayThisWord ??
+                              'Say this word:',
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 14,
                             color: Colors.white.withValues(alpha: 0.7),
@@ -276,7 +364,10 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Sample ${_currentSample + 1} of 3',
+                          (AppLocalizations.of(context)?.sampleXOfY ??
+                                  'Sample {current} of {total}')
+                              .replaceAll('{current}', '${_currentSample + 1}')
+                              .replaceAll('{total}', '3'),
                           style: AppTypography.bodyMedium.copyWith(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.6),
@@ -288,34 +379,43 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         GestureDetector(
                           onTapDown: (_) async {
                             if (!mounted) return;
-                            
+
                             // Check if voice service is available
                             if (!voiceService.isAvailable) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Voice recognition is not available on this device'),
+                                  SnackBar(
+                                    content: Text(
+                                      AppLocalizations.of(context)
+                                              ?.voiceRecognitionNotAvailableDevice ??
+                                          'Voice recognition is not available on this device',
+                                    ),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
                               }
                               return;
                             }
-                            
+
                             // Double-check currentWord is valid
-                            final word = calibrationService.getCurrentCalibrationWord();
+                            final word =
+                                calibrationService.getCurrentCalibrationWord();
                             if (word == null || word.isEmpty) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('No calibration word available. Please try again.'),
+                                  SnackBar(
+                                    content: Text(
+                                      AppLocalizations.of(context)
+                                              ?.noCalibrationWordAvailable ??
+                                          'No calibration word available. Please try again.',
+                                    ),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
                               }
                               return;
                             }
-                            
+
                             if (!_isRecording) {
                               if (!mounted) return;
                               setState(() {
@@ -324,9 +424,17 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                               });
 
                               try {
+                                // Ensure voice service is enabled before starting
+                                if (!voiceService.isEnabled) {
+                                  await voiceService.setEnabled(true);
+                                }
+                                
                                 await voiceService.startListening(
                                   onResult: (text) {
                                     if (!mounted) return;
+                                    // Only process non-empty results
+                                    if (text.trim().isEmpty) return;
+                                    
                                     setState(() {
                                       _lastRecognizedText = text;
                                       _isRecording = false;
@@ -334,11 +442,12 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
 
                                     try {
                                       // Record the sample (word is guaranteed non-null here due to check above)
-                                      calibrationService.recordCalibrationSample(
+                                      unawaited(calibrationService
+                                          .recordCalibrationSample(
                                         word: word,
                                         recognizedText: text,
                                         recognitionService: voiceService,
-                                      );
+                                      ),);
 
                                       // Move to next sample
                                       if (mounted) {
@@ -355,9 +464,14 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                       }
                                     } catch (e) {
                                       if (mounted && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
-                                            content: Text('Error recording sample: ${e.toString()}'),
+                                            content: Text(
+                                              AppLocalizations.of(context)
+                                                      ?.recordingError ??
+                                                  'Recording error. Please try again.',
+                                            ),
                                             backgroundColor: Colors.orange,
                                           ),
                                         );
@@ -374,7 +488,11 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                 if (mounted && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Failed to start listening: ${e.toString()}'),
+                                      content: Text(
+                                        AppLocalizations.of(context)
+                                                ?.listeningError ??
+                                            'Failed to start listening. Please try again.',
+                                      ),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -386,6 +504,62 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                             if (_isRecording) {
                               try {
                                 await voiceService.stop();
+                                // Get current word
+                                final word = calibrationService.getCurrentCalibrationWord();
+                                if (word == null || word.isEmpty) {
+                                  if (mounted && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          AppLocalizations.of(context)
+                                                  ?.noCalibrationWordAvailable ??
+                                              'No calibration word available. Please try again.',
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                // Process any recognized text that might not have triggered onResult yet
+                                if (mounted && voiceService.lastWords.isNotEmpty && _lastRecognizedText == null) {
+                                  final text = voiceService.lastWords;
+                                  if (text.trim().isNotEmpty) {
+                                    setState(() {
+                                      _lastRecognizedText = text;
+                                    });
+                                    try {
+                                      // Record the sample
+                                      unawaited(calibrationService.recordCalibrationSample(
+                                        word: word,
+                                        recognizedText: text,
+                                        recognitionService: voiceService,
+                                      ),);
+                                      // Move to next sample
+                                      if (mounted) {
+                                        setState(() {
+                                          _currentSample++;
+                                          if (_currentSample >= 3) {
+                                            _currentSample = 0;
+                                            calibrationService.completeWordCalibration(word);
+                                          }
+                                        });
+                                      }
+                                    } catch (e) {
+                                      if (mounted && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              AppLocalizations.of(context)?.recordingError ??
+                                                  'Recording error. Please try again.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                }
                                 if (mounted) {
                                   setState(() {
                                     _isRecording = false;
@@ -400,7 +574,11 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                 if (mounted && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Error stopping recording: ${e.toString()}'),
+                                      content: Text(
+                                        AppLocalizations.of(context)
+                                                ?.recordingStopError ??
+                                            'Failed to stop recording. Please try again.',
+                                      ),
                                       backgroundColor: Colors.orange,
                                     ),
                                   );
@@ -432,7 +610,9 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                         if (_lastRecognizedText != null) ...[
                           const SizedBox(height: 16),
                           Text(
-                            'Heard: "$_lastRecognizedText"',
+                            (AppLocalizations.of(context)?.heardText ??
+                                    'Heard: "{text}"')
+                                .replaceAll('{text}', _lastRecognizedText!),
                             style: AppTypography.bodyMedium.copyWith(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.8),
@@ -450,7 +630,8 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'Hold the microphone button and speak the word clearly. Release when done.',
+                      AppLocalizations.of(context)?.calibrationInstructions ??
+                          'Hold the microphone button and speak the word clearly. Release when done.',
                       textAlign: TextAlign.center,
                       style: AppTypography.bodyMedium.copyWith(
                         fontSize: 12,
@@ -464,6 +645,6 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
           ),
         ),
       ),
-      );
+    );
   }
 }

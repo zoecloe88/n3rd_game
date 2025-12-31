@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Helper class to select the appropriate video variant based on device aspect ratio
 ///
@@ -26,9 +26,7 @@ class VideoPathHelper {
 
       // Validate size to prevent division by zero or invalid calculations
       if (size.width <= 0 || size.height <= 0) {
-        if (kDebugMode) {
-          debugPrint('VideoPathHelper: Invalid screen size, using base path');
-        }
+        LoggerService.debug('VideoPathHelper: Invalid screen size, using base path');
         return basePath;
       }
 
@@ -36,9 +34,7 @@ class VideoPathHelper {
 
       // Validate aspect ratio (should be positive and reasonable)
       if (aspectRatio <= 0 || !aspectRatio.isFinite) {
-        if (kDebugMode) {
-          debugPrint('VideoPathHelper: Invalid aspect ratio, using base path');
-        }
+        LoggerService.debug('VideoPathHelper: Invalid aspect ratio, using base path');
         return basePath;
       }
 
@@ -70,11 +66,8 @@ class VideoPathHelper {
       return '${baseName}_$variant.$extension';
     } catch (e) {
       // If MediaQuery fails or context is invalid, fall back to base path
-      if (kDebugMode) {
-        debugPrint(
-          'VideoPathHelper: Error getting video path: $e, using base path',
+      LoggerService.debug('VideoPathHelper: Error getting video path: $e, using base path',
         );
-      }
       return basePath;
     }
   }

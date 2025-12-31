@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 
 void main() {
   group('Practice & Learning Modes', () {
@@ -28,14 +28,16 @@ void main() {
       expect(GameMode.values.contains(GameMode.learning), true);
     });
 
-    test('ModeConfig should handle all 18 game modes including Practice and Learning', () {
+    test(
+        'ModeConfig should handle all 18 game modes including Practice and Learning',
+        () {
       // Verify all modes have valid configurations
       for (final mode in GameMode.values) {
         final config = ModeConfig.getConfig(mode);
         expect(config.memorizeTime >= 0, true, reason: 'Mode: $mode');
         expect(config.playTime > 0, true, reason: 'Mode: $mode');
       }
-      
+
       // Verify we have 18 modes total
       expect(GameMode.values.length, 18);
     });
@@ -50,4 +52,3 @@ void main() {
     });
   });
 }
-

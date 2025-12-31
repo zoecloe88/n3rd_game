@@ -1,296 +1,200 @@
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:n3rd_game/models/chat_message.dart';
-import 'package:n3rd_game/services/content_moderation_service.dart';
-import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 
-class ChatService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final ContentModerationService _moderationService =
-      ContentModerationService();
+/// Chat message model
+class ChatMessage {
+  final String id;
+  final String userId;
+  final String displayName;
+  final String message;
+  final DateTime timestamp;
+  final bool isModerated;
+  final bool isDeleted;
 
-  StreamSubscription<QuerySnapshot>? _messagesSubscription;
-  final List<ChatMessage> _messages = [];
-  String? _currentRoomId;
+  ChatMessage({
+    required this.id,
+    required this.userId,
+    required this.displayName,
+    required this.message,
+    required this.timestamp,
+    this.isModerated = false,
+    this.isDeleted = false,
+  });
 
-  // Rate limiting: track message timestamps per user
-  final Map<String, List<DateTime>> _messageTimestamps = {};
-  static const int _maxMessagesPerMinute = 10;
-  static const int _maxMessagesPerHour = 50;
-  static const Duration _rateLimitWindow = Duration(minutes: 1);
-  static const Duration _hourlyLimitWindow = Duration(hours: 1);
-
-  // Message retry queue for failed sends
-  final List<_PendingMessage> _pendingMessages = [];
-  static const int _maxRetries = 3;
-  static const Duration _retryDelay = Duration(seconds: 2);
-
-  List<ChatMessage> get messages => List.unmodifiable(_messages);
-  String? get currentRoomId => _currentRoomId;
-
-  // Start listening to chat messages for a room
-  void startListening(String roomId) {
-    if (_currentRoomId == roomId) return;
-
-    // Cancel existing subscription before creating new one
-    _messagesSubscription?.cancel();
-
-    _currentRoomId = roomId;
-    _messages.clear();
-
-    _messagesSubscription = _firestore
-        .collection('game_rooms')
-        .doc(roomId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .limitToLast(50)
-        .snapshots()
-        .listen((snapshot) {
-      // Store subscription for proper cleanup
-      // Subscription is cancelled in stopListening() which is called from dispose()
-      _messages.clear();
-      for (final doc in snapshot.docs) {
-        try {
-          final data = doc.data();
-          final message = ChatMessage(
-            id: doc.id,
-            userId: data['userId'] as String,
-            userName: data['userName'] as String,
-            message: data['message'] as String,
-            timestamp: (data['timestamp'] as Timestamp).toDate(),
-            roomId: roomId,
-          );
-          _messages.add(message);
-        } catch (e) {
-          debugPrint('Error parsing chat message: $e');
-        }
-      }
-      // Only notify if service is still active (not disposed)
-      if (hasListeners) {
-        notifyListeners();
-      }
-    });
+  factory ChatMessage.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ChatMessage(
+      id: doc.id,
+      userId: data['userId'] as String,
+      displayName: data['displayName'] as String? ?? 'Unknown',
+      message: data['message'] as String,
+      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      isModerated: data['isModerated'] as bool? ?? false,
+      isDeleted: data['isDeleted'] as bool? ?? false,
+    );
   }
 
-  /// Check rate limits for message sending
-  void _checkRateLimit(String userId) {
-    final now = DateTime.now();
-    final userMessages = _messageTimestamps[userId] ?? [];
+  Map<String, dynamic> toJson() => {
+        'userId': userId,
+        'displayName': displayName,
+        'message': message,
+        'timestamp': Timestamp.fromDate(timestamp),
+        'isModerated': isModerated,
+        'isDeleted': isDeleted,
+      };
+}
 
-    // Clean old timestamps (older than 1 hour)
-    final recentMessages = userMessages.where((timestamp) {
-      return now.difference(timestamp) < _hourlyLimitWindow;
-    }).toList();
-
-    // Check per-minute limit
-    final messagesInLastMinute = recentMessages.where((timestamp) {
-      return now.difference(timestamp) < _rateLimitWindow;
-    }).length;
-
-    if (messagesInLastMinute >= _maxMessagesPerMinute) {
-      throw ValidationException(
-        'Rate limit exceeded. Please wait before sending another message.',
-      );
-    }
-
-    // Check per-hour limit
-    if (recentMessages.length >= _maxMessagesPerHour) {
-      throw ValidationException(
-        'Hourly message limit exceeded. Please try again later.',
-      );
-    }
-
-    // Update timestamps
-    recentMessages.add(now);
-    _messageTimestamps[userId] = recentMessages;
-  }
-
-  /// Execute Firestore operation with timeout
-  Future<T> _executeWithTimeout<T>(
-    Future<T> Function() operation, {
-    Duration timeout = const Duration(seconds: 10),
-    String operationName = 'Chat operation',
-  }) async {
+/// Service for managing chat messages in public lobbies
+class ChatService {
+  FirebaseFirestore? get _firestore {
     try {
-      return await operation().timeout(timeout);
-    } on TimeoutException catch (e) {
-      throw NetworkException('$operationName timed out: $e');
+      return FirebaseFirestore.instance;
+    } catch (e) {
+      return null;
     }
   }
 
-  // Send a chat message
-  // CRITICAL: Includes validation, sanitization, rate limiting, timeout handling, and retry logic
-  Future<void> sendMessage(String message) async {
-    if (_currentRoomId == null) {
-      throw ValidationException('No active room');
+  FirebaseAuth? get _auth {
+    try {
+      return FirebaseAuth.instance;
+    } catch (e) {
+      return null;
     }
+  }
 
-    final user = _auth.currentUser;
-    if (user == null) {
+  /// Send a chat message to a lobby
+  Future<void> sendMessage({
+    required String lobbyId,
+    required String message,
+  }) async {
+    final firestore = _firestore;
+    final auth = _auth;
+    final user = auth?.currentUser;
+
+    if (firestore == null || user == null) {
       throw AuthenticationException('User must be logged in to send messages');
     }
 
-    // Sanitize input
-    final sanitizedMessage = InputSanitizer.sanitizeText(message.trim());
+    // Moderate message content
+    final moderatedMessage = _moderateMessage(message);
+    final isModerated = moderatedMessage != message;
 
-    if (sanitizedMessage.isEmpty) {
-      throw ValidationException('Message cannot be empty');
-    }
-
-    // Validate content (length, profanity, spam)
-    final validationError = _moderationService.validateContent(
-      sanitizedMessage,
-      minLength: 1,
-      maxLength: 500,
-    );
-
-    if (validationError != null) {
-      throw ValidationException(validationError);
-    }
-
-    // Check rate limits
-    _checkRateLimit(user.uid);
-
-    // Send message with timeout handling and retry logic
-    await _sendMessageWithRetry(
-      sanitizedMessage: sanitizedMessage,
-      userId: user.uid,
-      userName: InputSanitizer.sanitizeText(
-        user.displayName ??
-            (user.email?.contains('@') == true
-                ? user.email!.split('@').first
-                : user.email) ??
-            'Player',
-      ),
-    );
-  }
-
-  /// Send message with automatic retry on failure
-  Future<void> _sendMessageWithRetry({
-    required String sanitizedMessage,
-    required String userId,
-    required String userName,
-    int attempt = 0,
-  }) async {
     try {
-      await _executeWithTimeout(
-        () async {
-          await _firestore
-              .collection('game_rooms')
-              .doc(_currentRoomId!)
-              .collection('messages')
-              .add({
-            'userId': userId,
-            'userName': userName,
-            'message': sanitizedMessage,
-            'timestamp': FieldValue.serverTimestamp(),
-            'roomId': _currentRoomId,
-          });
-        },
-        operationName: 'Send chat message',
-      );
+      // Get user display name
+      final userProfile = await firestore
+          .collection('user_profiles')
+          .doc(user.uid)
+          .get();
+      final displayName = userProfile.data()?['displayName'] as String? ??
+          user.email?.split('@').first ??
+          'User';
 
-      // Success - remove any pending retries for this message
-      _pendingMessages.removeWhere((p) => p.message == sanitizedMessage);
-    } catch (e) {
-      // Failed to send - add to retry queue if attempts remaining
-      if (attempt < _maxRetries) {
-        final pending = _PendingMessage(
-          message: sanitizedMessage,
-          userId: userId,
-          userName: userName,
-          attempt: attempt + 1,
-          timestamp: DateTime.now(),
+      // Rate limiting: Check if user sent too many messages recently
+      final recentMessages = await firestore
+          .collection('public_lobbies')
+          .doc(lobbyId)
+          .collection('chat_messages')
+          .where('userId', isEqualTo: user.uid)
+          .where('timestamp',
+              isGreaterThan: Timestamp.fromDate(
+                DateTime.now().subtract(const Duration(seconds: 10)),
+              ),)
+          .count()
+          .get();
+
+      if (recentMessages.count! >= 5) {
+        throw ValidationException(
+          'You are sending messages too quickly. Please wait a moment.',
         );
-
-        // Remove old pending message if exists (avoid duplicates)
-        _pendingMessages.removeWhere((p) => p.message == sanitizedMessage);
-        _pendingMessages.add(pending);
-
-        // Schedule retry
-        Future.delayed(_retryDelay * (attempt + 1), () {
-          if (_currentRoomId != null) {
-            _sendMessageWithRetry(
-              sanitizedMessage: sanitizedMessage,
-              userId: userId,
-              userName: userName,
-              attempt: attempt + 1,
-            );
-          }
-        });
-      } else {
-        // Max retries exceeded - remove from queue
-        _pendingMessages.removeWhere((p) => p.message == sanitizedMessage);
-        rethrow; // Re-throw the error
       }
+
+      // Add message to Firestore
+      await firestore
+          .collection('public_lobbies')
+          .doc(lobbyId)
+          .collection('chat_messages')
+          .add({
+        'userId': user.uid,
+        'displayName': displayName,
+        'message': moderatedMessage,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isModerated': isModerated,
+        'isDeleted': false,
+      });
+
+      // Update last activity timestamp
+      await firestore.collection('public_lobbies').doc(lobbyId).update({
+        'lastActivity': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      LoggerService.error('Error sending chat message', error: e);
+      rethrow;
     }
   }
 
-  /// Retry all pending messages (call when connectivity is restored)
-  Future<void> retryPendingMessages() async {
-    if (_pendingMessages.isEmpty || _currentRoomId == null) return;
-
-    final messagesToRetry = List<_PendingMessage>.from(_pendingMessages);
-    _pendingMessages.clear();
-
-    for (final pending in messagesToRetry) {
-      await _sendMessageWithRetry(
-        sanitizedMessage: pending.message,
-        userId: pending.userId,
-        userName: pending.userName,
-        attempt: pending.attempt,
-      );
+  /// Get stream of chat messages for a lobby
+  Stream<List<ChatMessage>> getMessages(String lobbyId, {int limit = 50}) {
+    final firestore = _firestore;
+    if (firestore == null) {
+      return Stream.value([]);
     }
-  }
 
-  // Stop listening to messages
-  void stopListening() {
-    _messagesSubscription?.cancel();
-    _messagesSubscription = null;
-    _messages.clear();
-    _currentRoomId = null;
-    // Clean up old rate limit data (older than 1 hour)
-    final now = DateTime.now();
-    _messageTimestamps.removeWhere((userId, timestamps) {
-      final recent = timestamps.where(
-        (ts) => now.difference(ts) < _hourlyLimitWindow,
-      );
-      if (recent.isEmpty) {
-        return true; // Remove if no recent messages
-      }
-      _messageTimestamps[userId] = recent.toList();
-      return false;
+    return firestore
+        .collection('public_lobbies')
+        .doc(lobbyId)
+        .collection('chat_messages')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ChatMessage.fromFirestore(doc))
+          .toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     });
-    if (hasListeners) {
-      notifyListeners();
+  }
+
+  /// Moderate message content (basic profanity filter)
+  String _moderateMessage(String message) {
+    // Basic profanity filter - replace inappropriate words
+    final profanityWords = [
+      // Add profanity words here (keeping it minimal for now)
+    ];
+
+    String moderated = message;
+    for (final word in profanityWords) {
+      final regex = RegExp(word, caseSensitive: false);
+      moderated = moderated.replaceAll(regex, '*' * word.length);
+    }
+
+    return moderated;
+  }
+
+  /// Delete a message (admin only)
+  Future<void> deleteMessage({
+    required String lobbyId,
+    required String messageId,
+  }) async {
+    final firestore = _firestore;
+    if (firestore == null) {
+      throw NetworkException('Firestore not available');
+    }
+
+    try {
+      await firestore
+          .collection('public_lobbies')
+          .doc(lobbyId)
+          .collection('chat_messages')
+          .doc(messageId)
+          .update({
+        'isDeleted': true,
+      });
+    } catch (e) {
+      LoggerService.error('Error deleting chat message', error: e);
+      rethrow;
     }
   }
-
-  @override
-  void dispose() {
-    stopListening();
-    _pendingMessages.clear();
-    super.dispose();
-  }
-}
-
-/// Internal class for tracking pending messages
-class _PendingMessage {
-  final String message;
-  final String userId;
-  final String userName;
-  final int attempt;
-  final DateTime timestamp;
-
-  _PendingMessage({
-    required this.message,
-    required this.userId,
-    required this.userName,
-    required this.attempt,
-    required this.timestamp,
-  });
 }

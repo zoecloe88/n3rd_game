@@ -1,67 +1,186 @@
-# 📚 Documentation
+# 📚 Documentation Index
 
 Essential documentation for the N3RD Trivia Game project.
+
+## 📐 Documentation Structure
+
+This documentation is organized into several categories:
+
+- **Core Documentation**: Essential reading for understanding the system architecture, setup, security, and design
+- **Feature Documentation**: Detailed guides for specific features (multiplayer, friends, challenges, etc.)
+- **Technical Guides**: Implementation details for infrastructure, code quality, architecture, security, and performance
+- **Architecture Decision Records (ADRs)**: Historical decisions and their rationale
+- **Project History**: Changelog and version history
+
+Each document includes cross-references to related documentation, and the "Quick Links" section below provides common navigation paths.
 
 ## 📖 Core Documentation
 
 ### Essential Reading
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture and design patterns
-- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Production deployment checklist
-- **[SECURITY_AUDIT.md](./SECURITY_AUDIT.md)** - Security audit report (94/100)
-- **[BUILD_QUALITY_REPORT.md](./BUILD_QUALITY_REPORT.md)** - Comprehensive build quality review (100/100)
-
-### Setup & Configuration
-- **[REVENUECAT_SETUP_GUIDE.md](./REVENUECAT_SETUP_GUIDE.md)** - RevenueCat subscription setup
-- **[FONT_SETUP_GUIDE.md](./FONT_SETUP_GUIDE.md)** - Font loading and configuration
-
-### Development Guides
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Complete system architecture, service interactions, navigation flow, and design patterns
+- **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** - Comprehensive design system documentation including typography (with font setup instructions), colors, spacing, components, and accessibility
+- **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - Comprehensive accessibility guide including WCAG 2.1 AA compliance, user guide, developer guide, and testing instructions
+- **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Complete setup guide including Firebase, RevenueCat, API key restrictions, and development environment
+- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Comprehensive deployment guide for iOS and Android, including Firebase App Distribution
+- **[SECURITY.md](./SECURITY.md)** - Comprehensive security guide including audit results, best practices, and maintenance procedures
+- **[AUDIT_SUMMARY.md](./AUDIT_SUMMARY.md)** - Complete codebase audit results with scores across all categories
 - **[ERROR_HANDLING_GUIDE.md](./ERROR_HANDLING_GUIDE.md)** - Error handling patterns and best practices
-- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - API documentation
 
-### Deployment
-- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Production deployment checklist
-- **[DEPLOYMENT_RUNBOOK.md](./DEPLOYMENT_RUNBOOK.md)** - Detailed deployment steps
+### Feature Documentation
 
-### Font & Typography
-- **[FONT_SETUP_GUIDE.md](./FONT_SETUP_GUIDE.md)** - Font loading and configuration
-- **[FONT_FALLBACK_STRATEGY.md](./FONT_FALLBACK_STRATEGY.md)** - Font fallback implementation
+Detailed architecture and implementation guides for major features:
 
-### Security
-- **[SECURITY_AUDIT.md](./SECURITY_AUDIT.md)** - Security audit report
-- **[SECURITY_AUDIT_CHECKLIST.md](./SECURITY_AUDIT_CHECKLIST.md)** - Security checklist
-- **[SECURITY_HARDENING.md](./SECURITY_HARDENING.md)** - Security hardening guide
+- **[DAILY_CHALLENGE.md](./DAILY_CHALLENGE.md)** - Daily Challenge system architecture, repositories, and leaderboards
+- **[FRIENDS_SYSTEM.md](./FRIENDS_SYSTEM.md)** - Friends system architecture, friend requests, invitations, and score comparisons
+- **[MULTIPLAYER_SYSTEM.md](./MULTIPLAYER_SYSTEM.md)** - Multiplayer system architecture, game rooms, real-time synchronization, and offline support
+- **[TRIVIA_CREATOR.md](./TRIVIA_CREATOR.md)** - Trivia Creator architecture, validation, moderation, and sharing
+- **[LEADERBOARDS.md](./LEADERBOARDS.md)** - Leaderboard system architecture, global leaderboards, and friend comparisons
+- **[OFFLINE_SUPPORT.md](./OFFLINE_SUPPORT.md)** - Offline support architecture, retry queues, and network monitoring
+
+### Technical Guides
+
+#### Infrastructure & DevOps
+- **[CI_CD.md](./CI_CD.md)** - Continuous Integration and Continuous Deployment pipeline documentation
+- **[BACKUP_AND_RECOVERY.md](./BACKUP_AND_RECOVERY.md)** - Backup strategies, disaster recovery procedures, and automated scripts
+- **[FEATURE_FLAGS.md](./FEATURE_FLAGS.md)** - Feature flag system using Firebase Remote Config
+
+#### Code Quality & Maintenance
+- **[CODE_COMPLEXITY.md](./CODE_COMPLEXITY.md)** - Code complexity metrics, thresholds, and refactoring recommendations
+- **[TEST_COVERAGE.md](./TEST_COVERAGE.md)** - Test coverage metrics, reporting process, and coverage targets
+- **[MAINTAINABILITY.md](./MAINTAINABILITY.md)** - Code maintainability guidelines and best practices
+- **[TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)** - Technical debt tracking system and management strategies
+
+#### Architecture & Services
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Public service method documentation and API reference
+- **[GAME_MANAGERS.md](./GAME_MANAGERS.md)** - Game manager pattern, all manager classes, and integration guide
+
+#### Security & Performance
+- **[CERTIFICATE_PINNING.md](./CERTIFICATE_PINNING.md)** - Certificate pinning implementation and configuration
+- **[PERFORMANCE_BUDGETS.md](./PERFORMANCE_BUDGETS.md)** - Performance targets, budgets, monitoring setup, and current status
+- **[DEPENDENCY_HEALTH.md](./DEPENDENCY_HEALTH.md)** - Dependency health monitoring, vulnerability scanning, and update strategies
+
+### Development Tools
+
+- **[GITHUB_CLI_AND_BUGBOT_GUIDE.md](./GITHUB_CLI_AND_BUGBOT_GUIDE.md)** - GitHub CLI and Bugbot collaboration guide
 
 ### Architecture Decision Records
-- **[ADRs/](./ADRs/)** - Architecture Decision Records
-  - ADR-001: Font Loading Strategy
-  - ADR-002: Multiplayer Security Model
-  - ADR-003: State Persistence Strategy
-  - ADR-004: Error Recovery Mechanisms
-  - ADR-005: Performance Monitoring
-  - ADR-006: Subscription Routing Architecture
-  - ADR-007: Error Handling Strategy
 
-### Testing & Quality
-- **[TEST_COVERAGE_IMPROVEMENT_PLAN.md](./TEST_COVERAGE_IMPROVEMENT_PLAN.md)** - Test coverage strategy
-- **[CHANGELOG.md](./CHANGELOG.md)** - Project changelog
+- **[ADRs/](./ADRs/)** - Architecture Decision Records
+  - [ADR-001: Font Loading Strategy](./ADRs/001-font-loading-strategy.md)
+  - [ADR-002: Multiplayer Security Model](./ADRs/002-multiplayer-security-model.md)
+  - [ADR-003: State Persistence Strategy](./ADRs/003-state-persistence-strategy.md)
+  - [ADR-004: Error Recovery Mechanisms](./ADRs/004-error-recovery-mechanisms.md)
+  - [ADR-005: Performance Monitoring](./ADRs/005-performance-monitoring.md)
+  - [ADR-006: Subscription Routing Architecture](./ADRs/006-subscription-routing-architecture.md)
+  - [ADR-007: Error Handling Strategy](./ADRs/007-error-handling-strategy.md)
+
+### Project History
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - Project changelog and version history
+
+### Archived Documentation
+
+Historical investigations and completed verification reports:
+
+- **[archive/BACKGROUND_IMAGE_INVESTIGATION.md](./archive/BACKGROUND_IMAGE_INVESTIGATION.md)** - Background image investigation results (archived)
+- **[archive/RESOURCE_DISPOSAL_VERIFICATION.md](./archive/RESOURCE_DISPOSAL_VERIFICATION.md)** - Resource disposal verification summary (archived - see [MAINTAINABILITY.md](./MAINTAINABILITY.md) for current status)
+- **[archive/BUG_FIXES_MEMORY_LEAKS.md](./archive/BUG_FIXES_MEMORY_LEAKS.md)** - Memory leak fixes documentation (archived)
+- **[archive/FLUTTER_TEST_CRASH_INVESTIGATION.md](./archive/FLUTTER_TEST_CRASH_INVESTIGATION.md)** - Flutter test crash investigation (archived)
 
 ## 🎯 Quick Links
 
+### 🚀 Getting Started
 - **New to the project?** Start with [ARCHITECTURE.md](./ARCHITECTURE.md)
-- **Deploying?** Follow [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
-- **Security concerns?** Review [SECURITY_AUDIT.md](./SECURITY_AUDIT.md)
-- **Understanding the codebase?** Read [BUILD_QUALITY_REPORT.md](./BUILD_QUALITY_REPORT.md)
+- **Setting up development environment?** Follow [SETUP_GUIDE.md](./SETUP_GUIDE.md)
+- **Understanding the design system?** Read [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
+- **Accessibility features?** See [ACCESSIBILITY.md](./ACCESSIBILITY.md)
 
-## 📊 Current Status
+### 💻 Development Workflows
+- **Deploying to production?** Follow [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
+- **Need API reference?** Check [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+- **Understanding service architecture?** See [ARCHITECTURE.md](./ARCHITECTURE.md#service-architecture) (Service Architecture section)
+- **Working with game managers?** See [GAME_MANAGERS.md](./GAME_MANAGERS.md)
 
-- **Build Quality:** 100/100 ✅
-- **Security Score:** 94/100 ✅
-- **Test Coverage:** 224 tests passing ✅
-- **Linter Errors:** 0 ✅
-- **Analysis Issues:** 0 ✅
+### 🔒 Security & Quality Assurance
+- **Security overview?** Review [SECURITY.md](./SECURITY.md) and [AUDIT_SUMMARY.md](./AUDIT_SUMMARY.md)
+- **Setting up API key restrictions?** See [SETUP_GUIDE.md](./SETUP_GUIDE.md#api-key-restrictions)
+- **Certificate pinning?** See [CERTIFICATE_PINNING.md](./CERTIFICATE_PINNING.md)
+- **Error handling patterns?** See [ERROR_HANDLING_GUIDE.md](./ERROR_HANDLING_GUIDE.md)
+- **Accessibility compliance?** See [ACCESSIBILITY.md](./ACCESSIBILITY.md)
+- **Performance targets?** Check [PERFORMANCE_BUDGETS.md](./PERFORMANCE_BUDGETS.md)
+- **Code quality metrics?** Review [CODE_COMPLEXITY.md](./CODE_COMPLEXITY.md) and [MAINTAINABILITY.md](./MAINTAINABILITY.md)
+- **Test coverage?** See [TEST_COVERAGE.md](./TEST_COVERAGE.md)
+- **Dependency health?** Check [DEPENDENCY_HEALTH.md](./DEPENDENCY_HEALTH.md)
+- **Technical debt tracking?** See [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)
 
-**Status:** Production-Ready
+### 🏗️ Infrastructure & Operations
+- **CI/CD pipeline?** See [CI_CD.md](./CI_CD.md)
+- **Backup & recovery procedures?** See [BACKUP_AND_RECOVERY.md](./BACKUP_AND_RECOVERY.md)
+- **Feature flags?** See [FEATURE_FLAGS.md](./FEATURE_FLAGS.md)
+
+### 🎮 Feature Documentation
+- **Daily Challenges?** See [DAILY_CHALLENGE.md](./DAILY_CHALLENGE.md)
+- **Friends System?** See [FRIENDS_SYSTEM.md](./FRIENDS_SYSTEM.md)
+- **Multiplayer?** See [MULTIPLAYER_SYSTEM.md](./MULTIPLAYER_SYSTEM.md)
+- **Trivia Creator?** See [TRIVIA_CREATOR.md](./TRIVIA_CREATOR.md)
+- **Leaderboards?** See [LEADERBOARDS.md](./LEADERBOARDS.md)
+- **Offline Support?** See [OFFLINE_SUPPORT.md](./OFFLINE_SUPPORT.md)
+
+## 📋 Documentation Status
+
+### Core Documentation
+| Document | Status | Last Updated |
+|----------|--------|--------------|
+| ARCHITECTURE.md | ✅ Current | January 2025 |
+| DESIGN_SYSTEM.md | ✅ Current | January 2025 |
+| ACCESSIBILITY.md | ✅ Current | January 2025 |
+| SETUP_GUIDE.md | ✅ Current | January 2025 |
+| DEPLOYMENT_GUIDE.md | ✅ Current | January 2025 |
+| ERROR_HANDLING_GUIDE.md | ✅ Current | January 2025 |
+| SECURITY.md | ✅ Current | January 2025 |
+| AUDIT_SUMMARY.md | ✅ Current | January 2025 |
+
+### Feature Documentation
+| Document | Status | Last Updated |
+|----------|--------|--------------|
+| DAILY_CHALLENGE.md | ✅ Current | January 2025 |
+| FRIENDS_SYSTEM.md | ✅ Current | January 2025 |
+| MULTIPLAYER_SYSTEM.md | ✅ Current | January 2025 |
+| TRIVIA_CREATOR.md | ✅ Current | January 2025 |
+| LEADERBOARDS.md | ✅ Current | January 2025 |
+| OFFLINE_SUPPORT.md | ✅ Current | January 2025 |
+
+### Technical Guides
+| Document | Status | Last Updated |
+|----------|--------|--------------|
+| API_DOCUMENTATION.md | ✅ Current | January 2025 |
+| GAME_MANAGERS.md | ✅ Current | January 2025 |
+| CERTIFICATE_PINNING.md | ✅ Current | January 2025 |
+| CODE_COMPLEXITY.md | ✅ Current | January 2025 |
+| PERFORMANCE_BUDGETS.md | ✅ Current | January 2025 |
+| TEST_COVERAGE.md | ✅ Current | January 2025 |
+| DEPENDENCY_HEALTH.md | ✅ Current | January 2025 |
+| MAINTAINABILITY.md | ✅ Current | January 2025 |
+| CI_CD.md | ✅ Current | December 2024 |
+| FEATURE_FLAGS.md | ✅ Current | December 2024 |
+| BACKUP_AND_RECOVERY.md | ✅ Current | December 2024 |
+| TECHNICAL_DEBT.md | ✅ Current | December 2024 |
+| GITHUB_CLI_AND_BUGBOT_GUIDE.md | ✅ Current | January 2025 |
+
+### Project History
+| Document | Status | Last Updated |
+|----------|--------|--------------|
+| CHANGELOG.md | ✅ Current | January 2025 |
+
+## 📝 Notes
+
+- All documentation is maintained in Markdown format
+- Architecture Decision Records (ADRs) document important technical decisions
+- Feature documentation provides detailed implementation guides
+- Setup and deployment guides are kept up-to-date with current configurations
+- For project status and overview, see the main [README.md](../README.md)
 
 ---
 
-*Last Updated: December 2024*
+**Created by:** Girard Clairsaint  
+**Last Updated:** January 2025

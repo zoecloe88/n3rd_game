@@ -20,183 +20,182 @@ class _InstructionsScreenState extends State<InstructionsScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-          child: Column(
-            children: [
-              // Top app bar
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    Semantics(
-                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
-                      button: true,
-                      child: IconButton(
-                        onPressed: () => NavigationHelper.safePop(context),
-                        icon: Icon(Icons.arrow_back, color: colors.onDarkText),
-                        tooltip:
-                            AppLocalizations.of(context)?.backButton ?? 'Back',
-                      ),
+        child: Column(
+          children: [
+            // Top app bar
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Semantics(
+                    label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                    button: true,
+                    child: IconButton(
+                      onPressed: () => NavigationHelper.safePop(context),
+                      icon: Icon(Icons.arrow_back, color: colors.onDarkText),
+                      tooltip:
+                          AppLocalizations.of(context)?.backButton ?? 'Back',
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      AppLocalizations.of(context)?.howToPlay ?? 'How to Play',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: colors.onDarkText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Instructions content - with bottom padding to not block animation
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    120,
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    AppLocalizations.of(context)?.howToPlay ?? 'How to Play',
+                    style: AppTypography.headlineLarge.copyWith(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onDarkText,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Step 1
-                        _buildInstructionStep(
-                          context: context,
-                          number: '1',
-                          title:
-                              AppLocalizations.of(context)?.memorizeTheWords ??
-                                  'Memorize the Words',
-                          description: AppLocalizations.of(
-                                context,
-                              )?.memorizeTheWordsDescription ??
-                              'Study the words shown to you during the memorization phase. Pay attention to the correct answers!',
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                  ),
+                ],
+              ),
+            ),
 
-                        // Step 2
-                        _buildInstructionStep(
-                          context: context,
-                          number: '2',
-                          title: AppLocalizations.of(
-                                context,
-                              )?.select3CorrectAnswers ??
-                              'Select 3 Correct Answers',
-                          description: AppLocalizations.of(
-                                context,
-                              )?.select3CorrectAnswersDescription ??
-                              'From the shuffled list, choose exactly 3 words that match the correct answers you memorized.',
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+            // Instructions content - with bottom padding to not block animation
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  120,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Step 1
+                      _buildInstructionStep(
+                        context: context,
+                        number: '1',
+                        title: AppLocalizations.of(context)?.memorizeTheWords ??
+                            'Memorize the Words',
+                        description: AppLocalizations.of(
+                              context,
+                            )?.memorizeTheWordsDescription ??
+                            'Study the words shown to you during the memorization phase. Pay attention to the correct answers!',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                        // Step 3
-                        _buildInstructionStep(
-                          context: context,
-                          number: '3',
-                          title: AppLocalizations.of(context)?.scorePoints ??
-                              'Score Points',
-                          description: AppLocalizations.of(
-                                context,
-                              )?.scorePointsDescription ??
-                              'Earn points based on how many correct answers you select:\n• 1 correct = 10 points\n• 2 correct = 20 points\n• 3 correct = 30 points',
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                      // Step 2
+                      _buildInstructionStep(
+                        context: context,
+                        number: '2',
+                        title: AppLocalizations.of(
+                              context,
+                            )?.select3CorrectAnswers ??
+                            'Select 3 Correct Answers',
+                        description: AppLocalizations.of(
+                              context,
+                            )?.select3CorrectAnswersDescription ??
+                            'From the shuffled list, choose exactly 3 words that match the correct answers you memorized.',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                        // Step 4
-                        _buildInstructionStep(
-                          context: context,
-                          number: '4',
-                          title:
-                              AppLocalizations.of(context)?.tryDifferentModes ??
-                                  'Try Different Modes',
-                          description: AppLocalizations.of(
-                                context,
-                              )?.tryDifferentModesDescription ??
-                              'Explore various game modes:\n• Classic: Standard timing\n• Speed: Fast-paced challenges\n• Shuffle: Tiles move during play\n• Time Attack: Score as much as possible in 60 seconds',
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                      // Step 3
+                      _buildInstructionStep(
+                        context: context,
+                        number: '3',
+                        title: AppLocalizations.of(context)?.scorePoints ??
+                            'Score Points',
+                        description: AppLocalizations.of(
+                              context,
+                            )?.scorePointsDescription ??
+                            'Earn points based on how many correct answers you select:\n• 1 correct = 10 points\n• 2 correct = 20 points\n• 3 correct = 30 points',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                        // Mode-specific instructions
-                        _buildModeInstructionsSection(context, colors),
-                        const SizedBox(height: AppSpacing.lg),
+                      // Step 4
+                      _buildInstructionStep(
+                        context: context,
+                        number: '4',
+                        title:
+                            AppLocalizations.of(context)?.tryDifferentModes ??
+                                'Try Different Modes',
+                        description: AppLocalizations.of(
+                              context,
+                            )?.tryDifferentModesDescription ??
+                            'Explore various game modes:\n• Classic: Standard timing\n• Speed: Fast-paced challenges\n• Shuffle: Tiles move during play\n• Time Attack: Score as much as possible in 60 seconds',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                        // Tips section
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: colors.onDarkText.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: colors.onDarkText.withValues(alpha: 0.5),
-                            ),
+                      // Mode-specific instructions
+                      _buildModeInstructionsSection(context, colors),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Tips section
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: colors.onDarkText.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colors.onDarkText.withValues(alpha: 0.5),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.lightbulb_outline,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.lightbulb_outline,
+                                  color: colors.onDarkText,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  AppLocalizations.of(context)?.proTips ??
+                                      'Pro Tips',
+                                  style: AppTypography.headlineLarge.copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
                                     color: colors.onDarkText,
-                                    size: 24,
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Text(
-                                    AppLocalizations.of(context)?.proTips ??
-                                        'Pro Tips',
-                                    style: AppTypography.headlineLarge.copyWith(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: colors.onDarkText,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.sm + 4),
-                              _buildTip(
-                                context,
-                                AppLocalizations.of(
-                                      context,
-                                    )?.tipFocusCategory ??
-                                    'Focus on the category to understand context',
-                              ),
-                              _buildTip(
-                                context,
-                                AppLocalizations.of(
-                                      context,
-                                    )?.tipTimeManagement ??
-                                    'Time management is key in speed modes',
-                              ),
-                              _buildTip(
-                                context,
-                                AppLocalizations.of(
-                                      context,
-                                    )?.tipPracticeClassic ??
-                                    'Practice with Classic mode first',
-                              ),
-                              _buildTip(
-                                context,
-                                AppLocalizations.of(context)?.tipWatchLives ??
-                                    'Watch your lives - you lose one for zero correct answers',
-                              ),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm + 4),
+                            _buildTip(
+                              context,
+                              AppLocalizations.of(
+                                    context,
+                                  )?.tipFocusCategory ??
+                                  'Focus on the category to understand context',
+                            ),
+                            _buildTip(
+                              context,
+                              AppLocalizations.of(
+                                    context,
+                                  )?.tipTimeManagement ??
+                                  'Time management is key in speed modes',
+                            ),
+                            _buildTip(
+                              context,
+                              AppLocalizations.of(
+                                    context,
+                                  )?.tipPracticeClassic ??
+                                  'Practice with Classic mode first',
+                            ),
+                            _buildTip(
+                              context,
+                              AppLocalizations.of(context)?.tipWatchLives ??
+                                  'Watch your lives - you lose one for zero correct answers',
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
       ),
     );
   }

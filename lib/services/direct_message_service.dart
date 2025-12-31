@@ -1,17 +1,22 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/direct_message.dart';
 import 'package:n3rd_game/services/edition_access_service.dart';
+import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firestore_error_handler.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 class DirectMessageService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      Firebase.app();
       return FirebaseFirestore.instance;
     } catch (e) {
       return null;
@@ -19,8 +24,11 @@ class DirectMessageService extends ChangeNotifier {
   }
 
   String? get _userId {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      return FirebaseHelper.getCurrentUser()?.uid;
     } catch (e) {
       return null;
     }
@@ -37,9 +45,18 @@ class DirectMessageService extends ChangeNotifier {
   String? get currentConversationId => _currentConversationId;
 
   EditionAccessService? _editionAccessService;
+  SubscriptionService? _subscriptionService;
+  final Map<String, int> _dailyMessageCounts =
+      {}; // Track messages per day per user
+  final Map<String, DateTime> _lastMessageTimes =
+      {}; // Track last message time for rate limiting
 
   void setEditionAccessService(EditionAccessService? service) {
     _editionAccessService = service;
+  }
+
+  void setSubscriptionService(SubscriptionService? service) {
+    _subscriptionService = service;
   }
 
   /// Check if user has premium access for direct messaging
@@ -52,9 +69,96 @@ class DirectMessageService extends ChangeNotifier {
       }
       return _editionAccessService!.hasAllAccess;
     } catch (e) {
-      debugPrint('Error checking premium access: $e');
+      LoggerService.error('Error checking premium access', error: e);
       return false;
     }
+  }
+
+  /// Get message limit for current tier
+  int _getMessageLimit() {
+    if (_subscriptionService == null) {
+      return 10; // Default to free tier limit
+    }
+
+    if (_subscriptionService!.isFree) {
+      return 10; // 10 messages/day
+    } else if (_subscriptionService!.isBasic) {
+      return 100; // 100 messages/day
+    } else {
+      return -1; // Unlimited for Premium and Family/Friends
+    }
+  }
+
+  /// Get character limit per message for current tier
+  int _getCharacterLimit() {
+    if (_subscriptionService == null) {
+      return 500; // Default limit
+    }
+
+    if (_subscriptionService!.isFree) {
+      return 200; // 200 characters per message
+    } else if (_subscriptionService!.isBasic) {
+      return 1000; // 1000 characters per message
+    } else {
+      return 5000; // 5000 characters for Premium and Family/Friends
+    }
+  }
+
+  /// Check if user can send message based on tier constraints
+  Future<Map<String, dynamic>> canSendMessage() async {
+    final userId = _userId;
+    if (userId == null) {
+      return {
+        'canSend': false,
+        'reason': 'User not authenticated',
+        'remaining': 0,
+      };
+    }
+
+    final limit = _getMessageLimit();
+    if (limit == -1) {
+      // Unlimited
+      return {
+        'canSend': true,
+        'reason': null,
+        'remaining': -1, // Unlimited
+      };
+    }
+
+    // Check daily message count
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final messageCount = _dailyMessageCounts[today] ?? 0;
+
+    if (messageCount >= limit) {
+      return {
+        'canSend': false,
+        'reason': 'Daily message limit reached. Upgrade to send more messages.',
+        'remaining': 0,
+      };
+    }
+
+    return {
+      'canSend': true,
+      'reason': null,
+      'remaining': limit - messageCount,
+    };
+  }
+
+  /// Check rate limiting for message sending (prevents spam)
+  bool _checkRateLimit(String otherUserId) {
+    final now = DateTime.now();
+    final lastMessageTime = _lastMessageTimes[otherUserId];
+
+    if (lastMessageTime != null) {
+      final timeSinceLastMessage = now.difference(lastMessageTime);
+      // Rate limit: 1 message per 2 seconds
+      if (timeSinceLastMessage.inSeconds < 2) {
+        return false;
+      }
+    }
+
+    _lastMessageTimes[otherUserId] = now;
+    return true;
   }
 
   /// Get or create conversation ID between two users
@@ -72,11 +176,11 @@ class DirectMessageService extends ChangeNotifier {
     // Check premium access
     final hasPremium = await hasPremiumAccess();
     if (!hasPremium) {
-      debugPrint('Direct messaging requires premium access');
+      LoggerService.debug('Direct messaging requires premium access');
       return;
     }
 
-    _conversationsSubscription?.cancel();
+    unawaited((_conversationsSubscription?.cancel() ?? Future<void>.value()) as Future<dynamic>,);
     _conversationsSubscription = firestore
         .collection('conversations')
         .where('participants', arrayContains: userId)
@@ -120,7 +224,7 @@ class DirectMessageService extends ChangeNotifier {
               ),
             );
           } catch (e) {
-            debugPrint('Error parsing conversation: $e');
+            LoggerService.error('Error parsing conversation', error: e);
           }
         }
         notifyListeners();
@@ -167,7 +271,7 @@ class DirectMessageService extends ChangeNotifier {
     // Ensure conversation exists
     await _ensureConversationExists(otherUserId);
 
-    _messagesSubscription?.cancel();
+    unawaited((_messagesSubscription?.cancel() ?? Future<void>.value()) as Future<dynamic>,);
     _messages.clear();
 
     _messagesSubscription = firestore
@@ -190,11 +294,11 @@ class DirectMessageService extends ChangeNotifier {
               }),
             );
           } catch (e) {
-            debugPrint('Error parsing message: $e');
+            LoggerService.error('Error parsing message', error: e);
           }
         }
         notifyListeners();
-        
+
         // Mark messages as read after loading
         _markMessagesAsRead(conversationId);
       },
@@ -232,20 +336,27 @@ class DirectMessageService extends ChangeNotifier {
     final conversationRef =
         firestore.collection('conversations').doc(conversationId);
 
-    final conversationDoc = await conversationRef.get();
+    final conversationDoc =
+        await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+      () => conversationRef.get(),
+      operationName: 'get_conversation',
+    );
     if (!conversationDoc.exists) {
       final currentUser = FirebaseAuth.instance.currentUser;
-      await conversationRef.set({
-        'participants': [userId, otherUserId],
-        'user1DisplayName': currentUser?.email?.contains('@') == true
-            ? currentUser!.email!.split('@').first
-            : currentUser?.email,
-        'user2DisplayName':
-            null, // Will be updated when other user sends message
-        'lastActivity': FieldValue.serverTimestamp(),
-        'unreadCount_$userId': 0,
-        'unreadCount_$otherUserId': 0,
-      });
+      await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+        () => conversationRef.set({
+          'participants': [userId, otherUserId],
+          'user1DisplayName': currentUser?.email?.contains('@') == true
+              ? currentUser!.email!.split('@').first
+              : currentUser?.email,
+          'user2DisplayName':
+              null, // Will be updated when other user sends message
+          'lastActivity': FieldValue.serverTimestamp(),
+          'unreadCount_$userId': 0,
+          'unreadCount_$otherUserId': 0,
+        }),
+        operationName: 'create_conversation',
+      );
     }
   }
 
@@ -267,6 +378,30 @@ class DirectMessageService extends ChangeNotifier {
       throw ValidationException('Message cannot be empty');
     }
 
+    // Check tier-based message limits
+    final canSendResult = await canSendMessage();
+    if (!(canSendResult['canSend'] as bool)) {
+      final reason = canSendResult['reason'] as String?;
+      if (reason != null) {
+        throw ValidationException(reason);
+      }
+    }
+
+    // Check character limit
+    final charLimit = _getCharacterLimit();
+    if (message.length > charLimit) {
+      throw ValidationException(
+        'Message exceeds character limit ($charLimit characters). Please shorten your message.',
+      );
+    }
+
+    // Check rate limiting (prevent spam)
+    if (!_checkRateLimit(otherUserId)) {
+      throw ValidationException(
+        'Please wait a moment before sending another message.',
+      );
+    }
+
     final conversationId = _getConversationId(userId, otherUserId);
     await _ensureConversationExists(otherUserId);
 
@@ -283,18 +418,32 @@ class DirectMessageService extends ChangeNotifier {
     };
 
     // Add message to conversation
-    await firestore
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .add(messageData);
+    await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+      () => firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .add(messageData),
+      operationName: 'send_message',
+    );
 
     // Update conversation
-    await firestore.collection('conversations').doc(conversationId).update({
-      'lastMessage': {...messageData, 'timestamp': Timestamp.now()},
-      'lastActivity': FieldValue.serverTimestamp(),
-      'unreadCount_$otherUserId': FieldValue.increment(1),
-    });
+    await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+      () => firestore.collection('conversations').doc(conversationId).update({
+        'lastMessage': {...messageData, 'timestamp': Timestamp.now()},
+        'lastActivity': FieldValue.serverTimestamp(),
+        'unreadCount_$otherUserId': FieldValue.increment(1),
+      }),
+      operationName: 'update_conversation',
+    );
+
+    // Update daily message count for tier-based limits
+    final limit = _getMessageLimit();
+    if (limit != -1) {
+      // Only track if there's a limit (not unlimited)
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      _dailyMessageCounts[today] = (_dailyMessageCounts[today] ?? 0) + 1;
+    }
   }
 
   /// Mark messages as read
@@ -303,13 +452,16 @@ class DirectMessageService extends ChangeNotifier {
     final firestore = _firestore;
     if (userId == null || firestore == null) return;
 
-    final unreadMessages = await firestore
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .where('toUserId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
-        .get();
+    final unreadMessages = await FirestoreErrorHandler.handleFirestoreQuery(
+      () => firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .where('toUserId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get(),
+      operationName: 'get_unread_messages',
+    );
 
     if (unreadMessages.docs.isEmpty) return;
 
@@ -323,7 +475,10 @@ class DirectMessageService extends ChangeNotifier {
       'unreadCount_$userId': 0,
     });
 
-    await batch.commit();
+    await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+      () => batch.commit(),
+      operationName: 'mark_messages_read',
+    );
   }
 
   /// Delete a message
@@ -357,12 +512,15 @@ class DirectMessageService extends ChangeNotifier {
     }
 
     // Delete message
-    await firestore
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .doc(messageId)
-        .delete();
+    await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+      () => firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId)
+          .delete(),
+      operationName: 'delete_message',
+    );
   }
 
   /// Delete a conversation

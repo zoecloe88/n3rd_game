@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for rate limiting user actions to prevent abuse
 class RateLimiterService {
@@ -54,7 +54,7 @@ class RateLimiterService {
 
       return true;
     } catch (e) {
-      debugPrint('Rate limiter error: $e');
+      LoggerService.error('Rate limiter error', error: e);
       // On error, allow the action (fail open)
       return true;
     }
@@ -69,7 +69,7 @@ class RateLimiterService {
       await prefs.remove(key);
       await prefs.remove(timestampKey);
     } catch (e) {
-      debugPrint('Rate limiter reset error: $e');
+      LoggerService.error('Rate limiter reset error', error: e);
     }
   }
 
@@ -101,7 +101,7 @@ class RateLimiterService {
 
       return maxAttempts - lastAttempts;
     } catch (e) {
-      debugPrint('Rate limiter get remaining error: $e');
+      LoggerService.error('Rate limiter get remaining error', error: e);
       return maxAttempts;
     }
   }
@@ -125,7 +125,7 @@ class RateLimiterService {
 
       return window - elapsed;
     } catch (e) {
-      debugPrint('Rate limiter get time error: $e');
+      LoggerService.error('Rate limiter get time error', error: e);
       return null;
     }
   }

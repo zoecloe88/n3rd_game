@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 
 /// Widget to display network connectivity status
 /// Shows online/offline indicator with icon
 class NetworkStatusIndicator extends StatelessWidget {
-  final bool compact;
 
   const NetworkStatusIndicator({
     super.key,
     this.compact = false,
   });
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final networkService = Provider.of<NetworkService>(context);
-    final isOnline = networkService.hasInternetReachability;
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final networkService = ProviderHelper.safeGet<NetworkService>(context, listen: false);
+    // Default to online if service not available (fail open)
+    final isOnline = networkService?.hasInternetReachability ?? true;
 
     if (compact) {
       return Tooltip(
@@ -78,4 +80,19 @@ class NetworkStatusIndicator extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

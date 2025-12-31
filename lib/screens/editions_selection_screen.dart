@@ -6,6 +6,7 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 class EditionsSelectionScreen extends StatelessWidget {
   const EditionsSelectionScreen({super.key});
@@ -31,17 +32,13 @@ class EditionsSelectionScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => NavigationHelper.safePop(context),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Editions',
-                      style: AppTypography.headlineLarge.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                    Semantics(
+                      label: AppLocalizations.of(context)?.back ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => NavigationHelper.safePop(context),
+                        tooltip: AppLocalizations.of(context)?.back ?? 'Back',
                       ),
                     ),
                   ],
@@ -72,9 +69,11 @@ class EditionsSelectionScreen extends StatelessWidget {
                               isLocked: !hasAccess,
                               onTap: hasAccess
                                   ? () {
-                                      Navigator.of(
+                                      if (!context.mounted) return;
+                                      NavigationHelper.safeNavigate(
                                         context,
-                                      ).pushNamed('/editions');
+                                        '/editions',
+                                      );
                                     }
                                   : () {
                                       _showUpgradeDialog(context);
@@ -101,9 +100,11 @@ class EditionsSelectionScreen extends StatelessWidget {
                               isLocked: !hasAccess,
                               onTap: hasAccess
                                   ? () {
-                                      Navigator.of(
+                                      if (!context.mounted) return;
+                                      NavigationHelper.safeNavigate(
                                         context,
-                                      ).pushNamed('/youth-editions');
+                                        '/youth-editions',
+                                      );
                                     }
                                   : () {
                                       _showUpgradeDialog(context);
@@ -139,32 +140,40 @@ class EditionsSelectionScreen extends StatelessWidget {
           style: AppTypography.bodyMedium.copyWith(fontSize: 14),
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Cancel', style: AppTypography.bodyMedium.copyWith()),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
+          Semantics(
+            label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+            button: true,
+            child: TextButton(
+              onPressed: () {
                 if (context.mounted) {
-                  NavigationHelper.safeNavigate(
-                    context,
-                    '/subscription-management',
-                  );
+                  NavigationHelper.safePop(context);
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.of(context).primaryButton,
+              },
+              child: Text('Cancel', style: AppTypography.bodyMedium.copyWith()),
             ),
-            child: Text(
-              'Upgrade',
-              style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+          ),
+          Semantics(
+            label: 'Upgrade to Premium',
+            button: true,
+            child: ElevatedButton(
+              onPressed: () {
+                if (context.mounted) {
+                  NavigationHelper.safePop(context);
+                  if (context.mounted) {
+                    NavigationHelper.safeNavigate(
+                      context,
+                      '/subscription-management',
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.of(context).primaryButton,
+              ),
+              child: Text(
+                'Upgrade',
+                style: AppTypography.bodyMedium.copyWith(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -182,10 +191,15 @@ class EditionsSelectionScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final optionColors = AppColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
+    return Semantics(
+      label: isLocked ? '$title - Locked. $description' : '$title. $description',
+      hint: isLocked ? 'Tap to upgrade to Premium' : 'Tap to open $title',
+      button: true,
+      enabled: !isLocked,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -240,6 +254,7 @@ class EditionsSelectionScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

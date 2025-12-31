@@ -74,6 +74,7 @@ class AnalyticsRouteObserver extends RouteObserver<PageRoute<dynamic>> {
       '/subscription-management': 'subscription_management',
       '/analytics': 'analytics_dashboard',
       '/daily-challenges': 'daily_challenges',
+      '/voice-calibration': 'voice_calibration',
       '/settings': 'settings',
       '/privacy-policy': 'privacy_policy',
       '/terms-of-service': 'terms_of_service',

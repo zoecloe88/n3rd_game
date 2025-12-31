@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('StandardizedLoadingWidget', () {
-    testWidgets('displays loading indicator', (WidgetTester tester) async {
+    testWidgets('displays loading indicator', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -16,7 +18,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('displays message when provided', (WidgetTester tester) async {
+    testWidgets('displays message when provided', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -31,7 +33,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('uses custom color when provided', (WidgetTester tester) async {
+    testWidgets('uses custom color when provided', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -45,7 +47,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('uses custom size when provided', (WidgetTester tester) async {
+    testWidgets('uses custom size when provided', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -60,4 +62,3 @@ void main() {
     });
   });
 }
-

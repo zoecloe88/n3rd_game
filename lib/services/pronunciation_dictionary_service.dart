@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:n3rd_game/models/pronunciation_data.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class PronunciationDictionaryService extends ChangeNotifier {
   static const String _storageKey = 'pronunciation_dictionary';
@@ -69,9 +70,7 @@ class PronunciationDictionaryService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to load pronunciation dictionary: $e');
-      }
+      LoggerService.error('Failed to load pronunciation dictionary', error: e);
       // Keep empty dictionary on critical failure (e.g., JSON parse error)
       _dictionary = {};
     }
@@ -98,7 +97,7 @@ class PronunciationDictionaryService extends ChangeNotifier {
       );
       await prefs.setString(_storageKey, jsonEncode(data));
     } catch (e) {
-      debugPrint('Failed to save pronunciation dictionary: $e');
+      LoggerService.error('Failed to save pronunciation dictionary', error: e);
     } finally {
       _isSaving = false;
     }

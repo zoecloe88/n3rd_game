@@ -1,18 +1,48 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:io' as io;
 import 'package:n3rd_game/services/rate_limiter_service.dart';
 import 'package:n3rd_game/services/content_moderation_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:n3rd_game/utils/security_helper.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service for handling user feedback, bug reports, and error submissions
 class FeedbackService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  FirebaseFirestore? _firestore;
+  FirebaseStorage? _storage;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for FeedbackService', error: e);
+      return null;
+    }
+  }
+
+  /// Get Storage instance if Firebase is available
+  FirebaseStorage? get _storageInstance {
+    if (_storage != null) return _storage;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _storage = FirebaseStorage.instance;
+      return _storage;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for FeedbackService', error: e);
+      return null;
+    }
+  }
+
   final RateLimiterService _rateLimiter = RateLimiterService();
   final ContentModerationService _contentModeration =
       ContentModerationService();
@@ -27,7 +57,7 @@ class FeedbackService {
     String? userEmail,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       final userId = user?.uid ?? 'anonymous';
 
       // Check rate limit for feedback submission
@@ -60,17 +90,32 @@ class FeedbackService {
       final List<String> imageUrls = [];
       if (images != null && images.isNotEmpty) {
         const maxImageSize = 5 * 1024 * 1024; // 5MB
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
         for (int i = 0; i < images.length; i++) {
           try {
             final imageFile = images[i];
-            if (!await imageFile.exists()) {
-              debugPrint('Image file does not exist: ${imageFile.path}');
+            if (!imageFile.existsSync()) {
+              LoggerService.debug('Image file does not exist: ${imageFile.path}');
               continue;
             }
 
             // Check file size
             final fileSize = await imageFile.length();
+
+            // Security: Validate file upload
+            final originalFileName = imageFile.path.split('/').last;
+            if (!SecurityHelper.validateFileUpload(
+              fileName: originalFileName,
+              fileSize: fileSize.toInt(),
+              allowedExtensions: allowedExtensions,
+              maxSizeBytes: maxImageSize,
+            )) {
+              throw ValidationException(
+                'Image $i is invalid. Please use JPG, PNG, GIF, or WebP format and ensure file size is under 5MB.',
+              );
+            }
+
             if (fileSize > maxImageSize) {
               debugPrint(
                 'Image $i exceeds size limit (${fileSize / 1024 / 1024}MB > 5MB)',
@@ -80,20 +125,24 @@ class FeedbackService {
               );
             }
 
-            final fileName =
+            final sanitizedFileName =
                 'feedback_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-            final ref = _storage.ref().child('feedback/$userId/$fileName');
+              final storage = _storageInstance;
+              if (storage == null) {
+                throw NetworkException('Firebase not available');
+              }
+              final ref = storage.ref().child('feedback/$userId/$sanitizedFileName');
 
             // Upload with error handling
             await ref.putFile(imageFile).catchError((error) {
-              debugPrint('Failed to upload image $i: $error');
+              LoggerService.error('Failed to upload image $i: $error');
               throw StorageException('Failed to upload image: $error');
             });
 
             final url = await ref.getDownloadURL();
             imageUrls.add(url);
           } catch (e) {
-            debugPrint('Error uploading image $i: $e');
+            LoggerService.error('Error uploading image $i', error: e);
             // Continue with other images even if one fails
           }
         }
@@ -108,7 +157,11 @@ class FeedbackService {
       });
 
       // Save feedback to Firestore
-      await _firestore.collection('feedback').add({
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      await firestore.collection('feedback').add({
         'userId': userId,
         'userEmail': userEmail ?? user?.email ?? 'anonymous',
         'type': type,
@@ -122,13 +175,13 @@ class FeedbackService {
         'appVersion': '1.0.0',
         'resolved': false,
       }).catchError((error) {
-        debugPrint('Failed to save feedback to Firestore: $error');
+        LoggerService.error('Failed to save feedback to Firestore: $error');
         throw StorageException('Failed to submit feedback: $error');
       });
 
-      debugPrint('Feedback submitted successfully');
+      LoggerService.info('Feedback submitted successfully');
     } catch (e) {
-      debugPrint('Error submitting feedback: $e');
+      LoggerService.error('Error submitting feedback', error: e);
       rethrow;
     }
   }
@@ -262,7 +315,7 @@ class FeedbackService {
           '3. Ensuring you have a stable internet connection\n'
           '4. Reviewing the Help Center for similar issues';
     } catch (e) {
-      debugPrint('Error getting troubleshooting suggestion: $e');
+      LoggerService.error('Error getting troubleshooting suggestion', error: e);
       return 'Our support team will review your issue and respond soon. Thank you for your patience!';
     }
   }
@@ -270,10 +323,14 @@ class FeedbackService {
   /// Get user's feedback history
   Future<List<Map<String, dynamic>>> getUserFeedbackHistory() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseHelper.getCurrentUser();
       if (user == null) return [];
 
-      final snapshot = await _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      final snapshot = await firestore
           .collection('feedback')
           .where('userId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
@@ -282,7 +339,7 @@ class FeedbackService {
 
       return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     } catch (e) {
-      debugPrint('Error getting feedback history: $e');
+      LoggerService.error('Error getting feedback history', error: e);
       return [];
     }
   }

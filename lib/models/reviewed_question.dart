@@ -1,14 +1,4 @@
 class ReviewedQuestion {
-  final String questionId;
-  final String category;
-  final List<String> words;
-  final List<String> correctAnswers;
-  final List<String> userAnswers;
-  final bool wasCorrect;
-  final DateTime answeredAt;
-  final int roundNumber;
-  final String gameMode;
-  final bool isBookmarked;
 
   ReviewedQuestion({
     required this.questionId,
@@ -23,19 +13,6 @@ class ReviewedQuestion {
     this.isBookmarked = false,
   });
 
-  Map<String, dynamic> toJson() => {
-        'questionId': questionId,
-        'category': category,
-        'words': words,
-        'correctAnswers': correctAnswers,
-        'userAnswers': userAnswers,
-        'wasCorrect': wasCorrect,
-        'answeredAt': answeredAt.toIso8601String(),
-        'roundNumber': roundNumber,
-        'gameMode': gameMode,
-        'isBookmarked': isBookmarked,
-      };
-
   factory ReviewedQuestion.fromJson(Map<String, dynamic> json) =>
       ReviewedQuestion(
         questionId: json['questionId'] as String,
@@ -49,6 +26,29 @@ class ReviewedQuestion {
         gameMode: json['gameMode'] as String,
         isBookmarked: json['isBookmarked'] as bool? ?? false,
       );
+  final String questionId;
+  final String category;
+  final List<String> words;
+  final List<String> correctAnswers;
+  final List<String> userAnswers;
+  final bool wasCorrect;
+  final DateTime answeredAt;
+  final int roundNumber;
+  final String gameMode;
+  final bool isBookmarked;
+
+  Map<String, dynamic> toJson() => {
+        'questionId': questionId,
+        'category': category,
+        'words': words,
+        'correctAnswers': correctAnswers,
+        'userAnswers': userAnswers,
+        'wasCorrect': wasCorrect,
+        'answeredAt': answeredAt.toIso8601String(),
+        'roundNumber': roundNumber,
+        'gameMode': gameMode,
+        'isBookmarked': isBookmarked,
+      };
 
   ReviewedQuestion copyWith({
     String? questionId,

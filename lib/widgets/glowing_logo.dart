@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 
 /// A simple logo widget (glow effects removed for performance)
 class GlowingLogo extends StatelessWidget {
-  final String imagePath;
-  final double size;
-  final bool enableShimmer;
 
   const GlowingLogo({
     super.key,
@@ -12,6 +9,9 @@ class GlowingLogo extends StatelessWidget {
     required this.size,
     this.enableShimmer = false,
   });
+  final String imagePath;
+  final double size;
+  final bool enableShimmer;
 
   @override
   Widget build(BuildContext context) {
@@ -20,11 +20,15 @@ class GlowingLogo extends StatelessWidget {
     final responsiveSize =
         size * (screenSize.width / 375.0); // Base on iPhone width
 
-    return Image.asset(
-      imagePath,
-      width: responsiveSize,
-      height: responsiveSize,
-      fit: BoxFit.contain,
+    return Semantics(
+      excludeSemantics: true, // Decorative logo, exclude from screen readers
+      child: Image.asset(
+        imagePath,
+        width: responsiveSize,
+        height: responsiveSize,
+        fit: BoxFit.contain,
+        semanticLabel: null, // Explicitly no label for decorative image
+      ),
     );
   }
 }

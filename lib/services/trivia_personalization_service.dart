@@ -5,9 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/models/difficulty_level.dart';
 import 'package:n3rd_game/services/trivia_generator_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for personalizing trivia content based on user behavior
 class TriviaPersonalizationService extends ChangeNotifier {
+
+  TriviaPersonalizationService() {
+    _loadPreferences();
+  }
   static const String _themeFrequencyKey = 'theme_frequency';
   static const String _recentCategoriesKey = 'recent_categories';
   static const String _preferredDifficultyKey = 'preferred_difficulty';
@@ -33,10 +38,6 @@ class TriviaPersonalizationService extends ChangeNotifier {
 
   DifficultyLevel get preferredDifficulty => _preferredDifficulty;
 
-  TriviaPersonalizationService() {
-    _loadPreferences();
-  }
-
   /// Load personalization data from SharedPreferences
   Future<void> _loadPreferences() async {
     try {
@@ -54,9 +55,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
             }
           });
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing theme frequency: $e');
-          }
+          LoggerService.error('Error parsing theme frequency', error: e);
         }
       }
 
@@ -72,9 +71,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
             }
           });
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing theme accuracy: $e');
-          }
+          LoggerService.error('Error parsing theme accuracy', error: e);
         }
       }
 
@@ -86,9 +83,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
           _recentCategories.clear();
           _recentCategories.addAll(decoded.map((e) => e.toString()));
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing recent categories: $e');
-          }
+          LoggerService.error('Error parsing recent categories', error: e);
         }
       }
 
@@ -110,9 +105,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
             }
           });
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Error parsing category performance: $e');
-          }
+          LoggerService.error('Error parsing category performance', error: e);
         }
       }
 
@@ -127,9 +120,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error loading personalization preferences: $e');
-      }
+      LoggerService.error('Error loading personalization preferences', error: e);
     }
   }
 
@@ -181,9 +172,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
 
         notifyListeners();
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Error saving personalization preferences: $e');
-        }
+        LoggerService.error('Error saving personalization preferences', error: e);
       }
     });
   }
@@ -218,9 +207,7 @@ class TriviaPersonalizationService extends ChangeNotifier {
       );
       await prefs.setString(_preferredDifficultyKey, _preferredDifficulty.name);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error saving personalization preferences: $e');
-      }
+      LoggerService.error('Error saving personalization preferences', error: e);
     }
   }
 

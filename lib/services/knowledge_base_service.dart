@@ -368,11 +368,6 @@ You start each game with:
 
 /// Knowledge Article model
 class KnowledgeArticle {
-  final String id;
-  final String title;
-  final String category;
-  final String content;
-  final List<String> tags;
 
   KnowledgeArticle({
     required this.id,
@@ -381,4 +376,9 @@ class KnowledgeArticle {
     required this.content,
     required this.tags,
   });
+  final String id;
+  final String title;
+  final String category;
+  final String content;
+  final List<String> tags;
 }

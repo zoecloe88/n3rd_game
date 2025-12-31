@@ -72,3 +72,23 @@ echo "   2. Update your code to use Firebase Storage URLs instead of local asset
 echo "   3. Files are accessible at: gs://$STORAGE_BUCKET/public/videos/[filename]"
 echo ""
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

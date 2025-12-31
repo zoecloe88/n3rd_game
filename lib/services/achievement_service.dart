@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:n3rd_game/models/achievement.dart';
 import 'package:n3rd_game/services/stats_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class AchievementService {
   static final List<Achievement> _allAchievements = [
@@ -115,7 +115,7 @@ class AchievementService {
 
       return achievements;
     } catch (e) {
-      debugPrint('Error fetching user achievements: $e');
+      LoggerService.error('Error fetching user achievements', error: e);
       return {};
     }
   }
@@ -201,9 +201,9 @@ class AchievementService {
       );
 
       // Note: Notification will be sent via Cloud Functions or client-side notification
-      debugPrint('Achievement unlocked: ${achievement.title}');
+      LoggerService.debug('Achievement unlocked: ${achievement.title}');
     } catch (e) {
-      debugPrint('Error unlocking achievement: $e');
+      LoggerService.error('Error unlocking achievement', error: e);
     }
   }
 
@@ -227,7 +227,7 @@ class AchievementService {
         ),
       );
     } catch (e) {
-      debugPrint('Error updating achievement progress: $e');
+      LoggerService.error('Error updating achievement progress', error: e);
     }
   }
 }

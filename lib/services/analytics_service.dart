@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:n3rd_game/utils/firestore_error_handler.dart';
 import 'package:n3rd_game/models/performance_metric.dart';
 import 'package:n3rd_game/models/trivia_item.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
@@ -14,9 +15,13 @@ import 'package:n3rd_game/services/logger_service.dart';
 
 class AnalyticsService extends ChangeNotifier {
   static const String _storageKey = 'analytics_data';
+  static const String _offlineQueueKey = 'analytics_offline_queue';
+  static const int _maxQueueSize = 1000; // Maximum events in queue
   List<PerformanceMetric> _metrics = [];
   bool _firebaseAvailable = false;
   FirebaseAnalytics? _analytics;
+  List<Map<String, dynamic>> _offlineEventQueue = [];
+  bool _isProcessingQueue = false;
 
   List<PerformanceMetric> get metrics => _metrics;
 
@@ -68,7 +73,7 @@ class AnalyticsService extends ChangeNotifier {
                   templates.EditionTriviaTemplates.getTemplatesForTheme(
                 theme,
               );
-              templateCount += themeTemplates.length;
+              templateCount = (templateCount + themeTemplates.length).toInt();
             }
           } catch (e) {
             // If we can't count templates, use stored count or 0
@@ -150,11 +155,17 @@ class AnalyticsService extends ChangeNotifier {
       }
     } catch (e) {
       _firebaseAvailable = false;
-      debugPrint('Firebase not available for analytics: $e');
+      LoggerService.debug('Firebase not available for analytics', error: e);
     }
 
     // Load from local storage
     await _loadLocal();
+
+    // Load offline event queue
+    await _loadOfflineQueue();
+
+    // Process offline queue after loading
+    await _processOfflineQueue();
   }
 
   Future<void> _loadLocal() async {
@@ -172,8 +183,124 @@ class AnalyticsService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to load analytics from local storage: $e');
+      LoggerService.error('Failed to load analytics from local storage', error: e);
     }
+  }
+
+  /// Load offline event queue from SharedPreferences
+  Future<void> _loadOfflineQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queueJson = prefs.getString(_offlineQueueKey);
+      if (queueJson != null) {
+        final queue = (jsonDecode(queueJson) as List)
+            .map((item) => item as Map<String, dynamic>)
+            .toList();
+        _offlineEventQueue = queue;
+        LoggerService.debug(
+            'Loaded ${_offlineEventQueue.length} offline analytics events',);
+      }
+    } catch (e) {
+      LoggerService.warning('Failed to load offline analytics queue', error: e);
+      _offlineEventQueue = [];
+    }
+  }
+
+  /// Save offline event queue to SharedPreferences
+  Future<void> _saveOfflineQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queueJson = jsonEncode(_offlineEventQueue);
+      await prefs.setString(_offlineQueueKey, queueJson);
+    } catch (e) {
+      LoggerService.warning('Failed to save offline analytics queue', error: e);
+    }
+  }
+
+  /// Add event to offline queue
+  Future<void> _queueEvent(
+      String eventName, Map<String, dynamic>? parameters,) async {
+    // Limit queue size to prevent storage issues
+    if (_offlineEventQueue.length >= _maxQueueSize) {
+      // Remove oldest events (FIFO)
+      _offlineEventQueue.removeAt(0);
+    }
+
+    final event = {
+      'eventName': eventName,
+      'parameters': parameters ?? {},
+      'timestamp': DateTime.now().toIso8601String(),
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+    };
+
+    _offlineEventQueue.add(event);
+    await _saveOfflineQueue();
+    LoggerService.debug('Queued analytics event: $eventName');
+  }
+
+  /// Process offline event queue
+  Future<void> _processOfflineQueue() async {
+    if (_isProcessingQueue ||
+        _offlineEventQueue.isEmpty ||
+        !_firebaseAvailable) {
+      return;
+    }
+
+    _isProcessingQueue = true;
+
+    try {
+      final eventsToProcess =
+          List<Map<String, dynamic>>.from(_offlineEventQueue);
+      final successfulEvents = <String>[];
+
+      for (final event in eventsToProcess) {
+        try {
+          final eventName = event['eventName'] as String;
+          final parameters = event['parameters'] as Map<String, dynamic>?;
+
+          // Send event to Firebase Analytics
+          // Convert Map<String, dynamic> to Map<String, Object> for Firebase
+          final firebaseParams = parameters?.map(
+            (key, value) => MapEntry(key, value as Object),
+          );
+          await _analytics?.logEvent(
+            name: eventName,
+            parameters: firebaseParams,
+          );
+
+          final eventId = event['id'] as String;
+          successfulEvents.add(eventId);
+        } catch (e) {
+          LoggerService.warning(
+            'Failed to process offline analytics event: ${event['eventName']}',
+            error: e,
+          );
+          // Keep failed events for retry
+        }
+      }
+
+      // Remove successful events from queue
+      _offlineEventQueue.removeWhere(
+        (event) => successfulEvents.contains(event['id'] as String),
+      );
+      await _saveOfflineQueue();
+
+      if (successfulEvents.isNotEmpty) {
+        LoggerService.info(
+          'Processed ${successfulEvents.length} offline analytics events',
+        );
+      }
+    } catch (e) {
+      LoggerService.warning('Error processing offline analytics queue',
+          error: e,);
+    } finally {
+      _isProcessingQueue = false;
+    }
+  }
+
+  /// Check if device is online (simplified check)
+  bool _isOnline() {
+    return _firebaseAvailable && _analytics != null;
   }
 
   Future<void> _saveLocal() async {
@@ -182,7 +309,7 @@ class AnalyticsService extends ChangeNotifier {
       final data = {'metrics': _metrics.map((m) => m.toJson()).toList()};
       await prefs.setString(_storageKey, jsonEncode(data));
     } catch (e) {
-      debugPrint('Failed to save analytics to local storage: $e');
+      LoggerService.error('Failed to save analytics to local storage', error: e);
     }
   }
 
@@ -192,17 +319,20 @@ class AnalyticsService extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      await _firestore!.collection('user_analytics').doc(userId).set(
-        {
-          'metrics': _metrics.map((m) => m.toJson()).toList(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
+      await FirestoreErrorHandler.handleFirestoreDocumentOperation(
+        () => _firestore!.collection('user_analytics').doc(userId).set(
+          {
+            'metrics': _metrics.map((m) => m.toJson()).toList(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(
+            merge: true,
+          ),
         ),
+        operationName: 'save_user_analytics',
       );
     } catch (e) {
-      debugPrint('Failed to save analytics to Firestore: $e');
+      LoggerService.warning('Failed to save analytics to Firestore', error: e);
     }
   }
 
@@ -432,14 +562,27 @@ class AnalyticsService extends ChangeNotifier {
   /// Log an error event
   /// **Critical**: Recommended to await for error tracking reliability
   Future<void> logError(String errorType, String errorMessage) async {
-    debugPrint('Analytics Error: $errorType - $errorMessage');
+    LoggerService.error('Analytics Error: $errorType - $errorMessage');
     try {
-      await _analytics?.logEvent(
-        name: 'error',
-        parameters: {'error_type': errorType, 'error_message': errorMessage},
-      );
+      if (_isOnline()) {
+        await _analytics?.logEvent(
+          name: 'error',
+          parameters: {'error_type': errorType, 'error_message': errorMessage},
+        );
+      } else {
+        // Queue event for offline processing
+        await _queueEvent('error', {
+          'error_type': errorType,
+          'error_message': errorMessage,
+        });
+      }
     } catch (e) {
-      debugPrint('Failed to log error to Firebase Analytics: $e');
+      LoggerService.error('Failed to log error to Firebase Analytics', error: e);
+      // If online logging fails, queue it
+      await _queueEvent('error', {
+        'error_type': errorType,
+        'error_message': errorMessage,
+      });
     }
   }
 
@@ -452,7 +595,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'tier': tier, 'package_id': packageId, 'success': success},
       );
     } catch (e) {
-      debugPrint('Failed to log purchase to Firebase Analytics: $e');
+      LoggerService.error('Failed to log purchase to Firebase Analytics', error: e);
     }
   }
 
@@ -465,7 +608,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'tier': tier, 'package_id': packageId},
       );
     } catch (e) {
-      debugPrint('Failed to log purchase attempt to Firebase Analytics: $e');
+      LoggerService.error('Failed to log purchase attempt to Firebase Analytics', error: e);
     }
   }
 
@@ -486,7 +629,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log trivia generation to Firebase Analytics: $e');
+      LoggerService.error('Failed to log trivia generation to Firebase Analytics', error: e);
     }
   }
 
@@ -514,7 +657,38 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'mode': mode, 'tier': tier},
       );
     } catch (e) {
-      debugPrint('Failed to log game mode selection to Firebase Analytics: $e');
+      LoggerService.error('Failed to log game mode selection to Firebase Analytics', error: e);
+    }
+  }
+
+  /// Log game started event with optional edition information
+  Future<void> logGameStarted({
+    required String mode,
+    required String tier,
+    String? edition,
+    String? editionName,
+    bool isAIEdition = false,
+  }) async {
+    try {
+      final parameters = <String, Object>{
+        'mode': mode,
+        'tier': tier,
+      };
+
+      if (edition != null) {
+        parameters['edition'] = edition;
+        if (editionName != null) {
+          parameters['edition_name'] = editionName;
+        }
+        parameters['is_ai_edition'] = isAIEdition;
+      }
+
+      await _analytics?.logEvent(
+        name: 'game_started',
+        parameters: parameters,
+      );
+    } catch (e) {
+      LoggerService.warning('Failed to log game started', error: e);
     }
   }
 
@@ -535,7 +709,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log login to Firebase Analytics: $e');
+      LoggerService.error('Failed to log login to Firebase Analytics', error: e);
     }
   }
 
@@ -556,7 +730,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log signup to Firebase Analytics: $e');
+      LoggerService.error('Failed to log signup to Firebase Analytics', error: e);
     }
   }
 
@@ -566,7 +740,7 @@ class AnalyticsService extends ChangeNotifier {
     try {
       await _analytics?.logEvent(name: 'free_tier_limit_reached');
     } catch (e) {
-      debugPrint('Failed to log free tier limit to Firebase Analytics: $e');
+      LoggerService.error('Failed to log free tier limit to Firebase Analytics', error: e);
     }
   }
 
@@ -599,7 +773,7 @@ class AnalyticsService extends ChangeNotifier {
     try {
       await _analytics?.logEvent(name: 'subscription_viewed');
     } catch (e) {
-      debugPrint('Failed to log subscription viewed to Firebase Analytics: $e');
+      LoggerService.error('Failed to log subscription viewed to Firebase Analytics', error: e);
     }
   }
 
@@ -664,7 +838,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'tier': tier},
       );
     } catch (e) {
-      debugPrint('Failed to log trial started to Firebase Analytics: $e');
+      LoggerService.error('Failed to log trial started to Firebase Analytics', error: e);
     }
   }
 
@@ -677,7 +851,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'tier': tier},
       );
     } catch (e) {
-      debugPrint('Failed to log trial converted to Firebase Analytics: $e');
+      LoggerService.error('Failed to log trial converted to Firebase Analytics', error: e);
     }
   }
 
@@ -690,7 +864,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'tier': tier},
       );
     } catch (e) {
-      debugPrint('Failed to log trial expired to Firebase Analytics: $e');
+      LoggerService.error('Failed to log trial expired to Firebase Analytics', error: e);
     }
   }
 
@@ -722,6 +896,122 @@ class AnalyticsService extends ChangeNotifier {
     }
   }
 
+  /// Enhanced subscription funnel tracking with drop-off analysis
+  Future<void> logSubscriptionFunnel({
+    required String
+        step, // view, select_tier, initiate_purchase, complete, activate
+    String? tier,
+    String? dropOffReason,
+    Duration? timeSinceLastStep,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'step': step,
+        'timestamp': DateTime.now().toIso8601String(),
+        if (tier != null) 'tier': tier,
+        if (dropOffReason != null) 'drop_off_reason': dropOffReason,
+        if (timeSinceLastStep != null)
+          'time_since_last_step_ms': timeSinceLastStep.inMilliseconds,
+        ...?metadata,
+      };
+
+      await _analytics?.logEvent(
+        name: 'subscription_funnel',
+        parameters: Map<String, Object>.from(params),
+      );
+    } catch (e) {
+      LoggerService.error('Failed to log subscription funnel', error: e);
+    }
+  }
+
+  /// Track subscription retention metrics
+  Future<void> logSubscriptionRetention({
+    required String tier,
+    required int daysSinceSubscription,
+    required bool isActive,
+    String? cancellationReason,
+  }) async {
+    try {
+      await _analytics?.logEvent(
+        name: 'subscription_retention',
+        parameters: {
+          'tier': tier,
+          'days_since_subscription': daysSinceSubscription,
+          'is_active': isActive,
+          'timestamp': DateTime.now().toIso8601String(),
+          if (cancellationReason != null)
+            'cancellation_reason': cancellationReason,
+        },
+      );
+    } catch (e) {
+      LoggerService.error('Failed to log subscription retention', error: e);
+    }
+  }
+
+  /// Track subscription upgrade/downgrade patterns
+  Future<void> logSubscriptionChange({
+    required String fromTier,
+    required String toTier,
+    String? reason,
+    Duration? timeSinceLastChange,
+  }) async {
+    try {
+      await _analytics?.logEvent(
+        name: 'subscription_change',
+        parameters: {
+          'from_tier': fromTier,
+          'to_tier': toTier,
+          'change_type': _getChangeType(fromTier, toTier),
+          'timestamp': DateTime.now().toIso8601String(),
+          if (reason != null) 'reason': reason,
+          if (timeSinceLastChange != null)
+            'time_since_last_change_ms': timeSinceLastChange.inMilliseconds,
+        },
+      );
+    } catch (e) {
+      LoggerService.error('Failed to log subscription change', error: e);
+    }
+  }
+
+  /// Track trial conversion rates
+  Future<void> logTrialConversion({
+    required String tier,
+    required bool converted,
+    int? daysUntilConversion,
+    String? conversionReason,
+  }) async {
+    try {
+      await _analytics?.logEvent(
+        name: 'trial_conversion',
+        parameters: {
+          'tier': tier,
+          'converted': converted,
+          'timestamp': DateTime.now().toIso8601String(),
+          if (daysUntilConversion != null)
+            'days_until_conversion': daysUntilConversion,
+          if (conversionReason != null) 'conversion_reason': conversionReason,
+        },
+      );
+    } catch (e) {
+      LoggerService.error('Failed to log trial conversion', error: e);
+    }
+  }
+
+  /// Determine change type (upgrade/downgrade/cancel)
+  String _getChangeType(String fromTier, String toTier) {
+    if (toTier == 'free' && fromTier != 'free') return 'cancel';
+
+    final tierHierarchy = ['free', 'basic', 'premium', 'familyFriends'];
+    final fromIndex = tierHierarchy.indexOf(fromTier);
+    final toIndex = tierHierarchy.indexOf(toTier);
+
+    if (fromIndex < 0 || toIndex < 0) return 'unknown';
+    if (toIndex > fromIndex) return 'upgrade';
+    if (toIndex < fromIndex) return 'downgrade';
+    return 'same';
+  }
+
   /// Log trivia validation event (template initialization)
   /// **Critical**: Recommended to await for content quality monitoring
   Future<void> logTriviaValidation(
@@ -739,51 +1029,51 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log trivia validation to Firebase Analytics: $e');
+      LoggerService.error('Failed to log trivia validation to Firebase Analytics', error: e);
     }
   }
 
   /// Log ping sent event (multiplayer)
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   Future<void> logPingSent() async {
-    debugPrint('Analytics: Ping sent');
+    LoggerService.debug('Analytics: Ping sent');
     try {
       await _analytics?.logEvent(name: 'ping_sent');
     } catch (e) {
-      debugPrint('Failed to log ping sent to Firebase Analytics: $e');
+      LoggerService.error('Failed to log ping sent to Firebase Analytics', error: e);
     }
   }
 
   /// Log room created event (multiplayer)
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   Future<void> logRoomCreated() async {
-    debugPrint('Analytics: Room created');
+    LoggerService.debug('Analytics: Room created');
     try {
       await _analytics?.logEvent(name: 'room_created');
     } catch (e) {
-      debugPrint('Failed to log room created to Firebase Analytics: $e');
+      LoggerService.error('Failed to log room created to Firebase Analytics', error: e);
     }
   }
 
   /// Log room joined event (multiplayer)
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   Future<void> logRoomJoined() async {
-    debugPrint('Analytics: Room joined');
+    LoggerService.debug('Analytics: Room joined');
     try {
       await _analytics?.logEvent(name: 'room_joined');
     } catch (e) {
-      debugPrint('Failed to log room joined to Firebase Analytics: $e');
+      LoggerService.error('Failed to log room joined to Firebase Analytics', error: e);
     }
   }
 
   /// Log game start event
   /// **Non-Critical**: Safe to use `unawaited()` for better performance
   Future<void> logGameStart() async {
-    debugPrint('Analytics: Game started');
+    LoggerService.debug('Analytics: Game started');
     try {
       await _analytics?.logEvent(name: 'game_start');
     } catch (e) {
-      debugPrint('Failed to log game start to Firebase Analytics: $e');
+      LoggerService.error('Failed to log game start to Firebase Analytics', error: e);
     }
   }
 
@@ -792,7 +1082,9 @@ class AnalyticsService extends ChangeNotifier {
   /// This is typically called frequently during navigation, so fire-and-forget is preferred
   /// Log family group events
   Future<void> logFamilyGroupEvent(
-      String eventName, Map<String, dynamic>? parameters,) async {
+    String eventName,
+    Map<String, dynamic>? parameters,
+  ) async {
     try {
       await _analytics?.logEvent(
         name: eventName,
@@ -800,17 +1092,75 @@ class AnalyticsService extends ChangeNotifier {
             parameters != null ? Map<String, Object>.from(parameters) : null,
       );
     } catch (e) {
-      LoggerService.warning('Failed to log family group event: $eventName',
-          error: e,);
+      LoggerService.warning(
+        'Failed to log family group event: $eventName',
+        error: e,
+      );
     }
   }
 
   Future<void> logScreenView(String screenName) async {
-    debugPrint('Analytics: Screen viewed - $screenName');
+    LoggerService.debug('Analytics: Screen viewed - $screenName');
     try {
-      await _analytics?.logScreenView(screenName: screenName);
+      if (_isOnline()) {
+        await _analytics?.logScreenView(screenName: screenName);
+      } else {
+        // Queue event for offline processing
+        await _queueEvent('screen_view', {'screen_name': screenName});
+      }
     } catch (e) {
-      debugPrint('Failed to log screen view to Firebase Analytics: $e');
+      LoggerService.error('Failed to log screen view to Firebase Analytics', error: e);
+      // If online logging fails, queue it
+      await _queueEvent('screen_view', {'screen_name': screenName});
+    }
+  }
+
+  /// Log voice calibration usage during gameplay
+  Future<void> logVoiceCalibrationUsage({
+    required bool isCalibrated,
+    required bool usedInGame,
+    double? accuracyScore,
+  }) async {
+    try {
+      await logCustomEvent(
+        'voice_calibration_usage',
+        parameters: {
+          'is_calibrated': isCalibrated,
+          'used_in_game': usedInGame,
+          if (accuracyScore != null) 'accuracy_score': accuracyScore,
+        },
+      );
+    } catch (e) {
+      LoggerService.warning(
+        'AnalyticsService: Failed to log voice calibration usage',
+        error: e,
+      );
+    }
+  }
+
+  /// Log a custom analytics event
+  /// **Non-Critical**: Safe to use `unawaited()` for better performance
+  Future<void> logCustomEvent(
+    String eventName, {
+    Map<String, dynamic>? parameters,
+  }) async {
+    try {
+      if (_isOnline()) {
+        final firebaseParams = parameters?.map(
+          (key, value) => MapEntry(key, value as Object),
+        );
+        await _analytics?.logEvent(
+          name: eventName,
+          parameters: firebaseParams,
+        );
+      } else {
+        // Queue event for offline processing
+        await _queueEvent(eventName, parameters);
+      }
+    } catch (e) {
+      LoggerService.error('Failed to log custom event to Firebase Analytics', error: e);
+      // If online logging fails, queue it
+      await _queueEvent(eventName, parameters);
     }
   }
 
@@ -876,7 +1226,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'video_path': videoPath, 'error': error},
       );
     } catch (e) {
-      debugPrint('Failed to log video load failure to Firebase Analytics: $e');
+      LoggerService.error('Failed to log video load failure to Firebase Analytics', error: e);
     }
   }
 
@@ -889,7 +1239,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'route': route, 'error': error},
       );
     } catch (e) {
-      debugPrint('Failed to log navigation error to Firebase Analytics: $e');
+      LoggerService.error('Failed to log navigation error to Firebase Analytics', error: e);
     }
   }
 
@@ -914,7 +1264,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log font load failure to Firebase Analytics: $e');
+      LoggerService.error('Failed to log font load failure to Firebase Analytics', error: e);
     }
   }
 
@@ -926,7 +1276,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'font_name': fontName, 'load_duration_ms': loadDurationMs},
       );
     } catch (e) {
-      debugPrint('Failed to log font load success to Firebase Analytics: $e');
+      LoggerService.error('Failed to log font load success to Firebase Analytics', error: e);
     }
   }
 
@@ -988,7 +1338,7 @@ class AnalyticsService extends ChangeNotifier {
     try {
       await _analytics?.logEvent(name: 'onboarding_skipped');
     } catch (e) {
-      debugPrint('Failed to log onboarding skip to Firebase Analytics: $e');
+      LoggerService.error('Failed to log onboarding skip to Firebase Analytics', error: e);
     }
   }
 
@@ -1001,7 +1351,7 @@ class AnalyticsService extends ChangeNotifier {
         parameters: {'video_path': videoPath, 'retry_count': retryCount},
       );
     } catch (e) {
-      debugPrint('Failed to log video retry success to Firebase Analytics: $e');
+      LoggerService.error('Failed to log video retry success to Firebase Analytics', error: e);
     }
   }
 
@@ -1027,7 +1377,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log video completion to Firebase Analytics: $e');
+      LoggerService.error('Failed to log video completion to Firebase Analytics', error: e);
     }
   }
 
@@ -1120,7 +1470,7 @@ class AnalyticsService extends ChangeNotifier {
     try {
       await _analytics?.logEvent(name: 'friend_request_sent');
     } catch (e) {
-      debugPrint('Failed to log friend request sent to Firebase Analytics: $e');
+      LoggerService.error('Failed to log friend request sent to Firebase Analytics', error: e);
     }
   }
 
@@ -1173,7 +1523,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log power-up usage to Firebase Analytics: $e');
+      LoggerService.error('Failed to log power-up usage to Firebase Analytics', error: e);
     }
   }
 
@@ -1192,7 +1542,7 @@ class AnalyticsService extends ChangeNotifier {
         },
       );
     } catch (e) {
-      debugPrint('Failed to log settings changed to Firebase Analytics: $e');
+      LoggerService.error('Failed to log settings changed to Firebase Analytics', error: e);
     }
   }
 
@@ -1250,7 +1600,7 @@ class AnalyticsService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('Failed to log performance metric to Firebase Analytics: $e');
+      LoggerService.error('Failed to log performance metric to Firebase Analytics', error: e);
     }
   }
 

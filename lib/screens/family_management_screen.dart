@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/family_group_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
@@ -8,10 +9,12 @@ import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 
 class FamilyManagementScreen extends StatefulWidget {
   const FamilyManagementScreen({super.key});
@@ -43,9 +46,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     try {
       final familyService =
-          Provider.of<FamilyGroupService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
       final analyticsService =
-          Provider.of<AnalyticsService>(context, listen: false);
+          ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
       await familyService.inviteMember(email);
 
@@ -60,15 +63,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       _emailController.clear();
     } on ValidationException catch (e) {
       if (mounted) {
-        ErrorHandler.showSnackBar(context, e.toString());
+        ErrorHandler.showSnackBar(context, null, error: e);
       }
     } on NetworkException catch (e) {
       if (mounted) {
-        ErrorHandler.showSnackBar(context, e.toString());
+        ErrorHandler.showSnackBar(context, null, error: e);
       }
     } catch (e) {
       if (mounted) {
-        ErrorHandler.showError(context, 'Failed to send invitation: $e');
+        unawaited(ErrorHandler.showError(context, null, error: e));
       }
     } finally {
       if (mounted) {
@@ -83,16 +86,25 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Remove Member'),
         content: Text(
-            'Are you sure you want to remove $memberEmail from the group?',),
+          'Are you sure you want to remove $memberEmail from the group?',
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+          Semantics(
+            label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context, false),
+              child: const Text('Cancel'),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+          Semantics(
+            label: 'Remove Member',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Remove'),
+            ),
           ),
         ],
       ),
@@ -102,9 +114,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     if (!mounted) return;
     final familyService =
-        Provider.of<FamilyGroupService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
     final analyticsService =
-        Provider.of<AnalyticsService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
     setState(() {
       _isRemoving = true;
@@ -124,7 +136,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       ErrorHandler.showSuccess(context, 'Member removed successfully');
     } catch (e) {
       if (mounted) {
-        ErrorHandler.showError(context, 'Failed to remove member: $e');
+        unawaited(ErrorHandler.showError(context, 'Failed to remove member: $e'));
       }
     } finally {
       if (mounted) {
@@ -145,14 +157,22 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           'Are you sure you want to leave this Family & Friends group? You will lose access to Premium features.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+          Semantics(
+            label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context, false),
+              child: const Text('Cancel'),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Leave'),
+          Semantics(
+            label: 'Leave Group',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Leave'),
+            ),
           ),
         ],
       ),
@@ -162,9 +182,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     if (!mounted) return;
     final familyService =
-        Provider.of<FamilyGroupService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<FamilyGroupService>(context, listen: false);
     final analyticsService =
-        Provider.of<AnalyticsService>(context, listen: false);
+        ProviderHelper.safeGetOrThrow<AnalyticsService>(context, listen: false);
 
     try {
       await familyService.leaveGroup();
@@ -179,7 +199,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       NavigationHelper.safePop(context);
     } catch (e) {
       if (mounted) {
-        ErrorHandler.showError(context, 'Failed to leave group: $e');
+        unawaited(ErrorHandler.showError(context, null, error: e));
       }
     }
   }
@@ -202,44 +222,47 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           return Scaffold(
             backgroundColor: colors.background,
             body: SafeArea(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.all(24),
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: AppShadows.large,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_outline,
-                          size: 64,
-                          color: colors.tertiaryText,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppShadows.large,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 64,
+                        color: colors.tertiaryText,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Family & Friends Feature',
+                        style: AppTypography.headlineLarge.copyWith(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: colors.primaryText,
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Family & Friends Feature',
-                          style: AppTypography.headlineLarge.copyWith(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: colors.primaryText,
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Family Management is available for Family & Friends subscribers. '
+                        'Join a group or upgrade to access this feature!',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontSize: 14,
+                          color: colors.secondaryText,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Family Management is available for Family & Friends subscribers. '
-                          'Join a group or upgrade to access this feature!',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyMedium.copyWith(
-                            fontSize: 14,
-                            color: colors.secondaryText,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
+                      ),
+                      const SizedBox(height: 24),
+                      Semantics(
+                        label: 'View Subscriptions',
+                        button: true,
+                        child: ElevatedButton(
                           onPressed: () {
                             NavigationHelper.safeNavigate(
                               context,
@@ -259,8 +282,12 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                             style: AppTypography.labelLarge,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        TextButton(
+                      ),
+                      const SizedBox(height: 12),
+                      Semantics(
+                        label: 'Go Back',
+                        button: true,
+                        child: TextButton(
                           onPressed: () => NavigationHelper.safePop(context),
                           child: Text(
                             'Go Back',
@@ -269,10 +296,11 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
             ),
           );
         }
@@ -295,10 +323,17 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back,
-                                color: Colors.white,),
-                            onPressed: () => NavigationHelper.safePop(context),
+                          Semantics(
+                            label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                            button: true,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => NavigationHelper.safePop(context),
+                              tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -324,7 +359,11 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                             ] else ...[
                               // Group info card
                               _buildGroupInfoCard(
-                                  context, colors, group, subscriptionService,),
+                                context,
+                                colors,
+                                group,
+                                subscriptionService,
+                              ),
 
                               const SizedBox(height: 24),
 
@@ -398,7 +437,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                                       foregroundColor: Colors.red,
                                       side: const BorderSide(color: Colors.red),
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 14,),
+                                        vertical: 14,
+                                      ),
                                     ),
                                     child: const Text('Leave Group'),
                                   ),
@@ -452,18 +492,24 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                // Navigate to subscription screen to purchase Family plan
-                NavigationHelper.safeNavigate(
-                    context, '/subscription-management',);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Semantics(
+              label: 'View Subscriptions to Purchase Family Plan',
+              button: true,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Navigate to subscription screen to purchase Family plan
+                  NavigationHelper.safeNavigate(
+                    context,
+                    '/subscription-management',
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Get Family & Friends Plan'),
               ),
-              child: const Text('Get Family & Friends Plan'),
             ),
           ),
         ],
@@ -661,12 +707,17 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
             ),
           ),
           if (canRemove)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: _isRemoving && _removingMemberId == member.userId
-                  ? null
-                  : () => _removeMember(member.userId, member.email),
-              tooltip: 'Remove member',
+            Semantics(
+              label: 'Remove member ${member.email}',
+              button: true,
+              enabled: !(_isRemoving && _removingMemberId == member.userId),
+              child: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: _isRemoving && _removingMemberId == member.userId
+                    ? null
+                    : () => _removeMember(member.userId, member.email),
+                tooltip: 'Remove member',
+              ),
             ),
         ],
       ),
@@ -780,23 +831,28 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isInviting ? null : _inviteMember,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Semantics(
+              label: _isInviting ? 'Sending invitation...' : 'Send Invitation',
+              button: true,
+              enabled: !_isInviting,
+              child: ElevatedButton(
+                onPressed: _isInviting ? null : _inviteMember,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _isInviting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Send Invitation'),
               ),
-              child: _isInviting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('Send Invitation'),
             ),
           ),
         ],

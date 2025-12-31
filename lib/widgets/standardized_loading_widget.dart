@@ -5,9 +5,6 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 
 /// Standardized loading widget for consistent loading states across the app
 class StandardizedLoadingWidget extends StatelessWidget {
-  final String? message;
-  final Color? color;
-  final double? size;
 
   const StandardizedLoadingWidget({
     super.key,
@@ -15,6 +12,9 @@ class StandardizedLoadingWidget extends StatelessWidget {
     this.color,
     this.size,
   });
+  final String? message;
+  final Color? color;
+  final double? size;
 
   @override
   Widget build(BuildContext context) {
@@ -48,4 +48,19 @@ class StandardizedLoadingWidget extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

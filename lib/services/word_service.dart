@@ -8,13 +8,6 @@ import 'package:n3rd_game/config/app_config.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 
 class WordOfTheDay {
-  final String word;
-  final String definition;
-  final String example;
-  final String? phonetic;
-  final String? partOfSpeech;
-  final List<String>? synonyms;
-  final DateTime date;
 
   WordOfTheDay({
     required this.word,
@@ -25,16 +18,6 @@ class WordOfTheDay {
     this.synonyms,
     required this.date,
   });
-
-  Map<String, dynamic> toJson() => {
-        'word': word,
-        'definition': definition,
-        'example': example,
-        'phonetic': phonetic,
-        'partOfSpeech': partOfSpeech,
-        'synonyms': synonyms,
-        'date': date.toIso8601String(),
-      };
 
   factory WordOfTheDay.fromJson(Map<String, dynamic> json) => WordOfTheDay(
         word: json['word'] as String,
@@ -59,6 +42,23 @@ class WordOfTheDay {
           }
         }(),
       );
+  final String word;
+  final String definition;
+  final String example;
+  final String? phonetic;
+  final String? partOfSpeech;
+  final List<String>? synonyms;
+  final DateTime date;
+
+  Map<String, dynamic> toJson() => {
+        'word': word,
+        'definition': definition,
+        'example': example,
+        'phonetic': phonetic,
+        'partOfSpeech': partOfSpeech,
+        'synonyms': synonyms,
+        'date': date.toIso8601String(),
+      };
 }
 
 class WordService extends ChangeNotifier {
@@ -127,8 +127,10 @@ class WordService extends ChangeNotifier {
     final fallbackData = _getFallbackWordData(word);
     return WordOfTheDay(
       word: word,
-      definition: fallbackData['definition'] ?? 'A fascinating word to explore today.',
-      example: fallbackData['example'] ?? 'This word can be used in various contexts to express meaning.',
+      definition:
+          fallbackData['definition'] ?? 'A fascinating word to explore today.',
+      example: fallbackData['example'] ??
+          'This word can be used in various contexts to express meaning.',
       date: date,
     );
   }
@@ -138,62 +140,98 @@ class WordService extends ChangeNotifier {
     final wordLower = word.toLowerCase();
     final fallbackMap = {
       'serendipity': {
-        'definition': 'The occurrence and development of events by chance in a happy or beneficial way.',
-        'example': 'Finding that rare book in the library was pure serendipity.',
+        'definition':
+            'The occurrence and development of events by chance in a happy or beneficial way.',
+        'example':
+            'Finding that rare book in the library was pure serendipity.',
       },
       'ephemeral': {
         'definition': 'Lasting for a very short time; transient.',
-        'example': 'The beauty of cherry blossoms is ephemeral, lasting only a few weeks.',
+        'example':
+            'The beauty of cherry blossoms is ephemeral, lasting only a few weeks.',
       },
       'eloquent': {
         'definition': 'Fluent or persuasive in speaking or writing.',
         'example': 'Her eloquent speech moved the entire audience to tears.',
       },
       'resilient': {
-        'definition': 'Able to withstand or recover quickly from difficult conditions.',
-        'example': 'Despite the setbacks, she remained resilient and continued pursuing her goals.',
+        'definition':
+            'Able to withstand or recover quickly from difficult conditions.',
+        'example':
+            'Despite the setbacks, she remained resilient and continued pursuing her goals.',
       },
       'pragmatic': {
         'definition': 'Dealing with things in a practical and realistic way.',
-        'example': 'His pragmatic approach to problem-solving helped the team succeed.',
+        'example':
+            'His pragmatic approach to problem-solving helped the team succeed.',
       },
     };
-    return fallbackMap[wordLower] ?? {
-      'definition': 'A fascinating word to explore today.',
-      'example': 'This word can be used in various contexts to express meaning.',
-    };
+    return fallbackMap[wordLower] ??
+        {
+          'definition': 'A fascinating word to explore today.',
+          'example':
+              'This word can be used in various contexts to express meaning.',
+        };
   }
 
   // Validate that definition matches the word (not a different word)
   bool _isDefinitionValid(String word, String definition) {
-    final wordLower = word.toLowerCase();
-    final defLower = definition.toLowerCase();
-    
+    final wordLower = word.toLowerCase().trim();
+    final defLower = definition.toLowerCase().trim();
+
+    // Empty check
+    if (wordLower.isEmpty || defLower.isEmpty) {
+      return false;
+    }
+
     // Check if definition contains the word or a close variant
     // This helps filter out definitions for compound words or different meanings
     if (defLower.contains(wordLower)) {
       return true;
     }
-    
-    // Check for common word variants (e.g., "vivid" vs "vividly")
-    final wordStem = wordLower.length > 4 ? wordLower.substring(0, wordLower.length - 2) : wordLower;
-    if (defLower.contains(wordStem)) {
+
+    // Check for plural/singular variants
+    final wordSingular = wordLower.endsWith('s')
+        ? wordLower.substring(0, wordLower.length - 1)
+        : wordLower;
+    final wordPlural = wordLower.endsWith('s') ? wordLower : '${wordLower}s';
+    if (defLower.contains(wordSingular) || defLower.contains(wordPlural)) {
       return true;
     }
-    
+
+    // Check for common word variants (e.g., "vivid" vs "vividly", "resilient" vs "resilience")
+    if (wordLower.length > 4) {
+      final wordStem = wordLower.substring(0, wordLower.length - 2);
+      if (defLower.contains(wordStem) && wordStem.length >= 3) {
+        return true;
+      }
+    }
+
     // If definition is very short or seems unrelated, it might be wrong
     // Definitions should typically be at least 20 characters for context
     if (definition.length < 20) {
       return false;
     }
-    
-    // For very short words, be more lenient
+
+    // For very short words, be more lenient but still check for word presence
     if (word.length <= 3) {
-      return true;
+      // For short words, check if definition starts with or contains the word
+      return defLower.startsWith(wordLower) ||
+          defLower.contains(' $wordLower ') ||
+          defLower.contains(' $wordLower.');
     }
-    
+
     // If definition doesn't mention the word at all, it's likely wrong
     // This catches cases like "VIVID" showing "A felt-tipped permanent marker"
+    // Also check for common prefixes/suffixes that might indicate wrong word
+    final commonWrongPrefixes = ['a ', 'an ', 'the ', 'one ', 'some '];
+    for (final prefix in commonWrongPrefixes) {
+      if (defLower.startsWith(prefix) && !defLower.contains(wordLower)) {
+        // Definition starts with article but doesn't contain the word - likely wrong
+        return false;
+      }
+    }
+
     return false;
   }
 
@@ -217,7 +255,7 @@ class WordService extends ChangeNotifier {
               for (final def in definitions) {
                 if (def is Map<String, dynamic>) {
                   final definition = def['definition'] as String?;
-                  if (definition != null && 
+                  if (definition != null &&
                       definition.length > bestLength &&
                       _isDefinitionValid(word, definition)) {
                     bestDefinition = definition;
@@ -245,7 +283,7 @@ class WordService extends ChangeNotifier {
             for (final def in definitions) {
               if (def is Map<String, dynamic>) {
                 final definition = def['definition'] as String?;
-                if (definition != null && 
+                if (definition != null &&
                     definition.length > bestLength &&
                     _isDefinitionValid(word, definition)) {
                   bestDefinition = definition;
@@ -268,10 +306,10 @@ class WordService extends ChangeNotifier {
     if (meanings.isEmpty) {
       return null;
     }
-    
+
     String? bestExample;
     int bestLength = 0;
-    
+
     // Prefer examples that are complete sentences (longer usually means more context)
     for (final meaning in meanings) {
       if (meaning is Map<String, dynamic>) {
@@ -292,17 +330,20 @@ class WordService extends ChangeNotifier {
         }
       }
     }
-    
+
     return bestExample;
   }
 
   // Extract part of speech
   String? _extractPartOfSpeech(List<dynamic> meanings) {
-    if (meanings.isNotEmpty) {
-      final firstMeaning = meanings[0] as Map<String, dynamic>;
-      return firstMeaning['partOfSpeech'] as String?;
+    if (meanings.isEmpty) return null;
+    final firstItem = meanings[0];
+    if (firstItem is! Map<String, dynamic>) {
+      LoggerService.warning('Invalid meaning format in word service');
+      return null;
     }
-    return null;
+    final firstMeaning = firstItem;
+    return firstMeaning['partOfSpeech'] as String?;
   }
 
   // Extract synonyms
@@ -349,16 +390,12 @@ class WordService extends ChangeNotifier {
             return cached; // Return cached word if it's for today
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Failed to parse cached word: $e');
-          }
+          LoggerService.error('Failed to parse cached word', error: e);
           // Continue to fetch new word if cache is invalid
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to load cached word: $e');
-      }
+      LoggerService.error('Failed to load cached word', error: e);
       // Continue to fetch new word if cache read fails
     }
 
@@ -385,9 +422,7 @@ class WordService extends ChangeNotifier {
           final prefs = await _getPrefs();
           await prefs.setString(_storageKey, jsonEncode(fallbackWord.toJson()));
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Failed to cache fallback word: $e');
-          }
+          LoggerService.error('Failed to cache fallback word', error: e);
         }
 
         return fallbackWord;
@@ -447,7 +482,8 @@ class WordService extends ChangeNotifier {
               final meanings = wordData['meanings'] as List?;
               if (meanings != null && meanings.isNotEmpty) {
                 // Extract best definition (pass word for validation)
-                final definition = _extractBestDefinition(meanings, apiWordText);
+                final definition =
+                    _extractBestDefinition(meanings, apiWordText);
                 if (definition == null || definition.isEmpty) {
                   throw ValidationException(
                     'No valid definition found in API response',
@@ -482,24 +518,18 @@ class WordService extends ChangeNotifier {
                     jsonEncode(wordOfDay.toJson()),
                   );
                 } catch (e) {
-                  if (kDebugMode) {
-                    debugPrint('Failed to cache word: $e');
-                  }
+                  LoggerService.error('Failed to cache word', error: e);
                   // Continue even if caching fails
                 }
 
                 apiWord = wordOfDay;
                 break; // Success, exit retry loop
               } else {
-                if (kDebugMode) {
-                  debugPrint('No meanings found in API response');
-                }
+                LoggerService.debug('No meanings found in API response');
                 // Continue to next attempt
               }
             } else {
-              if (kDebugMode) {
-                debugPrint('API returned empty or invalid data');
-              }
+              LoggerService.debug('API returned empty or invalid data');
               // Continue to next attempt
             }
           } catch (e) {
@@ -533,13 +563,9 @@ class WordService extends ChangeNotifier {
         }
       } catch (e) {
         if (e is NetworkException) {
-          if (kDebugMode) {
-            debugPrint('Network error (attempt ${attempt + 1}): $e');
-          }
+          LoggerService.error('Network error (attempt ${attempt + 1});', error: e);
         } else {
-          if (kDebugMode) {
-            debugPrint('Error fetching word (attempt ${attempt + 1}): $e');
-          }
+          LoggerService.error('Error fetching word (attempt ${attempt + 1});', error: e);
         }
         // Continue to next attempt
         if (attempt < _maxRetries) {
@@ -561,9 +587,7 @@ class WordService extends ChangeNotifier {
       final prefs = await _getPrefs();
       await prefs.setString(_storageKey, jsonEncode(fallbackWord.toJson()));
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to cache fallback word: $e');
-      }
+      LoggerService.error('Failed to cache fallback word', error: e);
     }
 
     return fallbackWord;

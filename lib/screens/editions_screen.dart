@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
-import 'package:n3rd_game/screens/youth_transition_screen.dart';
 import 'package:n3rd_game/screens/ai_edition_input_screen.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -16,6 +16,8 @@ import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 class EditionsScreen extends StatefulWidget {
@@ -51,22 +53,31 @@ class _EditionsScreenState extends State<EditionsScreen> {
         autoplay: true,
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Header removed per user request - only show back button if needed
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: () => NavigationHelper.safePop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    Semantics(
+                      label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      button: true,
+                      child: IconButton(
+                        onPressed: () => NavigationHelper.safePop(context),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                      ),
                     ),
                     const Spacer(),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _buildCategoryFilter(),
+                // Add top padding to move content down ~0.5cm (14px)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14.0),
+                  child: _buildCategoryFilter(),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Expanded(
                   child: Container(
@@ -78,8 +89,22 @@ class _EditionsScreenState extends State<EditionsScreen> {
                       ),
                       boxShadow: AppShadows.large,
                     ),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    padding:
+                        const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 32),
                     child: _buildEditionsGrid(),
+                  ),
+                ),
+                // Add "Editions" header at the bottom
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                  child: Text(
+                    'Editions',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.headlineLarge.copyWith(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -107,7 +132,9 @@ class _EditionsScreenState extends State<EditionsScreen> {
               label: Text(
                 category,
                 style: AppTypography.labelSmall.copyWith(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.7),
                 ),
                 softWrap: true,
                 overflow: TextOverflow.visible,
@@ -118,14 +145,16 @@ class _EditionsScreenState extends State<EditionsScreen> {
                   _selectedCategory = category;
                 });
               },
-              backgroundColor: isSelected 
-                  ? filterColors.primaryButton 
-                  : Colors.black.withValues(alpha: 0.3), // Darker background for unselected
+              backgroundColor: isSelected
+                  ? filterColors.primaryButton
+                  : Colors.black.withValues(
+                      alpha: 0.9,), // Solid background for unselected
               selectedColor: filterColors.primaryButton,
               side: BorderSide(
                 color: isSelected
                     ? filterColors.primaryButton
-                    : Colors.white.withValues(alpha: 0.3), // More visible border for unselected
+                    : Colors.white.withValues(
+                        alpha: 0.3,), // More visible border for unselected
                 width: isSelected ? 2 : 1,
               ),
               shape: RoundedRectangleBorder(
@@ -177,13 +206,13 @@ class _EditionsScreenState extends State<EditionsScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: hasAccess 
+              color: hasAccess
                   ? cardColors.cardBackground.withValues(alpha: 0.9)
                   : Colors.white, // White background for unselected
               borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(
-                color: hasAccess 
-                    ? const Color(0xFF6B4FC9) 
+                color: hasAccess
+                    ? const Color(0xFF6B4FC9)
                     : Colors.white.withValues(alpha: 0.3),
                 width: hasAccess ? 2 : 1,
               ),
@@ -229,9 +258,10 @@ class _EditionsScreenState extends State<EditionsScreen> {
                           style: AppTypography.titleLarge.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: hasAccess 
-                                ? cardColors.primaryText 
-                                : Colors.black, // Black text for unselected white buttons
+                            color: hasAccess
+                                ? cardColors.primaryText
+                                : Colors
+                                    .black, // Black text for unselected white buttons
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
@@ -242,9 +272,11 @@ class _EditionsScreenState extends State<EditionsScreen> {
                                 edition.category,
                                 style: AppTypography.labelSmall.copyWith(
                                   fontSize: 11,
-                                  color: hasAccess 
-                                      ? cardColors.secondaryText 
-                                      : Colors.black.withValues(alpha: 0.7), // Black text for unselected
+                                  color: hasAccess
+                                      ? cardColors.secondaryText
+                                      : Colors.black.withValues(
+                                          alpha:
+                                              0.7,), // Black text for unselected
                                 ),
                                 softWrap: true,
                                 overflow: TextOverflow.visible,
@@ -256,9 +288,11 @@ class _EditionsScreenState extends State<EditionsScreen> {
                                 edition.categoryCount,
                                 style: AppTypography.bodyMedium.copyWith(
                                   fontSize: 12,
-                                  color: hasAccess 
-                                      ? cardColors.secondaryText 
-                                      : Colors.black.withValues(alpha: 0.7), // Black text for unselected
+                                  color: hasAccess
+                                      ? cardColors.secondaryText
+                                      : Colors.black.withValues(
+                                          alpha:
+                                              0.7,), // Black text for unselected
                                 ),
                                 softWrap: true,
                                 overflow: TextOverflow.visible,
@@ -321,6 +355,7 @@ class _EditionsScreenState extends State<EditionsScreen> {
   }
 
   void _onEditionTapped(EditionModel edition) {
+    if (!context.mounted) return;
     // Handle AI Edition specially
     if (edition.id == 'ai_edition') {
       NavigationHelper.safePush(
@@ -332,31 +367,17 @@ class _EditionsScreenState extends State<EditionsScreen> {
       return;
     }
 
-    // Navigate to transition screen, then to game with edition info
-    NavigationHelper.safePush(
+    // Navigate directly to game with edition info
+    if (!context.mounted) return;
+    NavigationHelper.safeNavigate(
       context,
-      MaterialPageRoute(
-        builder: (_) => YouthTransitionScreen(
-          onFinished: () {
-            if (!context.mounted) return;
-            NavigationHelper.safePop(context); // Pop transition screen
-            // Navigate to game screen with edition info
-            // Note: Editions will use their own content system (not trivia generator)
-            // For now, pass edition info - content system will be implemented separately
-            if (!context.mounted) return;
-            NavigationHelper.safeNavigate(
-              context,
-              '/game',
-              arguments: {
-                'mode': null, // Editions may have their own modes
-                'edition': edition.id,
-                'editionName': edition.name,
-                // triviaPool will be null - editions need their own content system
-              },
-            );
-          },
-        ),
-      ),
+      '/game',
+      arguments: {
+        'mode': null, // Editions may have their own modes
+        'edition': edition.id,
+        'editionName': edition.name,
+        // triviaPool will be null - editions need their own content system
+      },
     );
   }
 
@@ -411,7 +432,8 @@ class _EditionsScreenState extends State<EditionsScreen> {
                   return FutureBuilder<List<Package>>(
                     future: revenueCat.getAvailablePackages(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      final packages = snapshot.data;
+                      if (!snapshot.hasData || packages == null || packages.isEmpty) {
                         // Fallback to simulated purchase if RevenueCat not available
                         return ElevatedButton.icon(
                           onPressed: () async {
@@ -439,7 +461,7 @@ class _EditionsScreenState extends State<EditionsScreen> {
                       }
 
                       // Find premium package
-                      if (snapshot.data!.isEmpty) {
+                      if (packages.isEmpty) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -460,10 +482,10 @@ class _EditionsScreenState extends State<EditionsScreen> {
                         );
                       }
 
-                      final premiumPackage = snapshot.data!.firstWhere(
+                      final premiumPackage = packages.firstWhere(
                         (pkg) =>
                             pkg.storeProduct.identifier.contains('premium'),
-                        orElse: () => snapshot.data!.first,
+                        orElse: () => packages.first,
                       );
 
                       return ElevatedButton.icon(
@@ -503,12 +525,12 @@ class _EditionsScreenState extends State<EditionsScreen> {
 
                                 // Capture BuildContext-dependent objects before async operations
                                 final subscriptionService =
-                                    Provider.of<SubscriptionService>(
+                                    ProviderHelper.safeGetOrThrow<SubscriptionService>(
                                   context,
                                   listen: false,
                                 );
                                 final analyticsService =
-                                    Provider.of<AnalyticsService>(
+                                    ProviderHelper.safeGetOrThrow<AnalyticsService>(
                                   context,
                                   listen: false,
                                 );
@@ -562,17 +584,21 @@ class _EditionsScreenState extends State<EditionsScreen> {
                                     messenger.hideCurrentSnackBar();
                                     await analyticsService.logError(
                                       'purchase_error',
-                                      e.toString(),
+                                      AppLocalizations.of(context)
+                                              ?.purchaseError ??
+                                          'Purchase failed. Please try again.',
                                     );
 
                                     // Check context.mounted again after async operation
                                     if (!context.mounted) return;
 
-                                    ErrorHandler.showError(
+                                    unawaited(ErrorHandler.showError(
                                       context,
-                                      'An error occurred during purchase: ${e.toString()}',
+                                      AppLocalizations.of(context)
+                                              ?.purchaseError ??
+                                          'Purchase failed. Please try again.',
                                       title: 'Purchase Error',
-                                    );
+                                    ),);
                                   }
                                 } finally {
                                   if (mounted) {
@@ -614,9 +640,13 @@ class _EditionsScreenState extends State<EditionsScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: () => NavigationHelper.safePop(context),
-                child: const Center(child: Text('Maybe Later')),
+              Semantics(
+                label: 'Maybe Later',
+                button: true,
+                child: TextButton(
+                  onPressed: () => NavigationHelper.safePop(context),
+                  child: const Center(child: Text('Maybe Later')),
+                ),
               ),
             ],
           ),

@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 
 /// Game instruction messages and tips system
 class GameInstructions {
@@ -19,14 +19,14 @@ class GameInstructions {
         id: 'double_tap',
         title: localizations?.instructionHowToPlayTitle ?? 'How to Play',
         message: localizations?.instructionHowToPlayMessage ??
-            'Tap once on a tile to reveal and select it as an answer.\n\nSelect exactly ${GameService.expectedCorrectAnswers} correct answers to win the round.',
+            'Tap once on a tile to reveal and select it as an answer.\n\nSelect exactly ${3} correct answers to win the round.',
         showOnce: true,
       ),
       InstructionMessage(
         id: 'select_three',
         title: localizations?.instructionSelectThreeTitle ?? 'Select 3 Answers',
         message: localizations?.instructionSelectThreeMessage ??
-            'You need to select exactly ${GameService.expectedCorrectAnswers} correct answers to win the round.\n\nPerfect rounds give you +${GameService.expectedCorrectAnswers * 10} points!',
+            'You need to select exactly ${3} correct answers to win the round.\n\nPerfect rounds give you +${3 * 10} points!',
         showOnce: false,
       ),
       InstructionMessage(
@@ -48,7 +48,7 @@ class GameInstructions {
         id: 'speed_mode',
         title: localizations?.instructionSpeedModeTitle ?? 'Speed Mode',
         message: localizations?.instructionSpeedModeMessage ??
-            'Speed mode shows all words immediately—no memorization phase!\n\nYou have just 7 seconds to select ${GameService.expectedCorrectAnswers} correct answers. Think fast!',
+            'Speed mode shows all words immediately—no memorization phase!\n\nYou have just 7 seconds to select ${3} correct answers. Think fast!',
         showOnce: false,
       ),
       InstructionMessage(
@@ -62,7 +62,7 @@ class GameInstructions {
         id: 'scoring',
         title: localizations?.instructionScoringTitle ?? 'Scoring',
         message: localizations?.instructionScoringMessage ??
-            'Perfect round (${GameService.expectedCorrectAnswers}/${GameService.expectedCorrectAnswers}): +${GameService.expectedCorrectAnswers * 10} points\n\nPartial (1-${GameService.expectedCorrectAnswers - 1}/${GameService.expectedCorrectAnswers}): +10 points per correct answer\n\nWrong (0/${GameService.expectedCorrectAnswers}): Lose a life',
+            'Perfect round (${3}/${3}): +${3 * 10} points\n\nPartial (1-${3 - 1}/${3}): +10 points per correct answer\n\nWrong (0/${3}): Lose a life',
         showOnce: false,
       ),
       InstructionMessage(
@@ -86,7 +86,7 @@ class GameInstructions {
         id: 'regular_mode',
         title: 'Regular Mode',
         message:
-            'Regular mode shows all words immediately—no memorization phase!\n\nYou have 15 seconds to select ${GameService.expectedCorrectAnswers} correct answers.\n\nMore time than Speed mode, but still fast-paced!',
+            'Regular mode shows all words immediately—no memorization phase!\n\nYou have 15 seconds to select ${3} correct answers.\n\nMore time than Speed mode, but still fast-paced!',
         showOnce: false,
       ),
       // Random Mode
@@ -142,7 +142,7 @@ class GameInstructions {
         id: 'perfect_mode',
         title: 'Perfect Mode',
         message:
-            'Perfect mode: Zero tolerance for mistakes!\n\nYou must get all ${GameService.expectedCorrectAnswers} correct answers.\n\nOne wrong answer = game over. Precision is everything!',
+            'Perfect mode: Zero tolerance for mistakes!\n\nYou must get all ${3} correct answers.\n\nOne wrong answer = game over. Precision is everything!',
         showOnce: false,
       ),
       // Survival Mode
@@ -298,10 +298,6 @@ class GameInstructions {
 
 /// Instruction message model
 class InstructionMessage {
-  final String id;
-  final String title;
-  final String message;
-  final bool showOnce;
 
   const InstructionMessage({
     required this.id,
@@ -309,4 +305,8 @@ class InstructionMessage {
     required this.message,
     this.showOnce = false,
   });
+  final String id;
+  final String title;
+  final String message;
+  final bool showOnce;
 }

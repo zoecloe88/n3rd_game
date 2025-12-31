@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
@@ -7,7 +8,11 @@ import 'package:n3rd_game/screens/settings_screen.dart';
 import 'package:n3rd_game/screens/feedback_screen.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/haptic_service.dart';
 
 class MoreMenuScreen extends StatelessWidget {
   const MoreMenuScreen({super.key});
@@ -15,25 +20,32 @@ class MoreMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
-            child: Column(
+          child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
               // Menu items (header removed - redundant since bottom nav shows "More")
               Expanded(
                 child: ListView(
+                  // Performance optimization: Add cache extent for better scroll performance
+                  cacheExtent: 200.0,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   children: [
                     // Account Section
-                    _buildSectionHeader(context, 'Account'),
+                    _buildSectionHeader(
+                      context,
+                      AppLocalizations.of(context)?.account ?? 'Account',
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.person_outline,
-                      title: 'Profile',
-                      subtitle: 'Edit profile and account settings',
+                      title: AppLocalizations.of(context)?.profile ?? 'Profile',
+                      subtitle: AppLocalizations.of(context)?.profileSubtitle ??
+                          'Edit profile and account settings',
                       onTap: () => NavigationHelper.safePush(
                         context,
                         MaterialPageRoute(
@@ -44,23 +56,35 @@ class MoreMenuScreen extends StatelessWidget {
                     _buildMenuItem(
                       context,
                       icon: Icons.card_membership_outlined,
-                      title: 'Subscriptions',
-                      subtitle: 'Manage your subscription',
-                      onTap: () => Navigator.of(
+                      title: AppLocalizations.of(context)?.subscriptions ??
+                          'Subscriptions',
+                      subtitle:
+                          AppLocalizations.of(context)?.subscriptionsSubtitle ??
+                              'Manage your subscription',
+                      onTap: () => NavigationHelper.safeNavigate(
                         context,
-                      ).pushNamed('/subscription-management'),
+                        '/subscription-management',
+                      ),
                     ),
                     const SizedBox(height: 8),
 
                     // Features Section
-                    _buildSectionHeader(context, 'Features'),
+                    _buildSectionHeader(
+                      context,
+                      AppLocalizations.of(context)?.features ?? 'Features',
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.event_available_outlined,
-                      title: 'Daily Challenges',
-                      subtitle: 'Complete daily challenges',
+                      title: AppLocalizations.of(context)?.dailyChallenges ??
+                          'Daily Challenges',
+                      subtitle: AppLocalizations.of(context)
+                              ?.dailyChallengesSubtitle ??
+                          'Complete daily challenges',
                       onTap: () => NavigationHelper.safeNavigate(
-                          context, '/daily-challenges',),
+                        context,
+                        '/daily-challenges',
+                      ),
                     ),
                     Consumer<SubscriptionService>(
                       builder: (context, subscriptionService, _) {
@@ -70,8 +94,11 @@ class MoreMenuScreen extends StatelessWidget {
                         return _buildMenuItem(
                           context,
                           icon: Icons.school_outlined,
-                          title: 'Learning Mode',
-                          subtitle: 'Review missed questions',
+                          title: AppLocalizations.of(context)?.learningMode ??
+                              'Learning Mode',
+                          subtitle: AppLocalizations.of(context)
+                                  ?.learningModeSubtitle ??
+                              'Review missed questions',
                           onTap: () => NavigationHelper.safeNavigate(
                             context,
                             '/learning',
@@ -87,8 +114,12 @@ class MoreMenuScreen extends StatelessWidget {
                         return _buildMenuItem(
                           context,
                           icon: Icons.trending_up_outlined,
-                          title: 'Performance Insights',
-                          subtitle: 'Detailed analytics',
+                          title: AppLocalizations.of(context)
+                                  ?.performanceInsights ??
+                              'Performance Insights',
+                          subtitle: AppLocalizations.of(context)
+                                  ?.performanceInsightsSubtitle ??
+                              'Detailed analytics',
                           onTap: () => NavigationHelper.safeNavigate(
                             context,
                             '/performance-insights',
@@ -99,30 +130,28 @@ class MoreMenuScreen extends StatelessWidget {
                     _buildMenuItem(
                       context,
                       icon: Icons.fitness_center_outlined,
-                      title: 'Practice Mode',
-                      subtitle: 'Practice without scoring',
+                      title: AppLocalizations.of(context)?.practiceMode ??
+                          'Practice Mode',
+                      subtitle:
+                          AppLocalizations.of(context)?.practiceModeSubtitle ??
+                              'Practice without scoring',
                       onTap: () =>
                           NavigationHelper.safeNavigate(context, '/practice'),
                     ),
-                    _buildMenuItem(
-                      context,
-                      icon: Icons.create_outlined,
-                      title: 'Trivia Creator',
-                      subtitle: 'Create your own trivia',
-                      onTap: () => NavigationHelper.safeNavigate(
-                        context,
-                        '/trivia-creator',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
 
                     // Support Section
-                    _buildSectionHeader(context, 'Support'),
+                    _buildSectionHeader(
+                      context,
+                      AppLocalizations.of(context)?.support ?? 'Support',
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.help_outline,
-                      title: 'Help Center',
-                      subtitle: 'FAQs, tips, and guides',
+                      title: AppLocalizations.of(context)?.helpCenter ??
+                          'Help Center',
+                      subtitle:
+                          AppLocalizations.of(context)?.helpCenterSubtitle ??
+                              'FAQs, tips, and guides',
                       onTap: () => NavigationHelper.safeNavigate(
                         context,
                         '/help-center',
@@ -131,8 +160,11 @@ class MoreMenuScreen extends StatelessWidget {
                     _buildMenuItem(
                       context,
                       icon: Icons.feedback_outlined,
-                      title: 'Submit Feedback',
-                      subtitle: 'Report issues or suggest improvements',
+                      title: AppLocalizations.of(context)?.submitFeedback ??
+                          'Submit Feedback',
+                      subtitle: AppLocalizations.of(context)
+                              ?.submitFeedbackSubtitle ??
+                          'Report issues or suggest improvements',
                       onTap: () => showDialog(
                         context: context,
                         builder: (context) => const FeedbackScreen(),
@@ -141,12 +173,18 @@ class MoreMenuScreen extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // Settings Section
-                    _buildSectionHeader(context, 'Settings'),
+                    _buildSectionHeader(
+                      context,
+                      AppLocalizations.of(context)?.settings ?? 'Settings',
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      subtitle: 'App preferences and options',
+                      title:
+                          AppLocalizations.of(context)?.settings ?? 'Settings',
+                      subtitle:
+                          AppLocalizations.of(context)?.settingsSubtitle ??
+                              'App preferences and options',
                       onTap: () => NavigationHelper.safePush(
                         context,
                         MaterialPageRoute(
@@ -157,12 +195,17 @@ class MoreMenuScreen extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // About Section
-                    _buildSectionHeader(context, 'About'),
+                    _buildSectionHeader(
+                      context,
+                      AppLocalizations.of(context)?.about ?? 'About',
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.info_outline,
-                      title: 'About N3RD Trivia',
-                      subtitle: 'Version 1.0.0',
+                      title: AppLocalizations.of(context)?.aboutN3rdTrivia ??
+                          'About N3RD Trivia',
+                      subtitle: AppLocalizations.of(context)?.version ??
+                          'Version 1.0.0',
                       onTap: () => _showAboutDialog(context),
                     ),
                     const SizedBox(height: 8),
@@ -170,8 +213,10 @@ class MoreMenuScreen extends StatelessWidget {
                     _buildMenuItem(
                       context,
                       icon: Icons.logout,
-                      title: 'Sign Out',
-                      subtitle: 'Sign out of your account',
+                      title:
+                          AppLocalizations.of(context)?.signOut ?? 'Sign Out',
+                      subtitle: AppLocalizations.of(context)?.signOutSubtitle ??
+                          'Sign out of your account',
                       onTap: () => _showSignOutDialog(context),
                     ),
                     const SizedBox(height: 24),
@@ -210,34 +255,41 @@ class MoreMenuScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.transparent, // Transparent background to match Stats tab
+        color: Colors.white, // White background
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2), // White border to match Stats tab
+          color: Colors.black.withValues(alpha: 0.1), // Subtle border
           width: 1,
         ),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.white, size: 24), // White icons
+      child: Semantics(
+        label: '$title. $subtitle',
+        button: true,
+        child: ListTile(
+        leading: Icon(icon, color: Colors.black, size: 24), // Black icons
         title: Text(
           title,
           style: AppTypography.titleLarge.copyWith(
-            color: Colors.white, // White text
+            color: Colors.black, // Black text
             fontWeight: FontWeight.w600,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: AppTypography.bodyMedium.copyWith(
-            color: Colors.white.withValues(alpha: 0.8), // White text with opacity
+            color: Colors.black.withValues(alpha: 0.7), // Black text with opacity
           ),
         ),
         trailing: Icon(
           Icons.chevron_right,
-          color: Colors.white.withValues(alpha: 0.8), // White chevron
+          color: Colors.black.withValues(alpha: 0.7), // Black chevron
         ),
-        onTap: onTap,
+        onTap: () {
+          HapticService().lightImpact();
+          onTap();
+        },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
       ),
     );
   }
@@ -249,41 +301,58 @@ class MoreMenuScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: dialogColors.cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text('Sign Out?', style: AppTypography.headlineLarge),
+        title: Text(
+          AppLocalizations.of(context)?.signOutConfirm ?? 'Sign Out?',
+          style: AppTypography.headlineLarge,
+        ),
         content: Text(
-          'Are you sure you want to sign out?',
+          AppLocalizations.of(context)?.signOutConfirmMessage ??
+              'Are you sure you want to sign out?',
           style: AppTypography.bodyLarge,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: AppTypography.labelLarge),
+          Semantics(
+            label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context),
+              child: Text(
+                AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                style: AppTypography.labelLarge,
+              ),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
+          Semantics(
+            label: AppLocalizations.of(context)?.signOut ?? 'Sign Out',
+            button: true,
+            child: ElevatedButton(
+              onPressed: () async {
+              NavigationHelper.safePop(context);
               try {
-                final authService = Provider.of<AuthService>(context, listen: false);
+                final authService =
+                    ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
                 await authService.signOut();
                 if (context.mounted) {
-                  NavigationHelper.safeNavigate(context, '/login', replace: true);
+                  unawaited(NavigationHelper.safeNavigate(context, '/login',
+                      replace: true,),);
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error signing out: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  ErrorHandler.showSnackBar(
+                    context,
+                    AppLocalizations.of(context)?.signOutError ??
+                        'Failed to sign out. Please try again.',
+                    error: e,
                   );
                 }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text(
-              'Sign Out',
+              AppLocalizations.of(context)?.signOut ?? 'Sign Out',
               style: AppTypography.labelLarge.copyWith(color: Colors.white),
             ),
+          ),
           ),
         ],
       ),
@@ -330,9 +399,13 @@ class MoreMenuScreen extends StatelessWidget {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: AppTypography.labelLarge),
+          Semantics(
+            label: AppLocalizations.of(context)?.close ?? 'Close',
+            button: true,
+            child: TextButton(
+              onPressed: () => NavigationHelper.safePop(context),
+              child: Text('Close', style: AppTypography.labelLarge),
+            ),
           ),
         ],
       ),

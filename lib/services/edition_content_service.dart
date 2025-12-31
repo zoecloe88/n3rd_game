@@ -3,41 +3,70 @@ import 'package:n3rd_game/services/trivia_generator_service.dart';
 import 'package:n3rd_game/data/trivia_templates_consolidated.dart'
     deferred as templates; // Deferred to reduce kernel size
 import 'package:n3rd_game/models/trivia_item.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service to load trivia content for specific editions
 class EditionContentService extends ChangeNotifier {
-  static final EditionContentService _instance =
-      EditionContentService._internal();
   factory EditionContentService() => _instance;
   EditionContentService._internal() {
     _initialize();
   }
+  static final EditionContentService _instance =
+      EditionContentService._internal();
 
   final Map<String, List<TriviaTemplate>> _editionTemplates = {};
   bool _initialized = false;
+  
+  // Race condition protection (for safety, though constructor is typically single-threaded)
+  static bool _isInitializing = false;
 
   void _initialize() {
-    if (_initialized) return;
-
-    // Templates are already initialized in main.dart before this service is created
-    // If not initialized, it means initialization failed in main.dart and we can't recover here
-    if (!templates.EditionTriviaTemplates.isInitialized) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Warning: EditionTriviaTemplates not initialized. This should not happen - templates are initialized in main.dart.',
-        );
-        debugPrint(
-          '   Last validation error: ${templates.EditionTriviaTemplates.lastValidationError}',
-        );
-      }
-      // Don't attempt to initialize here - it would fail with the same error
-      // Rely on main.dart initialization and log the issue
+    if (_initialized) {
+      return;
     }
+    
+    // Check if initialization is already in progress
+    if (_isInitializing) {
+      // Another thread is initializing, skip
+      return;
+    }
+    
+    // Start initialization
+    _isInitializing = true;
 
-    // Load templates for each edition
-    _loadEditionTemplates();
+    try {
+      // Templates are already initialized in main.dart before this service is created
+      // If not initialized, it means initialization failed in main.dart and we can't recover here
+      if (!templates.EditionTriviaTemplates.isInitialized) {
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ Warning: EditionTriviaTemplates not initialized. This should not happen - templates are initialized in main.dart.',
+          );
+          debugPrint(
+            '   Last validation error: ${templates.EditionTriviaTemplates.lastValidationError}',
+          );
+        }
+        // Don't attempt to initialize here - it would fail with the same error
+        // Rely on main.dart initialization and log the issue
+      }
 
-    _initialized = true;
+      // Load templates for each edition
+      _loadEditionTemplates();
+
+      _initialized = true;
+    } finally {
+      // Reset initialization state
+      _isInitializing = false;
+    }
+  }
+  
+  /// Reset service state for testing
+  /// Clears all cached templates and resets initialization state
+  static void resetForTesting() {
+    _instance._editionTemplates.clear();
+    _instance._initialized = false;
+    _isInitializing = false;
+    _instance.notifyListeners();
   }
 
   void _loadEditionTemplates() {
@@ -144,7 +173,7 @@ class EditionContentService extends ChangeNotifier {
 
     for (final editionId in editionIds) {
       _editionTemplates[editionId] =
-          templates.EditionTriviaTemplates.getTemplatesForEdition(editionId);
+          templates.EditionTriviaTemplates.getTemplatesForTheme(editionId);
     }
   }
 
@@ -175,14 +204,32 @@ class EditionContentService extends ChangeNotifier {
   ) {
     final templates = getTemplatesForEdition(editionId);
     if (templates.isEmpty) {
-      debugPrint('Warning: No templates found for edition $editionId');
+      LoggerService.warning('Warning: No templates found for edition $editionId');
       return [];
     }
 
-    // Use existing generator or create new one
-    // Note: New instance won't have analytics/personalization services
-    // This is acceptable for edition-specific content but analytics won't be tracked
-    final generator = existingGenerator ?? TriviaGeneratorService();
+    // Use existing generator or create new one with error handling
+    TriviaGeneratorService generator;
+    if (existingGenerator != null) {
+      generator = existingGenerator;
+    } else {
+      try {
+        generator = TriviaGeneratorService();
+        // Check if generator has valid templates
+        if (generator.totalPossibleCombinations == 0) {
+          LoggerService.warning(
+            'TriviaGeneratorService created with no templates, using fallback',
+          );
+          // Generator is in fallback mode - will return empty list when used
+        }
+      } catch (e) {
+        LoggerService.error(
+          'Failed to create TriviaGeneratorService for edition $editionId',
+          error: e,
+        );
+        return []; // Return empty list on creation failure
+      }
+    }
 
     // Add edition-specific templates to generator
     generator.addTemplates(templates);
@@ -194,7 +241,7 @@ class EditionContentService extends ChangeNotifier {
         usePersonalization: true,
       );
     } catch (e) {
-      debugPrint('Error generating trivia for edition $editionId: $e');
+      LoggerService.error('Error generating trivia for edition $editionId', error: e);
       // Return empty list on error (caller should handle empty result)
       return [];
     }

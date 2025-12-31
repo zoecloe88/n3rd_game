@@ -1,12 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/services/secure_storage_service.dart';
+import 'package:n3rd_game/services/rate_limiter_service.dart';
+import 'package:n3rd_game/utils/device_fingerprint.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/config/app_config.dart';
 
 class AuthService extends ChangeNotifier {
   FirebaseAuth? _auth;
@@ -44,9 +53,29 @@ class AuthService extends ChangeNotifier {
   String? _userEmail;
   User? _firebaseUser;
 
-  bool get isAuthenticated => _isAuthenticated;
+  // Session management
+  DateTime? _lastSessionActivity;
+  Timer? _sessionTimeoutTimer;
+  bool _sessionExpired = false;
+
+  // Biometric authentication
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+
+  // Account lockout
+  final RateLimiterService _rateLimiter = RateLimiterService();
+
+  // MFA infrastructure (preparation)
+  bool _mfaEnabled = false;
+
+  bool get isAuthenticated => _isAuthenticated && !_sessionExpired;
   String? get userEmail => _userEmail ?? _firebaseUser?.email;
   User? get currentUser => _firebaseUser;
+  bool get isBiometricAvailable => _biometricAvailable;
+  bool get isBiometricEnabled => _biometricEnabled;
+  bool get isMfaEnabled => _mfaEnabled;
+  bool get isSessionExpired => _sessionExpired;
 
   // Get or initialize SharedPreferences
   // CRITICAL: Handle SharedPreferences initialization failures to prevent crashes
@@ -128,26 +157,324 @@ class AuthService extends ChangeNotifier {
     return null; // Password is strong
   }
 
+  // Session management helpers
+  Future<void> _loadSessionState() async {
+    try {
+      final prefs = await _getPrefs();
+      final lastActivityMillis = prefs.getInt('last_session_activity');
+      if (lastActivityMillis != null) {
+        _lastSessionActivity =
+            DateTime.fromMillisecondsSinceEpoch(lastActivityMillis);
+      }
+    } catch (e) {
+      LoggerService.debug('Failed to load session state', error: e);
+    }
+  }
+
+  Future<void> _saveSessionState() async {
+    try {
+      final prefs = await _getPrefs();
+      if (_lastSessionActivity != null) {
+        await prefs.setInt('last_session_activity',
+            _lastSessionActivity!.millisecondsSinceEpoch,);
+      }
+    } catch (e) {
+      LoggerService.debug('Failed to save session state', error: e);
+    }
+  }
+
+  void _updateSessionActivity() {
+    _lastSessionActivity = DateTime.now();
+    _saveSessionState();
+    _sessionExpired = false;
+  }
+
+  void _checkSessionTimeout() {
+    if (_lastSessionActivity == null) {
+      _sessionExpired = false;
+      return;
+    }
+
+    final elapsed = DateTime.now().difference(_lastSessionActivity!);
+    if (elapsed > AppConfig.sessionTimeoutDuration) {
+      _sessionExpired = true;
+      _isAuthenticated = false;
+    }
+  }
+
+  void _startSessionTimeoutTimer() {
+    _stopSessionTimeoutTimer();
+    _sessionTimeoutTimer =
+        Timer.periodic(AppConfig.sessionActivityCheckInterval, (_) {
+      _checkSessionTimeout();
+      if (_sessionExpired) {
+        notifyListeners();
+      }
+    });
+  }
+
+  void _stopSessionTimeoutTimer() {
+    _sessionTimeoutTimer?.cancel();
+    _sessionTimeoutTimer = null;
+  }
+
+  // Device fingerprinting for security tracking
+  Future<void> _logDeviceFingerprint(String action) async {
+    try {
+      final fingerprint = await DeviceFingerprint.getFingerprint();
+      final deviceInfo = await DeviceFingerprint.getDeviceInfo();
+      LoggerService.info(
+        'Auth action: $action | fingerprint: $fingerprint | device: $deviceInfo | email: ${_userEmail ?? 'none'}',
+      );
+    } catch (e) {
+      LoggerService.debug('Failed to log device fingerprint', error: e);
+    }
+  }
+
+  // Check account lockout
+  Future<bool> _checkAccountLockout(String email) async {
+    final action = 'login_attempt_$email';
+    final isAllowed = await _rateLimiter.isAllowed(
+      action,
+      maxAttempts: AppConfig.maxFailedLoginAttempts,
+      window: AppConfig.accountLockoutDuration,
+    );
+
+    if (!isAllowed) {
+      await _logDeviceFingerprint('account_locked');
+      LoggerService.warning('Account lockout triggered for email: $email');
+    }
+
+    return isAllowed;
+  }
+
+  // Record failed login attempt
+  Future<void> _recordFailedLoginAttempt(String email) async {
+    final action = 'login_attempt_$email';
+    await _rateLimiter.isAllowed(
+      action,
+      maxAttempts: AppConfig.maxFailedLoginAttempts,
+      window: AppConfig.accountLockoutDuration,
+    );
+    await _logDeviceFingerprint('login_failed');
+  }
+
+  // Reset failed login attempts on successful login
+  Future<void> _resetFailedLoginAttempts(String email) async {
+    final action = 'login_attempt_$email';
+    await _rateLimiter.reset(action);
+    await _logDeviceFingerprint('login_success');
+  }
+
+  // Biometric authentication
+  Future<bool> authenticateWithBiometrics({String? reason}) async {
+    if (!_biometricAvailable) {
+      throw AuthenticationException(
+          'Biometric authentication is not available on this device',);
+    }
+
+    try {
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: reason ?? 'Please authenticate to continue',
+      );
+
+      if (authenticated) {
+        _updateSessionActivity();
+        await _logDeviceFingerprint('biometric_auth_success');
+      }
+
+      return authenticated;
+    } catch (e) {
+      LoggerService.error('Biometric authentication failed', error: e);
+      await _logDeviceFingerprint('biometric_auth_failed');
+      throw AuthenticationException(
+          'Biometric authentication failed: ${e.toString()}',);
+    }
+  }
+
+  // Enable/disable biometric authentication
+  Future<void> setBiometricEnabled(bool enabled) async {
+    if (enabled && !_biometricAvailable) {
+      throw AuthenticationException(
+          'Biometric authentication is not available',);
+    }
+
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setBool('biometric_enabled', enabled);
+      _biometricEnabled = enabled;
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error('Failed to update biometric preference', error: e);
+      throw StorageException(
+          'Failed to update biometric preference: ${e.toString()}',);
+    }
+  }
+
+  // MFA infrastructure (preparation)
+  Future<bool> checkMfaRequired() async {
+    // MFA infrastructure - ready for future implementation
+    // Returns false for now, but framework is in place
+    return _mfaEnabled;
+  }
+
+  // Enable/disable MFA (infrastructure preparation)
+  Future<void> setMfaEnabled(bool enabled) async {
+    _mfaEnabled = enabled;
+    // Future: Implement MFA setup flow
+    notifyListeners();
+  }
+
+  // Re-authenticate session (called when session expires)
+  Future<void> reauthenticateSession() async {
+    if (!_sessionExpired) {
+      return;
+    }
+
+    // If biometric is enabled and available, try biometric re-auth
+    if (_biometricEnabled && _biometricAvailable) {
+      try {
+        final authenticated = await authenticateWithBiometrics(
+          reason: 'Your session has expired. Please authenticate to continue.',
+        );
+        if (authenticated) {
+          _sessionExpired = false;
+          _isAuthenticated = true;
+          _updateSessionActivity();
+          _startSessionTimeoutTimer();
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        LoggerService.warning('Biometric re-authentication failed', error: e);
+      }
+    }
+
+    // If biometric fails or is not enabled, require full re-login
+    _isAuthenticated = false;
+    notifyListeners();
+    throw AuthenticationException('Session expired. Please sign in again.');
+  }
+
   // Load auth state on init
   Future<void> init() async {
+    // Check biometric availability
+    try {
+      _biometricAvailable = await _localAuth.canCheckBiometrics;
+      if (!_biometricAvailable) {
+        final availableBiometrics = await _localAuth.getAvailableBiometrics();
+        _biometricAvailable = availableBiometrics.isNotEmpty;
+      }
+    } catch (e) {
+      LoggerService.debug('Biometric check failed', error: e);
+      _biometricAvailable = false;
+    }
+
+    // Load biometric preference
+    try {
+      final prefs = await _getPrefs();
+      _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+    } catch (e) {
+      LoggerService.debug('Failed to load biometric preference', error: e);
+    }
+
     // Try to initialize Firebase Auth
     try {
-      Firebase.app();
+      if (!FirebaseHelper.isInitialized()) {
+        LoggerService.debug('Firebase not initialized during init');
+        _firebaseAvailable = false;
+        return;
+      }
       _auth = FirebaseAuth.instance;
       _firebaseAvailable = true;
 
+      // Check SharedPreferences as fallback before waiting for Firebase Auth
+      final prefs = await _getPrefs();
+      final prefsAuthenticated = prefs.getBool('isAuthenticated') ?? false;
+      final secureStorage = SecureStorageService();
+      final prefsEmail = await secureStorage.getEmail() ?? prefs.getString('userEmail');
+
+      // Use Completer to wait for first auth state change
+      final authStateCompleter = Completer<void>();
+      bool authStateReceived = false;
+
       // Listen to Firebase auth state changes
-      _authStateSubscription = _auth!.authStateChanges().listen((User? user) {
+      _authStateSubscription = _auth!.authStateChanges().listen((user) {
         _firebaseUser = user;
         _isAuthenticated = user != null;
         _userEmail = user?.email;
+        
+        if (!authStateReceived) {
+          authStateReceived = true;
+          if (!authStateCompleter.isCompleted) {
+            authStateCompleter.complete();
+          }
+        }
+        
+        if (_isAuthenticated) {
+          _updateSessionActivity();
+          _startSessionTimeoutTimer();
+        } else {
+          _stopSessionTimeoutTimer();
+        }
         notifyListeners();
       });
 
-      // Check current Firebase user
+      // Check current Firebase user immediately
       _firebaseUser = _auth!.currentUser;
       _isAuthenticated = _firebaseUser != null;
       _userEmail = _firebaseUser?.email;
+
+      // If currentUser is null, use SharedPreferences as temporary fallback
+      // and wait for auth state restoration
+      if (!_isAuthenticated && prefsAuthenticated) {
+        _isAuthenticated = true;
+        _userEmail = prefsEmail;
+        notifyListeners();
+      }
+
+      // Wait for first auth state change with timeout (2 seconds)
+      // This ensures Firebase Auth has time to restore the session
+      try {
+        await authStateCompleter.future.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            // Timeout: use SharedPreferences if Firebase Auth hasn't restored session
+            if (!_isAuthenticated && prefsAuthenticated) {
+              _isAuthenticated = true;
+              _userEmail = prefsEmail;
+              LoggerService.debug('Using SharedPreferences fallback for auth state');
+              notifyListeners();
+            }
+          },
+        );
+      } catch (e) {
+        LoggerService.debug('Auth state wait error', error: e);
+        // On error, use SharedPreferences fallback if available
+        if (!_isAuthenticated && prefsAuthenticated) {
+          _isAuthenticated = true;
+          _userEmail = prefsEmail;
+          notifyListeners();
+        }
+      }
+
+      // Finalize auth state based on Firebase Auth or SharedPreferences
+      if (_isAuthenticated) {
+        await _loadSessionState();
+        _updateSessionActivity();
+        _startSessionTimeoutTimer();
+      } else if (prefsAuthenticated) {
+        // Still use SharedPreferences if Firebase Auth says not authenticated
+        // but we have persisted auth state (session might have expired on server)
+        _isAuthenticated = true;
+        _userEmail = prefsEmail;
+        await _loadSessionState();
+        _checkSessionTimeout();
+        if (!_sessionExpired) {
+          _updateSessionActivity();
+          _startSessionTimeoutTimer();
+        }
+      }
 
       notifyListeners();
       return;
@@ -160,11 +487,29 @@ class AuthService extends ChangeNotifier {
       );
     }
 
-    // Fallback to local storage
+    // Fallback to local storage - use secure storage for email
     try {
       final prefs = await _getPrefs();
       _isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
-      _userEmail = prefs.getString('userEmail');
+      // Try secure storage first for email, fallback to SharedPreferences for migration
+      final secureStorage = SecureStorageService();
+      _userEmail =
+          await secureStorage.getEmail() ?? prefs.getString('userEmail');
+      // Migrate email to secure storage if found in SharedPreferences
+      if (_userEmail != null && prefs.containsKey('userEmail')) {
+        await secureStorage.saveEmail(_userEmail!);
+        // Optionally remove from SharedPreferences after migration (keep for now for compatibility)
+      }
+
+      if (_isAuthenticated) {
+        await _loadSessionState();
+        _checkSessionTimeout();
+        if (!_sessionExpired) {
+          _updateSessionActivity();
+          _startSessionTimeoutTimer();
+        }
+      }
+
       notifyListeners();
     } catch (e2) {
       // Don't throw - just log and continue with default state
@@ -180,6 +525,25 @@ class AuthService extends ChangeNotifier {
     // Validate email format
     if (!_isValidEmail(email)) {
       throw ValidationException('Invalid email address format');
+    }
+
+    // Check account lockout
+    final isAllowed = await _checkAccountLockout(email);
+    if (!isAllowed) {
+      final remainingTime = await _rateLimiter.getTimeUntilReset(
+        'login_attempt_$email',
+        window: AppConfig.accountLockoutDuration,
+      );
+      if (remainingTime != null) {
+        final minutes = remainingTime.inMinutes;
+        throw AuthenticationException(
+          'Account locked due to too many failed attempts. Please try again in $minutes minute${minutes != 1 ? 's' : ''}.',
+        );
+      } else {
+        throw AuthenticationException(
+          'Account locked due to too many failed attempts. Please try again later.',
+        );
+      }
     }
 
     // Validate password (for login, just check minimum length)
@@ -201,12 +565,34 @@ class AuthService extends ChangeNotifier {
         _firebaseUser = userCredential.user;
         _isAuthenticated = _firebaseUser != null;
         _userEmail = _firebaseUser?.email;
+        _sessionExpired = false;
+
+        // Persist auth state to SharedPreferences for fallback on app restart
+        try {
+          final prefs = await _getPrefs();
+          await prefs.setBool('isAuthenticated', true);
+        } catch (e) {
+          LoggerService.debug('Failed to persist auth state', error: e);
+        }
+
+        // Reset failed login attempts on successful login
+        await _resetFailedLoginAttempts(email.trim());
+
+        // Update session activity
+        _updateSessionActivity();
+        _startSessionTimeoutTimer();
+
+        // Log device fingerprint
+        await _logDeviceFingerprint('login_success');
 
         notifyListeners();
         return;
       } on FirebaseAuthException catch (e, stackTrace) {
+        // Record failed login attempt
+        await _recordFailedLoginAttempt(email.trim());
+
         // Log error to Crashlytics
-        FirebaseCrashlytics.instance.recordError(e, stackTrace, fatal: false);
+        unawaited(FirebaseCrashlytics.instance.recordError(e, stackTrace, fatal: false));
 
         // Handle Firebase auth errors
         String errorMessage = 'Authentication failed';
@@ -234,6 +620,7 @@ class AuthService extends ChangeNotifier {
         }
         throw AuthenticationException(errorMessage);
       } catch (e) {
+        await _recordFailedLoginAttempt(email.trim());
         if (e is AuthenticationException) {
           rethrow;
         }
@@ -246,12 +633,29 @@ class AuthService extends ChangeNotifier {
       final prefs = await _getPrefs();
       // For local storage, we'll just store the email (no password validation)
       // This is a simple fallback for when Firebase isn't available
+      // Use secure storage for email encryption
+      final secureStorage = SecureStorageService();
+      await secureStorage.saveEmail(email.trim());
       await prefs.setBool('isAuthenticated', true);
+      // Keep in SharedPreferences for backward compatibility during migration
       await prefs.setString('userEmail', email.trim());
       _isAuthenticated = true;
       _userEmail = email.trim();
+      _sessionExpired = false;
+
+      // Reset failed login attempts
+      await _resetFailedLoginAttempts(email.trim());
+
+      // Update session activity
+      _updateSessionActivity();
+      _startSessionTimeoutTimer();
+
+      // Log device fingerprint
+      await _logDeviceFingerprint('login_success');
+
       notifyListeners();
     } catch (e) {
+      await _recordFailedLoginAttempt(email.trim());
       throw AuthenticationException('Failed to sign in: ${e.toString()}');
     }
   }
@@ -290,6 +694,22 @@ class AuthService extends ChangeNotifier {
         _firebaseUser = userCredential.user;
         _isAuthenticated = _firebaseUser != null;
         _userEmail = _firebaseUser?.email;
+        _sessionExpired = false;
+
+        // Persist auth state to SharedPreferences for fallback on app restart
+        try {
+          final prefs = await _getPrefs();
+          await prefs.setBool('isAuthenticated', true);
+        } catch (e) {
+          LoggerService.debug('Failed to persist auth state', error: e);
+        }
+
+        // Update session activity
+        _updateSessionActivity();
+        _startSessionTimeoutTimer();
+
+        // Log device fingerprint
+        await _logDeviceFingerprint('signup_success');
 
         notifyListeners();
         return;
@@ -326,10 +746,23 @@ class AuthService extends ChangeNotifier {
       final prefs = await _getPrefs();
       // For local storage, we'll just store the email (no password validation)
       // This is a simple fallback for when Firebase isn't available
+      // Use secure storage for email encryption
+      final secureStorage = SecureStorageService();
+      await secureStorage.saveEmail(email.trim());
       await prefs.setBool('isAuthenticated', true);
+      // Keep in SharedPreferences for backward compatibility during migration
       await prefs.setString('userEmail', email.trim());
       _isAuthenticated = true;
       _userEmail = email.trim();
+      _sessionExpired = false;
+
+      // Update session activity
+      _updateSessionActivity();
+      _startSessionTimeoutTimer();
+
+      // Log device fingerprint
+      await _logDeviceFingerprint('signup_success');
+
       notifyListeners();
     } catch (e) {
       throw AuthenticationException('Failed to sign up: ${e.toString()}');
@@ -354,15 +787,27 @@ class AuthService extends ChangeNotifier {
       _firebaseUser = null;
       _isAuthenticated = false;
       _userEmail = null;
+      _sessionExpired = false;
+      _lastSessionActivity = null;
+
+      // Stop session timeout timer
+      _stopSessionTimeoutTimer();
 
       // Clear local storage
       try {
         final prefs = await _getPrefs();
         await prefs.remove('isAuthenticated');
         await prefs.remove('userEmail');
+        await prefs.remove('last_session_activity');
+        // Also clear secure storage
+        final secureStorage = SecureStorageService();
+        await secureStorage.delete('user_email');
       } catch (e) {
         // Ignore local storage errors
       }
+
+      // Log sign out
+      await _logDeviceFingerprint('signout');
 
       notifyListeners();
     } catch (e) {
@@ -400,6 +845,51 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       throw AuthenticationException(
         'Failed to update display name: ${e.toString()}',
+      );
+    }
+  }
+
+  // Update user profile image
+  Future<String> updateProfileImage(File imageFile) async {
+    final firebaseAuth = auth;
+    if (firebaseAuth == null) {
+      throw AuthenticationException(
+        'Profile image update is not available. Firebase is not initialized.',
+      );
+    }
+
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) {
+        throw AuthenticationException('No user is currently signed in');
+      }
+
+      final storage = FirebaseStorage.instance;
+      final userId = user.uid;
+      
+      // Upload to Firebase Storage at users/{userId}/profile_image.jpg
+      final ref = storage.ref().child('users/$userId/profile_image.jpg');
+      
+      // Upload file
+      await ref.putFile(imageFile);
+      
+      // Get download URL
+      final downloadUrl = await ref.getDownloadURL();
+      
+      // Update user profile photo URL
+      await user.updatePhotoURL(downloadUrl);
+      await user.reload();
+      _firebaseUser = firebaseAuth.currentUser;
+      notifyListeners();
+      
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      throw StorageException(
+        'Failed to upload profile image: ${e.message ?? e.toString()}',
+      );
+    } catch (e) {
+      throw StorageException(
+        'Failed to update profile image: ${e.toString()}',
       );
     }
   }
@@ -442,6 +932,7 @@ class AuthService extends ChangeNotifier {
   @override
   void dispose() {
     _authStateSubscription?.cancel();
+    _stopSessionTimeoutTimer();
     super.dispose();
   }
 }

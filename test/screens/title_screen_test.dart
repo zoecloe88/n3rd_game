@@ -4,25 +4,41 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/screens/title_screen.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
+import 'package:n3rd_game/services/analytics_service.dart';
+import '../utils/test_helpers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() async {
+    await TestHelpers.setupAllTestInfrastructure();
+  });
+
+  tearDownAll(() async {
+    await TestHelpers.tearDownAllTestInfrastructure();
+  });
+
   group('TitleScreen Widget Tests', () {
     late SubscriptionService subscriptionService;
     late AuthService authService;
+    late AnalyticsService analyticsService;
 
     setUp(() {
+      TestHelpers.setupMockSharedPreferences();
+      TestHelpers.setupVideoPlayerMocks();
       subscriptionService = SubscriptionService();
       authService = AuthService();
+      analyticsService = AnalyticsService();
     });
 
     tearDown(() {
       subscriptionService.dispose();
       authService.dispose();
+      analyticsService.dispose();
+      TestHelpers.clearMockSharedPreferences();
     });
 
-    testWidgets('should render title screen', (WidgetTester tester) async {
+    testWidgets('should render title screen', (tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -32,6 +48,7 @@ void main() {
             ChangeNotifierProvider<AuthService>.value(
               value: authService,
             ),
+            ChangeNotifierProvider.value(value: analyticsService),
           ],
           child: const MaterialApp(
             home: TitleScreen(),
@@ -43,7 +60,7 @@ void main() {
       expect(find.byType(TitleScreen), findsOneWidget);
     });
 
-    testWidgets('should show navigation buttons', (WidgetTester tester) async {
+    testWidgets('should show navigation buttons', (tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -53,6 +70,7 @@ void main() {
             ChangeNotifierProvider<AuthService>.value(
               value: authService,
             ),
+            ChangeNotifierProvider.value(value: analyticsService),
           ],
           child: const MaterialApp(
             home: TitleScreen(),
@@ -67,7 +85,7 @@ void main() {
       expect(find.byType(ElevatedButton), findsWidgets);
     });
 
-    testWidgets('should handle button taps', (WidgetTester tester) async {
+    testWidgets('should handle button taps', (tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -77,17 +95,20 @@ void main() {
             ChangeNotifierProvider<AuthService>.value(
               value: authService,
             ),
+            ChangeNotifierProvider.value(value: analyticsService),
           ],
           child: MaterialApp(
             home: const TitleScreen(),
             // Add routes to prevent navigation errors
             routes: {
               '/modes': (context) => const Scaffold(body: Text('Modes')),
-              '/mode-selection': (context) => const Scaffold(body: Text('Mode Selection')),
+              '/mode-selection': (context) =>
+                  const Scaffold(body: Text('Mode Selection')),
               '/stats': (context) => const Scaffold(body: Text('Stats')),
               '/settings': (context) => const Scaffold(body: Text('Settings')),
               '/friends': (context) => const Scaffold(body: Text('Friends')),
-              '/daily-challenges': (context) => const Scaffold(body: Text('Daily Challenges')),
+              '/daily-challenges': (context) =>
+                  const Scaffold(body: Text('Daily Challenges')),
             },
             onUnknownRoute: (settings) {
               // Return a dummy route for any unknown routes to prevent errors
@@ -124,5 +145,3 @@ void main() {
     });
   });
 }
-
-

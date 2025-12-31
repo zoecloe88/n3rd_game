@@ -1,11 +1,4 @@
 class VoiceProfile {
-  final String userId;
-  final Map<String, List<String>>
-      pronunciationPatterns; // word -> list of recognized pronunciations
-  final double accuracyScore; // 0.0 to 1.0
-  final DateTime calibratedAt;
-  final DateTime? lastUpdated;
-  final bool isActive;
 
   VoiceProfile({
     required this.userId,
@@ -15,17 +8,6 @@ class VoiceProfile {
     this.lastUpdated,
     this.isActive = true,
   });
-
-  Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'pronunciationPatterns': pronunciationPatterns.map(
-          (k, v) => MapEntry(k, v),
-        ),
-        'accuracyScore': accuracyScore,
-        'calibratedAt': calibratedAt.toIso8601String(),
-        'lastUpdated': lastUpdated?.toIso8601String(),
-        'isActive': isActive,
-      };
 
   factory VoiceProfile.fromJson(Map<String, dynamic> json) => VoiceProfile(
         userId: json['userId'] as String,
@@ -41,6 +23,24 @@ class VoiceProfile {
             : null,
         isActive: json['isActive'] as bool? ?? true,
       );
+  final String userId;
+  final Map<String, List<String>>
+      pronunciationPatterns; // word -> list of recognized pronunciations
+  final double accuracyScore; // 0.0 to 1.0
+  final DateTime calibratedAt;
+  final DateTime? lastUpdated;
+  final bool isActive;
+
+  Map<String, dynamic> toJson() => {
+        'userId': userId,
+        'pronunciationPatterns': pronunciationPatterns.map(
+          (k, v) => MapEntry(k, v),
+        ),
+        'accuracyScore': accuracyScore,
+        'calibratedAt': calibratedAt.toIso8601String(),
+        'lastUpdated': lastUpdated?.toIso8601String(),
+        'isActive': isActive,
+      };
 
   VoiceProfile copyWith({
     String? userId,

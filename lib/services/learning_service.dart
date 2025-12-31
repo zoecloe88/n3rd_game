@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:convert';
 import 'package:n3rd_game/models/reviewed_question.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class LearningService extends ChangeNotifier {
   static const String _storageKey = 'reviewed_questions';
@@ -61,12 +62,12 @@ class LearningService extends ChangeNotifier {
             return;
           }
         } catch (e) {
-          debugPrint('Failed to load learning data from Firestore: $e');
+          LoggerService.error('Failed to load learning data from Firestore', error: e);
         }
       }
     } catch (e) {
       _firebaseAvailable = false;
-      debugPrint('Firebase not available for learning: $e');
+      LoggerService.debug('Firebase not available for learning', error: e);
     }
 
     await _loadLocal();
@@ -87,7 +88,7 @@ class LearningService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to load learning data from local storage: $e');
+      LoggerService.error('Failed to load learning data from local storage', error: e);
     }
   }
 
@@ -99,7 +100,7 @@ class LearningService extends ChangeNotifier {
       };
       await prefs.setString(_storageKey, jsonEncode(data));
     } catch (e) {
-      debugPrint('Failed to save learning data to local storage: $e');
+      LoggerService.error('Failed to save learning data to local storage', error: e);
     }
   }
 
@@ -119,7 +120,7 @@ class LearningService extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      debugPrint('Failed to save learning data to Firestore: $e');
+      LoggerService.error('Failed to save learning data to Firestore', error: e);
     }
   }
 

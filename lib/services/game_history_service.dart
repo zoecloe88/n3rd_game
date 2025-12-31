@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/models/game_history_entry.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
+import 'package:n3rd_game/utils/game_mode_extensions.dart';
+import 'package:n3rd_game/services/game_history/game_history_retry_queue.dart';
+import 'package:n3rd_game/services/game_history/game_history_statistics.dart';
+import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/exceptions/error_codes.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 
 /// Service for managing game history records
 ///
@@ -20,9 +27,11 @@ import 'package:n3rd_game/utils/input_sanitizer.dart';
 class GameHistoryService extends ChangeNotifier {
   static const String _storageKey = 'game_history_cache';
   static const int _maxCachedGames = 100; // Limit local cache size
+  static const int _maxRecordGameCallsPerMinute = 10; // Rate limiting
+  static const int _maxGameIdLength = 512; // Firestore document ID limit
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore? _firestore;
+  FirebaseAuth? _auth;
 
   bool _isInitialized = false;
   bool _isInitializing = false; // Mutex to prevent concurrent initialization
@@ -35,15 +44,48 @@ class GameHistoryService extends ChangeNotifier {
   // Stream subscription for real-time updates
   StreamSubscription<QuerySnapshot>? _historySubscription;
 
+  // Rate limiting for recordGame
+  final List<DateTime> _recordGameTimestamps = [];
+
+  // Retry queue for failed saves
+  final GameHistoryRetryQueue _retryQueue = GameHistoryRetryQueue();
+
+  // Statistics service
+  final GameHistoryStatistics _statisticsService = GameHistoryStatistics();
+
   List<GameHistoryEntry> get cachedGames => List.unmodifiable(_cachedGames);
   bool get isInitialized => _isInitialized;
 
   /// Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestoreInstance {
-    if (!_firebaseAvailable || _disposed) return null;
+    if (_disposed) return null;
+    if (_firestore != null && _firebaseAvailable) return _firestore;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
     try {
-      Firebase.app();
+      _firestore = FirebaseFirestore.instance;
+      _firebaseAvailable = true;
       return _firestore;
+    } catch (e) {
+      _firebaseAvailable = false;
+      return null;
+    }
+  }
+
+  /// Get Auth instance if Firebase is available
+  FirebaseAuth? get _authInstance {
+    if (_disposed) return null;
+    if (_auth != null && _firebaseAvailable) return _auth;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
+    try {
+      _auth = FirebaseAuth.instance;
+      _firebaseAvailable = true;
+      return _auth;
     } catch (e) {
       _firebaseAvailable = false;
       return null;
@@ -53,7 +95,7 @@ class GameHistoryService extends ChangeNotifier {
   /// Get current user ID for Firestore
   String? get _userId {
     try {
-      return _auth.currentUser?.uid;
+      return _authInstance?.currentUser?.uid;
     } catch (e) {
       return null;
     }
@@ -72,16 +114,22 @@ class GameHistoryService extends ChangeNotifier {
         _firebaseAvailable = true;
       } catch (e) {
         _firebaseAvailable = false;
-        LoggerService.warning('Firebase not available for game history', error: e);
+        LoggerService.warning('Firebase not available for game history',
+            error: e,);
       }
 
       // Load cached games from local storage
       await _loadCachedGames();
 
+      // Load retry queue
+      await _retryQueue.loadQueue();
+
       // If user is logged in and Firebase is available, set up real-time listener
       final userId = _userId;
       if (userId != null && _firebaseAvailable) {
         _setupHistoryListener(userId);
+        // Process retry queue in background
+        unawaited(_processRetryQueue(userId));
       }
 
       _isInitialized = true;
@@ -124,7 +172,8 @@ class GameHistoryService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = {
-        'games': _cachedGames.take(_maxCachedGames).map((g) => g.toJson()).toList(),
+        'games':
+            _cachedGames.take(_maxCachedGames).map((g) => g.toJson()).toList(),
         'lastUpdated': DateTime.now().toIso8601String(),
       };
       await prefs.setString(_storageKey, jsonEncode(json));
@@ -139,7 +188,12 @@ class GameHistoryService extends ChangeNotifier {
     _historySubscription?.cancel();
 
     try {
-      _historySubscription = _firestore
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        LoggerService.warning('Firebase not available, cannot subscribe to history');
+        return;
+      }
+      _historySubscription = firestore
           .collection('users')
           .doc(userId)
           .collection('game_history')
@@ -157,7 +211,8 @@ class GameHistoryService extends ChangeNotifier {
 
             // Save to local cache
             _saveCachedGames().catchError((e) {
-              LoggerService.warning('Failed to save cached games after update', error: e);
+              LoggerService.warning('Failed to save cached games after update',
+                  error: e,);
             });
 
             notifyListeners();
@@ -207,9 +262,25 @@ class GameHistoryService extends ChangeNotifier {
   Future<void> recordGame(GameHistoryEntry game) async {
     if (_disposed) return;
 
+    // Rate limiting check
+    if (!_checkRateLimit()) {
+      LoggerService.warning(
+        'Rate limit exceeded for recordGame. Too many calls in the last minute.',
+      );
+      return;
+    }
+
     // Validate input
     if (game.gameId.isEmpty) {
       LoggerService.warning('Cannot record game with empty gameId');
+      return;
+    }
+
+    // Validate gameId format (alphanumeric + underscore/hyphen, 1-512 chars)
+    if (!_isValidGameId(game.gameId)) {
+      LoggerService.warning(
+        'Invalid gameId format: ${game.gameId}. Must be alphanumeric with underscores/hyphens, 1-512 characters.',
+      );
       return;
     }
 
@@ -231,13 +302,60 @@ class GameHistoryService extends ChangeNotifier {
     // Try to save to Firestore (non-blocking)
     final userId = _userId;
     if (userId != null && _firebaseAvailable) {
-      _saveToFirestore(userId, sanitizedGame).catchError((e) {
+      unawaited(_saveToFirestore(userId, sanitizedGame).catchError((e) {
         LoggerService.error(
-          'Failed to save game to Firestore (will retry on next sync)',
+          'Failed to save game to Firestore, adding to retry queue',
           error: e,
         );
-      });
+        // Add to retry queue
+        _retryQueue.enqueue(sanitizedGame).catchError((queueError) {
+          LoggerService.error(
+            'Failed to add game to retry queue',
+            error: queueError,
+          );
+        });
+      }),);
     }
+
+    // Update statistics cache
+    _statisticsService.updateWithNewGame(sanitizedGame);
+  }
+
+  /// Process retry queue in background
+  Future<void> _processRetryQueue(String userId) async {
+    await _retryQueue.processQueue(_saveToFirestore, userId);
+  }
+
+  /// Check rate limit for recordGame calls
+  bool _checkRateLimit() {
+    final now = DateTime.now();
+    // Remove timestamps older than 1 minute
+    _recordGameTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp).inMinutes >= 1,
+    );
+
+    // Check if limit exceeded
+    if (_recordGameTimestamps.length >= _maxRecordGameCallsPerMinute) {
+      return false;
+    }
+
+    // Add current timestamp
+    _recordGameTimestamps.add(now);
+    return true;
+  }
+
+  /// Validate gameId format
+  ///
+  /// GameId must be:
+  /// - Non-empty
+  /// - 1-512 characters (Firestore document ID limit)
+  /// - Alphanumeric with underscores and hyphens only
+  bool _isValidGameId(String gameId) {
+    if (gameId.isEmpty || gameId.length > _maxGameIdLength) {
+      return false;
+    }
+    // Firestore document IDs: alphanumeric + underscore + hyphen
+    return RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(gameId);
   }
 
   /// Sanitize and validate game entry
@@ -331,7 +449,7 @@ class GameHistoryService extends ChangeNotifier {
           // Wait before retry (exponential backoff)
           final delayMs = 500 * attempt;
           LoggerService.warning(
-            'Game Firestore save failed (attempt $attempt/$maxRetries): $e. Retrying in ${delayMs}ms...',
+            'Game Firestore save failed (attempt $attempt/$maxRetries);: $e. Retrying in ${delayMs}ms...',
             error: e,
           );
           await Future.delayed(Duration(milliseconds: delayMs));
@@ -364,7 +482,12 @@ class GameHistoryService extends ChangeNotifier {
     final userId = _userId;
     if (userId == null) {
       // Return cached games if not logged in
-      return _applyFilters(_cachedGames, mode: mode, startDate: startDate, endDate: endDate, minScore: minScore, maxScore: maxScore)
+      return _applyFilters(_cachedGames,
+              mode: mode,
+              startDate: startDate,
+              endDate: endDate,
+              minScore: minScore,
+              maxScore: maxScore,)
           .take(limit)
           .toList();
     }
@@ -372,26 +495,31 @@ class GameHistoryService extends ChangeNotifier {
     final firestore = _firestoreInstance;
     if (firestore == null) {
       // Return cached games if Firestore not available
-      return _applyFilters(_cachedGames, mode: mode, startDate: startDate, endDate: endDate, minScore: minScore, maxScore: maxScore)
+      return _applyFilters(_cachedGames,
+              mode: mode,
+              startDate: startDate,
+              endDate: endDate,
+              minScore: minScore,
+              maxScore: maxScore,)
           .take(limit)
           .toList();
     }
 
     try {
-      Query query = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('game_history');
+      Query query =
+          firestore.collection('users').doc(userId).collection('game_history');
 
       // Apply filters
       if (mode != null) {
-        query = query.where('mode', isEqualTo: mode.toString().split('.').last);
+        query = query.where('mode', isEqualTo: mode.toFirestoreString());
       }
       if (startDate != null) {
-        query = query.where('completedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where('completedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),);
       }
       if (endDate != null) {
-        query = query.where('completedAt', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where('completedAt',
+            isLessThanOrEqualTo: Timestamp.fromDate(endDate),);
       }
       if (minScore != null) {
         query = query.where('score', isGreaterThanOrEqualTo: minScore);
@@ -424,8 +552,45 @@ class GameHistoryService extends ChangeNotifier {
         error: e,
         stack: stackTrace,
       );
+
+      // Throw specific exception with error code
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          throw PermissionException(
+            'Permission denied accessing game history',
+            errorCode: ErrorCode.systemPermissionDenied,
+            recoverySuggestion:
+                'Please check your account permissions and try again.',
+          );
+        } else if (e.code == 'unavailable') {
+          throw NetworkException(
+            'Game history service is currently unavailable',
+            errorCode: ErrorCode.networkServerError,
+            recoverySuggestion:
+                'Please check your connection and try again later.',
+          );
+        } else if (e.code == 'deadline-exceeded' || e.code == 'aborted') {
+          throw NetworkException(
+            'Request timed out while fetching game history',
+            errorCode: ErrorCode.networkTimeout,
+            recoverySuggestion: 'Please check your connection and try again.',
+          );
+        }
+      } else if (e is TimeoutException) {
+        throw NetworkException(
+          'Request timed out while fetching game history',
+          errorCode: ErrorCode.networkTimeout,
+          recoverySuggestion: 'Please check your connection and try again.',
+        );
+      }
+
       // Fallback to cached games
-      return _applyFilters(_cachedGames, mode: mode, startDate: startDate, endDate: endDate, minScore: minScore, maxScore: maxScore)
+      return _applyFilters(_cachedGames,
+              mode: mode,
+              startDate: startDate,
+              endDate: endDate,
+              minScore: minScore,
+              maxScore: maxScore,)
           .take(limit)
           .toList();
     }
@@ -446,10 +611,12 @@ class GameHistoryService extends ChangeNotifier {
       filtered = filtered.where((g) => g.mode == mode).toList();
     }
     if (startDate != null) {
-      filtered = filtered.where((g) => g.completedAt.isAfter(startDate)).toList();
+      filtered =
+          filtered.where((g) => g.completedAt.isAfter(startDate)).toList();
     }
     if (endDate != null) {
-      filtered = filtered.where((g) => g.completedAt.isBefore(endDate)).toList();
+      filtered =
+          filtered.where((g) => g.completedAt.isBefore(endDate)).toList();
     }
     if (minScore != null) {
       filtered = filtered.where((g) => g.score >= minScore).toList();
@@ -533,60 +700,47 @@ class GameHistoryService extends ChangeNotifier {
       );
       return true;
     } catch (e) {
-      LoggerService.error('Error deleting game', error: e);
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          LoggerService.error(
+            'Permission denied deleting game history',
+            error: e,
+          );
+        } else {
+          LoggerService.error('Error deleting game', error: e);
+        }
+      } else {
+        LoggerService.error('Error deleting game', error: e);
+      }
       return false;
     }
   }
 
   /// Get statistics from game history
+  ///
+  /// Uses cached statistics when available for better performance.
+  /// Limits query to 500 games to prevent memory issues.
   Future<Map<String, dynamic>> getStatistics() async {
     if (_disposed) return {};
 
-    final games = _cachedGames.isNotEmpty ? _cachedGames : await getGameHistory(limit: 1000);
+    // Use cached games if available, otherwise fetch (limited to 500 for performance)
+    final games = _cachedGames.isNotEmpty
+        ? _cachedGames
+        : await getGameHistory(limit: 500);
 
-    if (games.isEmpty) {
-      return {
-        'totalGames': 0,
-        'totalScore': 0,
-        'averageScore': 0.0,
-        'highestScore': 0,
-        'totalRounds': 0,
-        'averageAccuracy': 0.0,
-        'modeBreakdown': <String, int>{},
-      };
-    }
-
-    final totalGames = games.length;
-    final totalScore = games.fold<int>(0, (acc, g) => acc + g.score);
-    final averageScore = totalScore / totalGames;
-    final highestScore = games.map((g) => g.score).reduce((a, b) => a > b ? a : b);
-    final totalRounds = games.fold<int>(0, (acc, g) => acc + g.rounds);
-    final totalAccuracy = games.fold<double>(0.0, (acc, g) => acc + g.accuracy);
-    final averageAccuracy = totalAccuracy / totalGames;
-
-    final modeBreakdown = <String, int>{};
-    for (final game in games) {
-      final modeName = game.mode.toString().split('.').last;
-      modeBreakdown[modeName] = (modeBreakdown[modeName] ?? 0) + 1;
-    }
-
-    return {
-      'totalGames': totalGames,
-      'totalScore': totalScore,
-      'averageScore': averageScore,
-      'highestScore': highestScore,
-      'totalRounds': totalRounds,
-      'averageAccuracy': averageAccuracy,
-      'modeBreakdown': modeBreakdown,
-    };
+    // Use statistics service with caching
+    return _statisticsService.calculateStatistics(games);
   }
+
+  /// Get retry queue size (for UI display)
+  int get retryQueueSize => _retryQueue.queueSize;
 
   @override
   void dispose() {
     _disposed = true;
     _historySubscription?.cancel();
     _historySubscription = null;
+    _retryQueue.dispose();
     super.dispose();
   }
 }
-

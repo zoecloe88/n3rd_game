@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:convert';
 import 'package:n3rd_game/models/accessibility_settings.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class AccessibilityService extends ChangeNotifier {
   static const String _storageKey = 'accessibility_settings';
@@ -96,7 +97,7 @@ class AccessibilityService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_storageKey, jsonEncode(_settings.toJson()));
     } catch (e) {
-      debugPrint('Failed to save accessibility settings to local storage: $e');
+      LoggerService.error('Failed to save accessibility settings to local storage', error: e);
     }
   }
 
@@ -116,7 +117,7 @@ class AccessibilityService extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      debugPrint('Failed to save accessibility settings to Firestore: $e');
+      LoggerService.error('Failed to save accessibility settings to Firestore', error: e);
     }
   }
 

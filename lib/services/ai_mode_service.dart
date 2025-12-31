@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/models/ai_performance_data.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for AI-powered adaptive game mode
 /// Provides personalized difficulty adjustment and question selection
@@ -58,9 +60,7 @@ class AIModeService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error loading from local storage: $e');
-      }
+      LoggerService.error('Error loading from local storage', error: e);
     }
   }
 
@@ -78,9 +78,7 @@ class AIModeService extends ChangeNotifier {
         jsonEncode(json),
       );
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error saving to local storage: $e');
-      }
+      LoggerService.error('Error saving to local storage', error: e);
     }
   }
 
@@ -151,9 +149,7 @@ class AIModeService extends ChangeNotifier {
         }
       } catch (e) {
         // Firestore failed, use local storage
-        if (kDebugMode) {
-          debugPrint('Firestore unavailable, using local storage: $e');
-        }
+        LoggerService.debug('Firestore unavailable, using local storage', error: e);
         _isOfflineMode = true;
         await _loadFromLocalStorage(user.uid);
         if (_currentPerformanceData == null) {
@@ -173,9 +169,7 @@ class AIModeService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error initializing AI mode service: $e');
-      }
+      LoggerService.error('Error initializing AI mode service', error: e);
       _lastError = 'Failed to initialize AI mode. Using default settings.';
       // Create default data on error
       final user = FirebaseAuth.instance.currentUser;
@@ -218,9 +212,7 @@ class AIModeService extends ChangeNotifier {
             .set(currentData.toFirestore())
             .timeout(const Duration(seconds: 5));
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Error saving AI performance data to Firestore: $e');
-        }
+        LoggerService.error('Error saving AI performance data to Firestore', error: e);
         // Mark as offline and continue with local storage
         _isOfflineMode = true;
       }
@@ -247,9 +239,7 @@ class AIModeService extends ChangeNotifier {
 
     // Validate category is not empty
     if (category.isEmpty) {
-      if (kDebugMode) {
-        debugPrint('Warning: Empty category provided to updatePerformance');
-      }
+      LoggerService.warning('Warning: Empty category provided to updatePerformance');
       return currentData.currentDifficultyLevel;
     }
 
@@ -341,7 +331,7 @@ class AIModeService extends ChangeNotifier {
     );
 
     // Save to Firestore (async, don't wait)
-    _savePerformanceData();
+    unawaited(_savePerformanceData());
 
     notifyListeners();
     return newDifficultyLevel;
@@ -465,9 +455,7 @@ class AIModeService extends ChangeNotifier {
       _lastError = null;
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error syncing to Firestore: $e');
-      }
+      LoggerService.error('Error syncing to Firestore', error: e);
       _lastError = 'Sync failed. Data saved locally.';
     }
   }

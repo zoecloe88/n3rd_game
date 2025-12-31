@@ -12,17 +12,7 @@ enum MultiplayerMode {
   squadShowdown, // NERD SQUAD SHOWDOWN (Team)
 }
 
-class Player {
-  final String userId;
-  final String email;
-  final String? displayName;
-  final int score;
-  final int correctAnswers;
-  final int wrongAnswers;
-  final bool isReady;
-  final DateTime? lastActive;
-  final String? role; // Optional role for team members
-  final DateTime? lastPing; // Last ping time
+class Player { // Last ping time
 
   Player({
     required this.userId,
@@ -36,19 +26,6 @@ class Player {
     this.role,
     this.lastPing,
   });
-
-  Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'email': email,
-        'displayName': displayName,
-        'score': score,
-        'correctAnswers': correctAnswers,
-        'wrongAnswers': wrongAnswers,
-        'isReady': isReady,
-        'lastActive': lastActive?.toIso8601String(),
-        'role': role,
-        'lastPing': lastPing?.toIso8601String(),
-      };
 
   factory Player.fromJson(Map<String, dynamic> json) => Player(
         userId: json['userId'] as String,
@@ -66,6 +43,29 @@ class Player {
             ? DateTime.parse(json['lastPing'] as String)
             : null,
       );
+  final String userId;
+  final String email;
+  final String? displayName;
+  final int score;
+  final int correctAnswers;
+  final int wrongAnswers;
+  final bool isReady;
+  final DateTime? lastActive;
+  final String? role; // Optional role for team members
+  final DateTime? lastPing;
+
+  Map<String, dynamic> toJson() => {
+        'userId': userId,
+        'email': email,
+        'displayName': displayName,
+        'score': score,
+        'correctAnswers': correctAnswers,
+        'wrongAnswers': wrongAnswers,
+        'isReady': isReady,
+        'lastActive': lastActive?.toIso8601String(),
+        'role': role,
+        'lastPing': lastPing?.toIso8601String(),
+      };
 
   Player copyWith({
     String? userId,
@@ -94,12 +94,7 @@ class Player {
   }
 }
 
-class Team {
-  final String id;
-  final String name;
-  final List<Player> players;
-  final int score;
-  final String? role; // Optional role for team members
+class Team { // Optional role for team members
 
   Team({
     required this.id,
@@ -108,14 +103,6 @@ class Team {
     this.score = 0,
     this.role,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'players': players.map((p) => p.toJson()).toList(),
-        'score': score,
-        'role': role,
-      };
 
   factory Team.fromJson(Map<String, dynamic> json) => Team(
         id: json['id'] as String,
@@ -127,27 +114,22 @@ class Team {
         score: json['score'] as int? ?? 0,
         role: json['role'] as String?,
       );
+  final String id;
+  final String name;
+  final List<Player> players;
+  final int score;
+  final String? role;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'players': players.map((p) => p.toJson()).toList(),
+        'score': score,
+        'role': role,
+      };
 }
 
-class GameRoom {
-  final String id;
-  final String hostId;
-  final MultiplayerMode mode;
-  final RoomStatus status;
-  final List<Player> players;
-  final List<Team>? teams; // For squad showdown
-  final int maxPlayers;
-  final int currentRound;
-  final int totalRounds;
-  final String? selectedGameMode; // Classic, Speed, etc.
-  final String? selectedDifficulty;
-  final String? currentPlayerId; // Whose turn it is (for battle royale)
-  final Map<String, bool>?
-      playerSubmissions; // Track which players have submitted (battle royale)
-  final DateTime createdAt;
-  final DateTime? startedAt;
-  final DateTime? finishedAt;
-  final DateTime? expiresAt; // For cleanup of abandoned rooms
+class GameRoom { // Whether spectator mode is enabled
 
   GameRoom({
     required this.id,
@@ -167,30 +149,22 @@ class GameRoom {
     this.startedAt,
     this.finishedAt,
     DateTime? expiresAt,
+    this.friendsOnly = false,
+    List<String>? invitedFriends,
+    this.allowedPlayers,
+    List<String>? spectators,
+    this.maxSpectators = 10,
+    this.isSpectatorMode = true,
+    this.isPublic = false,
+    this.isPersistent = false,
   })  : players = players ?? [],
         createdAt = createdAt ?? DateTime.now(),
-        expiresAt = expiresAt ??
-            (createdAt ?? DateTime.now()).add(const Duration(hours: 1));
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'hostId': hostId,
-        'mode': mode.name,
-        'status': status.name,
-        'players': players.map((p) => p.toJson()).toList(),
-        'teams': teams?.map((t) => t.toJson()).toList(),
-        'maxPlayers': maxPlayers,
-        'currentRound': currentRound,
-        'totalRounds': totalRounds,
-        'selectedGameMode': selectedGameMode,
-        'selectedDifficulty': selectedDifficulty,
-        'currentPlayerId': currentPlayerId,
-        'playerSubmissions': playerSubmissions,
-        'createdAt': createdAt.toIso8601String(),
-        'startedAt': startedAt?.toIso8601String(),
-        'finishedAt': finishedAt?.toIso8601String(),
-        'expiresAt': expiresAt?.toIso8601String(),
-      };
+        expiresAt = isPersistent
+            ? null // Persistent lobbies don't expire
+            : (expiresAt ??
+                (createdAt ?? DateTime.now()).add(const Duration(hours: 1))),
+        invitedFriends = invitedFriends ?? [],
+        spectators = spectators ?? [];
 
   factory GameRoom.fromJson(Map<String, dynamic> json) => GameRoom(
         id: json['id'] as String,
@@ -226,12 +200,87 @@ class GameRoom {
         finishedAt: json['finishedAt'] != null
             ? DateTime.parse(json['finishedAt'] as String)
             : null,
+        friendsOnly: json['friendsOnly'] as bool? ?? false,
+        invitedFriends: (json['invitedFriends'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        allowedPlayers: (json['allowedPlayers'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList(),
+        spectators: (json['spectators'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        maxSpectators: json['maxSpectators'] as int? ?? 10,
+        isSpectatorMode: json['isSpectatorMode'] as bool? ?? true,
+        isPublic: json['isPublic'] as bool? ?? false,
+        isPersistent: json['isPersistent'] as bool? ?? false,
+        expiresAt: json['expiresAt'] != null
+            ? DateTime.parse(json['expiresAt'] as String)
+            : null,
       );
 
   factory GameRoom.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return GameRoom.fromJson({...data, 'id': doc.id});
   }
+  final String id;
+  final String hostId;
+  final MultiplayerMode mode;
+  final RoomStatus status;
+  final List<Player> players;
+  final List<Team>? teams; // For squad showdown
+  final int maxPlayers;
+  final int currentRound;
+  final int totalRounds;
+  final String? selectedGameMode; // Classic, Speed, etc.
+  final String? selectedDifficulty;
+  final String? currentPlayerId; // Whose turn it is (for battle royale)
+  final Map<String, bool>?
+      playerSubmissions; // Track which players have submitted (battle royale)
+  final DateTime createdAt;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
+  final DateTime? expiresAt; // For cleanup of abandoned rooms
+  final bool friendsOnly; // If true, only friends can join
+  final List<String> invitedFriends; // List of friend user IDs who were invited
+  final List<String>?
+      allowedPlayers; // Whitelist of allowed player IDs for friend-only rooms
+  final List<String> spectators; // List of spectator user IDs
+  final int maxSpectators; // Maximum number of spectators allowed
+  final bool isSpectatorMode;
+  final bool isPublic; // If true, lobby is public and visible to all users
+  final bool isPersistent; // If true, lobby stays open 24/7 and doesn't expire
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'hostId': hostId,
+        'mode': mode.name,
+        'status': status.name,
+        'players': players.map((p) => p.toJson()).toList(),
+        'teams': teams?.map((t) => t.toJson()).toList(),
+        'maxPlayers': maxPlayers,
+        'currentRound': currentRound,
+        'totalRounds': totalRounds,
+        'selectedGameMode': selectedGameMode,
+        'selectedDifficulty': selectedDifficulty,
+        'currentPlayerId': currentPlayerId,
+        'playerSubmissions': playerSubmissions,
+        'createdAt': createdAt.toIso8601String(),
+        'startedAt': startedAt?.toIso8601String(),
+        'finishedAt': finishedAt?.toIso8601String(),
+        'expiresAt': expiresAt?.toIso8601String(),
+        'friendsOnly': friendsOnly,
+        'invitedFriends': invitedFriends,
+        if (allowedPlayers != null) 'allowedPlayers': allowedPlayers,
+        'spectators': spectators,
+        'maxSpectators': maxSpectators,
+        'isSpectatorMode': isSpectatorMode,
+        'isPublic': isPublic,
+        'isPersistent': isPersistent,
+        if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
+      };
 
   GameRoom copyWith({
     String? id,
@@ -251,6 +300,14 @@ class GameRoom {
     DateTime? startedAt,
     DateTime? finishedAt,
     DateTime? expiresAt,
+    bool? friendsOnly,
+    List<String>? invitedFriends,
+    List<String>? allowedPlayers,
+    List<String>? spectators,
+    int? maxSpectators,
+    bool? isSpectatorMode,
+    bool? isPublic,
+    bool? isPersistent,
   }) {
     return GameRoom(
       id: id ?? this.id,
@@ -269,12 +326,21 @@ class GameRoom {
       createdAt: createdAt ?? this.createdAt,
       startedAt: startedAt ?? this.startedAt,
       finishedAt: finishedAt ?? this.finishedAt,
-      expiresAt: expiresAt ?? this.expiresAt,
+      expiresAt: expiresAt,
+      friendsOnly: friendsOnly ?? this.friendsOnly,
+      invitedFriends: invitedFriends ?? this.invitedFriends,
+      allowedPlayers: allowedPlayers ?? this.allowedPlayers,
+      spectators: spectators ?? this.spectators,
+      maxSpectators: maxSpectators ?? this.maxSpectators,
+      isSpectatorMode: isSpectatorMode ?? this.isSpectatorMode,
+      isPublic: isPublic ?? this.isPublic,
+      isPersistent: isPersistent ?? this.isPersistent,
     );
   }
 
   bool get isFull => players.length >= maxPlayers;
   bool get canStart => players.length >= 2 && players.every((p) => p.isReady);
+  bool get canSpectate => isSpectatorMode && spectators.length < maxSpectators;
   Player? get currentPlayer => players.firstWhere(
         (p) => p.userId == currentPlayerId,
         orElse: () => players.first,

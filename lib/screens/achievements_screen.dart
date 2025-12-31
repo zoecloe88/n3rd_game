@@ -10,6 +10,7 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/skeleton_loader.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -26,7 +27,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAchievements();
+    unawaited(_loadAchievements());
   }
 
   Future<void> _loadAchievements() async {
@@ -48,8 +49,15 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   }
 
   Future<void> _refreshAchievements() async {
-    HapticService().lightImpact();
+    unawaited(HapticService().lightImpact());
     await _loadAchievements();
+  }
+
+  @override
+  void dispose() {
+    // AchievementService doesn't extend ChangeNotifier and has no resources
+    // No cleanup needed
+    super.dispose();
   }
 
   @override
@@ -57,17 +65,22 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     final allAchievements = _achievementService.getAllAchievements();
 
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            HapticService().lightImpact();
-            NavigationHelper.safePop(context);
-          },
-          tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+        leading: Semantics(
+          label: AppLocalizations.of(context)?.backButton ?? 'Back',
+          button: true,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              HapticService().lightImpact();
+              NavigationHelper.safePop(context);
+            },
+            tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+          ),
         ),
         title: Text(
           'Achievements',
@@ -81,51 +94,54 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
-        child: _loading
-            ? const SkeletonLoader(
-                itemCount: 5,
-                showAvatar: false,
-                showSubtitle: true,
-              )
-            : allAchievements.isEmpty
-                ? RefreshIndicator(
-                    onRefresh: _refreshAchievements,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: EmptyStateWidget(
-                          icon: Icons.emoji_events_outlined,
-                          title: AppLocalizations.of(context)?.noAchievements ??
-                              'No achievements yet',
-                          description: AppLocalizations.of(context)
-                                  ?.noAchievementsDescription ??
-                              'Keep playing to unlock achievements!',
+          child: _loading
+              ? ListView.builder(
+                  itemCount: 5,
+                  itemBuilder: (context, index) => const SkeletonListItem(
+                    hasAvatar: false,
+                    hasSubtitle: true,
+                  ),
+                )
+              : allAchievements.isEmpty
+                  ? RefreshIndicator(
+                      onRefresh: _refreshAchievements,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.6,
+                          child: EmptyStateWidget(
+                            icon: Icons.emoji_events_outlined,
+                            title:
+                                AppLocalizations.of(context)?.noAchievements ??
+                                    'No achievements yet',
+                            description: AppLocalizations.of(context)
+                                    ?.noAchievementsDescription ??
+                                'Keep playing to unlock achievements!',
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _refreshAchievements,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      itemCount: allAchievements.length,
-                      itemBuilder: (context, index) {
-                        final achievement = allAchievements[index];
-                        final userAchievement =
-                            _userAchievements[achievement.id];
-                        final isUnlocked = userAchievement?.unlocked ?? false;
-                        final progress = userAchievement?.progress ?? 0;
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _refreshAchievements,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: allAchievements.length,
+                        itemBuilder: (context, index) {
+                          final achievement = allAchievements[index];
+                          final userAchievement =
+                              _userAchievements[achievement.id];
+                          final isUnlocked = userAchievement?.unlocked ?? false;
+                          final progress = userAchievement?.progress ?? 0;
 
-                        return _buildAchievementCard(
-                          context,
-                          achievement,
-                          isUnlocked,
-                          progress,
-                        );
-                      },
+                          return _buildAchievementCard(
+                            context,
+                            achievement,
+                            isUnlocked,
+                            progress,
+                          );
+                        },
+                      ),
                     ),
-                  ),
         ),
       ),
     );

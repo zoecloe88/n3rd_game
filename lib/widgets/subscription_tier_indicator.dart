@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -8,14 +8,14 @@ import 'package:n3rd_game/theme/app_spacing.dart';
 /// Widget to display current subscription tier status
 /// Shows tier badge with icon and name
 class SubscriptionTierIndicator extends StatelessWidget {
-  final bool showIcon;
-  final bool compact;
 
   const SubscriptionTierIndicator({
     super.key,
     this.showIcon = true,
     this.compact = false,
   });
+  final bool showIcon;
+  final bool compact;
 
   String _getTierName(SubscriptionTier tier) {
     switch (tier) {
@@ -59,7 +59,11 @@ class SubscriptionTierIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppColors.of(context);
-    final subscriptionService = Provider.of<SubscriptionService>(context);
+    // CRITICAL: Use safeGet to prevent ProviderNotFoundException
+    final subscriptionService = ProviderHelper.safeGet<SubscriptionService>(context, listen: false);
+    if (subscriptionService == null) {
+      return const SizedBox.shrink(); // Hide if service not available
+    }
     final tier = subscriptionService.currentTier;
     final tierName = _getTierName(tier);
     final tierIcon = _getTierIcon(tier);

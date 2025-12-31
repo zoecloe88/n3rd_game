@@ -1,6 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {initializeApp} = require("firebase-admin/app");
-const {getAuth} = require("firebase-admin/auth");
 const {getFirestore} = require("firebase-admin/firestore");
 const {GoogleGenerativeAI} = require("@google/generative-ai");
 const Anthropic = require("@anthropic-ai/sdk");
@@ -11,13 +11,13 @@ const db = getFirestore();
 // Initialize AI clients (API keys stored in Firebase Secrets)
 // To set secrets: firebase functions:secrets:set GEMINI_API_KEY
 // To access: process.env.GEMINI_API_KEY (automatically loaded from secrets)
-const genAI = process.env.GEMINI_API_KEY 
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-  : null;
+const genAI = process.env.GEMINI_API_KEY ?
+  new GoogleGenerativeAI(process.env.GEMINI_API_KEY) :
+  null;
 
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({apiKey: process.env.ANTHROPIC_API_KEY})
-  : null;
+const anthropic = process.env.ANTHROPIC_API_KEY ?
+  new Anthropic({apiKey: process.env.ANTHROPIC_API_KEY}) :
+  null;
 
 // Prohibited topics for content moderation
 const PROHIBITED_TOPICS = [
@@ -33,266 +33,269 @@ const PROHIBITED_TOPICS = [
  * Called from client with authenticated user
  */
 exports.generateTrivia = onCall(
-  {
-    maxInstances: 10,
-    timeoutSeconds: 60,
-    memory: "512MiB",
-    invoker: "private", // Only allow authenticated calls
-  },
-  async (request) => {
+    {
+      maxInstances: 10,
+      timeoutSeconds: 60,
+      memory: "512MiB",
+      invoker: "private", // Only allow authenticated calls
+    },
+    async (request) => {
     // Verify authentication
-    const authToken = request.auth;
-    if (!authToken) {
-      throw new HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    // Verify user is premium (check subscription status)
-    const userId = authToken.uid;
-    let userData;
-    try {
-      const userDoc = await db.collection("users").doc(userId).get();
-      if (!userDoc.exists) {
-        throw new HttpsError("permission-denied", "User profile not found");
+      const authToken = request.auth;
+      if (!authToken) {
+        throw new HttpsError("unauthenticated", "User must be authenticated");
       }
-      
-      userData = userDoc.data();
-      const subscriptionTier = userData?.subscriptionTier || "free";
-      
-      if (subscriptionTier !== "premium") {
-        throw new HttpsError(
-          "permission-denied",
-          "Premium subscription required for AI Edition"
-        );
-      }
-    } catch (error) {
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-      // If Firestore check fails, fall back to checking SharedPreferences pattern
-      // For now, we'll be strict and require premium
-      throw new HttpsError(
-        "permission-denied",
-        "Unable to verify subscription status"
-      );
-    }
 
-    // Server-side rate limiting (20 requests per day per user)
-    const today = new Date().toISOString().split("T")[0];
-    const rateLimitKey = `ai_generation_${userId}_${today}`;
-    const rateLimitDoc = await db.collection("rate_limits").doc(rateLimitKey).get();
-    
-    const dailyLimit = 20;
-    let requestCount = 0;
-    
-    if (rateLimitDoc.exists) {
-      requestCount = rateLimitDoc.data()?.count || 0;
-      if (requestCount >= dailyLimit) {
-        throw new HttpsError(
-          "resource-exhausted",
-          `Daily limit of ${dailyLimit} AI generations reached. Please try again tomorrow.`
-        );
-      }
-    }
+      // Verify user is premium (check subscription status)
+      const userId = authToken.uid;
+      let userData;
+      try {
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists) {
+          throw new HttpsError("permission-denied", "User profile not found");
+        }
 
-    const {topic, isYouthEdition, count} = request.data || {};
+        userData = userDoc.data();
+        const subscriptionTier = userData?.subscriptionTier || "free";
 
-    // Comprehensive input validation
-    if (!topic || typeof topic !== "string") {
-      throw new HttpsError(
-        "invalid-argument",
-        "Topic must be a non-empty string"
-      );
-    }
-
-    const sanitizedTopic = topic.trim();
-    if (sanitizedTopic.length < 2) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Topic must be at least 2 characters"
-      );
-    }
-
-    if (sanitizedTopic.length > 100) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Topic must be 100 characters or less"
-      );
-    }
-
-    if (typeof count !== "number" || !Number.isInteger(count)) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Count must be an integer"
-      );
-    }
-
-    if (count < 1 || count > 100) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Count must be between 1 and 100"
-      );
-    }
-
-    if (typeof isYouthEdition !== "boolean") {
-      throw new HttpsError(
-        "invalid-argument",
-        "isYouthEdition must be a boolean"
-      );
-    }
-
-    // Content moderation with enhanced validation
-    const topicLower = sanitizedTopic.toLowerCase();
-    
-    // Check for prohibited topics
-    for (const prohibited of PROHIBITED_TOPICS) {
-      if (topicLower.includes(prohibited)) {
-        console.warn(`Blocked inappropriate topic: ${sanitizedTopic} by user ${userId}`);
-        throw new HttpsError(
-          "permission-denied",
-          "Topic contains inappropriate content"
-        );
-      }
-    }
-
-    // Additional checks for youth editions
-    if (isYouthEdition) {
-      const adultThemes = ["dating", "romance", "relationship", "marriage", "adult", "mature"];
-      for (const theme of adultThemes) {
-        if (topicLower.includes(theme)) {
-          console.warn(`Blocked adult theme for youth: ${sanitizedTopic} by user ${userId}`);
+        if (subscriptionTier !== "premium") {
           throw new HttpsError(
+              "permission-denied",
+              "Premium subscription required for AI Edition",
+          );
+        }
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        // If Firestore check fails, fall back to checking SharedPreferences pattern
+        // For now, we'll be strict and require premium
+        throw new HttpsError(
             "permission-denied",
-            "Topic is not suitable for youth editions"
+            "Unable to verify subscription status",
+        );
+      }
+
+      // Server-side rate limiting (20 requests per day per user)
+      const today = new Date().toISOString().split("T")[0];
+      const rateLimitKey = `ai_generation_${userId}_${today}`;
+      const rateLimitDoc = await db.collection("rate_limits").doc(rateLimitKey).get();
+
+      const dailyLimit = 20;
+      let requestCount = 0;
+
+      if (rateLimitDoc.exists) {
+        requestCount = rateLimitDoc.data()?.count || 0;
+        if (requestCount >= dailyLimit) {
+          throw new HttpsError(
+              "resource-exhausted",
+              `Daily limit of ${dailyLimit} AI generations reached. Please try again tomorrow.`,
           );
         }
       }
-    }
 
-    // Log request for monitoring
-    console.log(`AI generation request: userId=${userId}, topic=${sanitizedTopic}, count=${count}, isYouth=${isYouthEdition}`);
+      const {topic, isYouthEdition, count} = request.data || {};
 
-    try {
+      // Comprehensive input validation
+      if (!topic || typeof topic !== "string") {
+        throw new HttpsError(
+            "invalid-argument",
+            "Topic must be a non-empty string",
+        );
+      }
+
+      const sanitizedTopic = topic.trim();
+      if (sanitizedTopic.length < 2) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Topic must be at least 2 characters",
+        );
+      }
+
+      if (sanitizedTopic.length > 100) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Topic must be 100 characters or less",
+        );
+      }
+
+      if (typeof count !== "number" || !Number.isInteger(count)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Count must be an integer",
+        );
+      }
+
+      if (count < 1 || count > 100) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Count must be between 1 and 100",
+        );
+      }
+
+      if (typeof isYouthEdition !== "boolean") {
+        throw new HttpsError(
+            "invalid-argument",
+            "isYouthEdition must be a boolean",
+        );
+      }
+
+      // Content moderation with enhanced validation
+      const topicLower = sanitizedTopic.toLowerCase();
+
+      // Check for prohibited topics
+      for (const prohibited of PROHIBITED_TOPICS) {
+        if (topicLower.includes(prohibited)) {
+          console.warn(`Blocked inappropriate topic: ${sanitizedTopic} by user ${userId}`);
+          throw new HttpsError(
+              "permission-denied",
+              "Topic contains inappropriate content",
+          );
+        }
+      }
+
+      // Additional checks for youth editions
+      if (isYouthEdition) {
+        const adultThemes = ["dating", "romance", "relationship", "marriage", "adult", "mature"];
+        for (const theme of adultThemes) {
+          if (topicLower.includes(theme)) {
+            console.warn(`Blocked adult theme for youth: ${sanitizedTopic} by user ${userId}`);
+            throw new HttpsError(
+                "permission-denied",
+                "Topic is not suitable for youth editions",
+            );
+          }
+        }
+      }
+
+      // Log request for monitoring
+      console.log(
+          `AI generation request: userId=${userId}, topic=${sanitizedTopic}, ` +
+          `count=${count}, isYouth=${isYouthEdition}`,
+      );
+
+      try {
       // Check cache first (reduce API costs)
-      const cacheKey = `ai_cache_${sanitizedTopic.toLowerCase()}_${count}_${isYouthEdition}`;
-      const cacheDoc = await db.collection("ai_cache").doc(cacheKey).get();
-      
-      if (cacheDoc.exists) {
-        const cacheData = cacheDoc.data();
-        const cacheAge = Date.now() - (cacheData?.timestamp || 0);
-        const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (cacheAge < cacheMaxAge && cacheData?.trivia) {
-          console.log(`Cache hit for topic: ${sanitizedTopic}`);
-          // Increment rate limit after successful cache hit
-          await db.collection("rate_limits").doc(rateLimitKey).set({
-            count: requestCount + 1,
-            lastRequest: Date.now(),
-            userId: userId,
-          }, {merge: true});
-          
-          return {
-            success: true,
-            trivia: cacheData.trivia,
-            provider: cacheData.provider || "cached",
-            cached: true,
-          };
-        }
-      }
+        const cacheKey = `ai_cache_${sanitizedTopic.toLowerCase()}_${count}_${isYouthEdition}`;
+        const cacheDoc = await db.collection("ai_cache").doc(cacheKey).get();
 
-      // Try Gemini first (preferred - free tier available)
-      if (genAI) {
-        try {
-          const trivia = await Promise.race([
-            generateWithGemini(sanitizedTopic, isYouthEdition, count),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Timeout")), 55000)
-            ),
-          ]);
-          
-          if (trivia && trivia.length > 0) {
-            // Cache the result
-            await db.collection("ai_cache").doc(cacheKey).set({
-              trivia: trivia,
-              provider: "gemini",
-              timestamp: Date.now(),
-              topic: sanitizedTopic,
-            }, {merge: true});
-            
-            // Increment rate limit
+        if (cacheDoc.exists) {
+          const cacheData = cacheDoc.data();
+          const cacheAge = Date.now() - (cacheData?.timestamp || 0);
+          const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+          if (cacheAge < cacheMaxAge && cacheData?.trivia) {
+            console.log(`Cache hit for topic: ${sanitizedTopic}`);
+            // Increment rate limit after successful cache hit
             await db.collection("rate_limits").doc(rateLimitKey).set({
               count: requestCount + 1,
               lastRequest: Date.now(),
               userId: userId,
             }, {merge: true});
-            
-            console.log(`Successfully generated ${trivia.length} trivia items using Gemini`);
+
             return {
               success: true,
-              trivia: trivia,
-              provider: "gemini",
+              trivia: cacheData.trivia,
+              provider: cacheData.provider || "cached",
+              cached: true,
             };
           }
-        } catch (error) {
-          console.error("Gemini generation failed:", error.message);
+        }
+
+        // Try Gemini first (preferred - free tier available)
+        if (genAI) {
+          try {
+            const trivia = await Promise.race([
+              generateWithGemini(sanitizedTopic, isYouthEdition, count),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), 55000),
+              ),
+            ]);
+
+            if (trivia && trivia.length > 0) {
+            // Cache the result
+              await db.collection("ai_cache").doc(cacheKey).set({
+                trivia: trivia,
+                provider: "gemini",
+                timestamp: Date.now(),
+                topic: sanitizedTopic,
+              }, {merge: true});
+
+              // Increment rate limit
+              await db.collection("rate_limits").doc(rateLimitKey).set({
+                count: requestCount + 1,
+                lastRequest: Date.now(),
+                userId: userId,
+              }, {merge: true});
+
+              console.log(`Successfully generated ${trivia.length} trivia items using Gemini`);
+              return {
+                success: true,
+                trivia: trivia,
+                provider: "gemini",
+              };
+            }
+          } catch (error) {
+            console.error("Gemini generation failed:", error.message);
           // Fall through to try other providers
-        }
-      }
-
-      // Try Anthropic if Gemini failed or not available
-      if (anthropic) {
-        try {
-          const trivia = await Promise.race([
-            generateWithAnthropic(sanitizedTopic, isYouthEdition, count),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Timeout")), 55000)
-            ),
-          ]);
-          
-          if (trivia && trivia.length > 0) {
-            // Cache the result
-            await db.collection("ai_cache").doc(cacheKey).set({
-              trivia: trivia,
-              provider: "anthropic",
-              timestamp: Date.now(),
-              topic: sanitizedTopic,
-            }, {merge: true});
-            
-            // Increment rate limit
-            await db.collection("rate_limits").doc(rateLimitKey).set({
-              count: requestCount + 1,
-              lastRequest: Date.now(),
-              userId: userId,
-            }, {merge: true});
-            
-            console.log(`Successfully generated ${trivia.length} trivia items using Anthropic`);
-            return {
-              success: true,
-              trivia: trivia,
-              provider: "anthropic",
-            };
           }
-        } catch (error) {
-          console.error("Anthropic generation failed:", error.message);
         }
-      }
 
-      // If all AI providers fail, return error (client will use template-based fallback)
-      console.error(`All AI providers failed for topic: ${sanitizedTopic}`);
-      throw new HttpsError(
-        "unavailable",
-        "AI generation temporarily unavailable. Please try again later or use template-based generation."
-      );
-    } catch (error) {
-      if (error instanceof HttpsError) {
-        throw error;
+        // Try Anthropic if Gemini failed or not available
+        if (anthropic) {
+          try {
+            const trivia = await Promise.race([
+              generateWithAnthropic(sanitizedTopic, isYouthEdition, count),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), 55000),
+              ),
+            ]);
+
+            if (trivia && trivia.length > 0) {
+            // Cache the result
+              await db.collection("ai_cache").doc(cacheKey).set({
+                trivia: trivia,
+                provider: "anthropic",
+                timestamp: Date.now(),
+                topic: sanitizedTopic,
+              }, {merge: true});
+
+              // Increment rate limit
+              await db.collection("rate_limits").doc(rateLimitKey).set({
+                count: requestCount + 1,
+                lastRequest: Date.now(),
+                userId: userId,
+              }, {merge: true});
+
+              console.log(`Successfully generated ${trivia.length} trivia items using Anthropic`);
+              return {
+                success: true,
+                trivia: trivia,
+                provider: "anthropic",
+              };
+            }
+          } catch (error) {
+            console.error("Anthropic generation failed:", error.message);
+          }
+        }
+
+        // If all AI providers fail, return error (client will use template-based fallback)
+        console.error(`All AI providers failed for topic: ${sanitizedTopic}`);
+        throw new HttpsError(
+            "unavailable",
+            "AI generation temporarily unavailable. Please try again later or use template-based generation.",
+        );
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        console.error("Trivia generation error:", error);
+        throw new HttpsError(
+            "internal",
+            "Failed to generate trivia. Please try again later.",
+        );
       }
-      console.error("Trivia generation error:", error);
-      throw new HttpsError(
-        "internal",
-        "Failed to generate trivia. Please try again later."
-      );
-    }
-  }
+    },
 );
 
 /**
@@ -321,9 +324,10 @@ async function generateWithGemini(topic, isYouth, count) {
     ],
   });
 
-  const youthNote = isYouth
-    ? " This is for a youth/children's edition, so keep all content age-appropriate, educational, and positive."
-    : "";
+  const youthNote = isYouth ?
+    " This is for a youth/children's edition, " +
+    "so keep all content age-appropriate, educational, and positive." :
+    "";
 
   const prompt = `Generate ${count} trivia questions about "${topic}".${youthNote}
 
@@ -392,8 +396,8 @@ Return ONLY valid JSON, no markdown, no code blocks, just the JSON array.`;
 
     triviaItems.push({
       category: categoryPattern
-        .replace(/^These are /i, "")
-        .replace(/^these are /i, ""),
+          .replace(/^These are /i, "")
+          .replace(/^these are /i, ""),
       words: allWords,
       correctAnswers: correctPool,
     });
@@ -406,9 +410,10 @@ Return ONLY valid JSON, no markdown, no code blocks, just the JSON array.`;
  * Generate trivia using Anthropic Claude
  */
 async function generateWithAnthropic(topic, isYouth, count) {
-  const youthNote = isYouth
-    ? " This is for a youth/children's edition, so keep all content age-appropriate, educational, and positive."
-    : "";
+  const youthNote = isYouth ?
+    " This is for a youth/children's edition, " +
+    "so keep all content age-appropriate, educational, and positive." :
+    "";
 
   const prompt = `Generate ${count} trivia questions about "${topic}".${youthNote}
 
@@ -440,9 +445,9 @@ Return ONLY valid JSON, no markdown, no code blocks, just the JSON array.`;
         content: prompt,
       },
     ],
-    system: isYouth 
-      ? "You are an educational content generator for children. Always create age-appropriate, positive, and educational content."
-      : "You are an educational trivia content generator. Create accurate, engaging, and educational trivia questions.",
+    system: isYouth ?
+      "You are an educational content generator for children. Always create age-appropriate, positive, and educational content." :
+      "You are an educational trivia content generator. Create accurate, engaging, and educational trivia questions.",
   });
 
   const responseText = message.content[0].text;
@@ -491,8 +496,8 @@ Return ONLY valid JSON, no markdown, no code blocks, just the JSON array.`;
 
     triviaItems.push({
       category: categoryPattern
-        .replace(/^These are /i, "")
-        .replace(/^these are /i, ""),
+          .replace(/^These are /i, "")
+          .replace(/^these are /i, ""),
       words: allWords,
       correctAnswers: correctPool,
     });
@@ -516,116 +521,360 @@ function shuffleArray(array) {
  * Called before critical room operations to ensure user is authorized
  */
 exports.validateMultiplayerRoom = onCall(
-  {
-    maxInstances: 20,
-    timeoutSeconds: 10,
-    memory: "256MiB",
-    invoker: "private", // Only allow authenticated calls
-  },
-  async (request) => {
+    {
+      maxInstances: 20,
+      timeoutSeconds: 10,
+      memory: "256MiB",
+      invoker: "private", // Only allow authenticated calls
+    },
+    async (request) => {
     // Verify authentication
-    const authToken = request.auth;
-    if (!authToken) {
-      throw new HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    const userId = authToken.uid;
-    const {roomId, operation} = request.data || {};
-
-    if (!roomId || typeof roomId !== "string") {
-      throw new HttpsError(
-        "invalid-argument",
-        "Room ID is required"
-      );
-    }
-
-    if (!operation || typeof operation !== "string") {
-      throw new HttpsError(
-        "invalid-argument",
-        "Operation type is required"
-      );
-    }
-
-    try {
-      // Get room document
-      const roomDoc = await db.collection("game_rooms").doc(roomId).get();
-      
-      if (!roomDoc.exists) {
-        throw new HttpsError("not-found", "Room does not exist");
+      const authToken = request.auth;
+      if (!authToken) {
+        throw new HttpsError("unauthenticated", "User must be authenticated");
       }
 
-      const roomData = roomDoc.data();
-      const players = roomData?.players || [];
-      
-      // Check if user is in the players array
-      const isPlayer = players.some(p => p.userId === userId);
-      const isHost = roomData?.hostId === userId;
+      const userId = authToken.uid;
+      const {roomId, operation} = request.data || {};
 
-      // Validate operation-specific permissions
-      switch (operation) {
-        case "join":
-          // Anyone can join if room is waiting and not full
-          if (roomData?.status !== "waiting") {
-            throw new HttpsError(
-              "permission-denied",
-              "Room is not accepting new players"
-            );
-          }
-          if (players.length >= (roomData?.maxPlayers || 4)) {
-            throw new HttpsError(
-              "permission-denied",
-              "Room is full"
-            );
-          }
-          break;
-
-        case "update":
-        case "submit_answer":
-        case "send_message":
-          // Only players in the room can perform these operations
-          if (!isPlayer && !isHost) {
-            throw new HttpsError(
-              "permission-denied",
-              "You are not a member of this room"
-            );
-          }
-          break;
-
-        case "delete":
-        case "start_game":
-        case "end_game":
-          // Only host can perform these operations
-          if (!isHost) {
-            throw new HttpsError(
-              "permission-denied",
-              "Only the room host can perform this operation"
-            );
-          }
-          break;
-
-        default:
-          throw new HttpsError(
+      if (!roomId || typeof roomId !== "string") {
+        throw new HttpsError(
             "invalid-argument",
-            `Unknown operation: ${operation}`
-          );
+            "Room ID is required",
+        );
       }
 
-      return {
-        success: true,
-        isHost: isHost,
-        isPlayer: isPlayer,
-        roomStatus: roomData?.status,
-      };
-    } catch (error) {
-      if (error instanceof HttpsError) {
-        throw error;
+      if (!operation || typeof operation !== "string") {
+        throw new HttpsError(
+            "invalid-argument",
+            "Operation type is required",
+        );
       }
-      console.error("Multiplayer room validation error:", error);
-      throw new HttpsError(
-        "internal",
-        "Failed to validate room operation"
-      );
-    }
-  }
+
+      try {
+      // Get room document
+        const roomDoc = await db.collection("game_rooms").doc(roomId).get();
+
+        if (!roomDoc.exists) {
+          throw new HttpsError("not-found", "Room does not exist");
+        }
+
+        const roomData = roomDoc.data();
+        const players = roomData?.players || [];
+
+        // Check if user is in the players array
+        const isPlayer = players.some((p) => p.userId === userId);
+        const isHost = roomData?.hostId === userId;
+
+        // Validate operation-specific permissions
+        switch (operation) {
+          case "join":
+          // Anyone can join if room is waiting and not full
+            if (roomData?.status !== "waiting") {
+              throw new HttpsError(
+                  "permission-denied",
+                  "Room is not accepting new players",
+              );
+            }
+            if (players.length >= (roomData?.maxPlayers || 4)) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "Room is full",
+              );
+            }
+            break;
+
+          case "update":
+          case "submit_answer":
+          case "send_message":
+          // Only players in the room can perform these operations
+            if (!isPlayer && !isHost) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "You are not a member of this room",
+              );
+            }
+            break;
+
+          case "delete":
+          case "start_game":
+          case "end_game":
+          // Only host can perform these operations
+            if (!isHost) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "Only the room host can perform this operation",
+              );
+            }
+            break;
+
+          default:
+            throw new HttpsError(
+                "invalid-argument",
+                `Unknown operation: ${operation}`,
+            );
+        }
+
+        return {
+          success: true,
+          isHost: isHost,
+          isPlayer: isPlayer,
+          roomStatus: roomData?.status,
+        };
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        console.error("Multiplayer room validation error:", error);
+        throw new HttpsError(
+            "internal",
+            "Failed to validate room operation",
+        );
+      }
+    },
+);
+
+/**
+ * Validate multiplayer score submission (server-side security)
+ * Called before accepting score updates to prevent cheating
+ */
+exports.validateScore = onCall(
+    {
+      maxInstances: 20,
+      timeoutSeconds: 10,
+      memory: "256MiB",
+      invoker: "private", // Only allow authenticated calls
+    },
+    async (request) => {
+    // Verify authentication
+      const authToken = request.auth;
+      if (!authToken) {
+        throw new HttpsError("unauthenticated", "User must be authenticated");
+      }
+
+      const userId = authToken.uid;
+      const {roomId, score, correctAnswers, wrongAnswers, previousScore} = request.data || {};
+
+      // Input validation
+      if (!roomId || typeof roomId !== "string") {
+        throw new HttpsError(
+            "invalid-argument",
+            "Room ID is required",
+        );
+      }
+
+      if (typeof score !== "number" || !Number.isInteger(score)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Score must be an integer",
+        );
+      }
+
+      if (typeof correctAnswers !== "number" || !Number.isInteger(correctAnswers)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Correct answers must be an integer",
+        );
+      }
+
+      if (typeof wrongAnswers !== "number" || !Number.isInteger(wrongAnswers)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Wrong answers must be an integer",
+        );
+      }
+
+      // Validate score is non-negative
+      if (score < 0) {
+        console.warn(`Invalid score: negative score ${score} from user ${userId} in room ${roomId}`);
+        throw new HttpsError(
+            "invalid-argument",
+            "Score cannot be negative",
+        );
+      }
+
+      // Validate answer counts are non-negative
+      if (correctAnswers < 0 || wrongAnswers < 0) {
+        console.warn(
+            `Invalid answer counts: correct=${correctAnswers}, ` +
+            `wrong=${wrongAnswers} from user ${userId} in room ${roomId}`,
+        );
+        throw new HttpsError(
+            "invalid-argument",
+            "Answer counts cannot be negative",
+        );
+      }
+
+      // Validate score increase is reasonable
+      // Maximum possible score increase per round: 10 base points * 50x multiplier = 500 points per correct answer
+      // With 3 correct answers max, total max increase = 3 * 500 = 1,500 points
+      // Add safety margin: 2,000 points
+      const maxReasonableIncrease = 2000;
+      if (previousScore !== undefined && typeof previousScore === "number") {
+        const scoreIncrease = score - previousScore;
+        if (scoreIncrease > maxReasonableIncrease) {
+          console.warn(`Suspicious score increase: ${scoreIncrease} points from user ${userId} in room ${roomId}`);
+          throw new HttpsError(
+              "invalid-argument",
+              "Score increase is too large. Possible cheating detected.",
+          );
+        }
+        if (scoreIncrease < 0 && scoreIncrease < -100) {
+        // Allow small decreases (e.g., penalties) but not large negative changes
+          console.warn(`Suspicious score decrease: ${scoreIncrease} points from user ${userId} in room ${roomId}`);
+          throw new HttpsError(
+              "invalid-argument",
+              "Invalid score change detected.",
+          );
+        }
+      }
+
+      // Validate that correct/wrong answer counts are reasonable
+      // Maximum 30 answers per round (defensive check)
+      const maxAnswersPerRound = 30;
+      if (correctAnswers + wrongAnswers > maxAnswersPerRound) {
+        console.warn(`Suspicious answer count: ${correctAnswers + wrongAnswers} from user ${userId} in room ${roomId}`);
+        throw new HttpsError(
+            "invalid-argument",
+            "Answer count exceeds maximum allowed per round",
+        );
+      }
+
+      try {
+      // Verify room exists and user is a player
+        const roomDoc = await db.collection("game_rooms").doc(roomId).get();
+
+        if (!roomDoc.exists) {
+          throw new HttpsError("not-found", "Room does not exist");
+        }
+
+        const roomData = roomDoc.data();
+        const players = roomData?.players || [];
+
+        // Check if user is in the players array
+        const player = players.find((p) => p.userId === userId);
+        if (!player) {
+          throw new HttpsError(
+              "permission-denied",
+              "You are not a member of this room",
+          );
+        }
+
+        // Validate score calculation matches expected pattern
+        // Scoring system: 10 base points per correct answer with multipliers up to 50x
+        // Base: 10 points per correct answer
+        // Max multiplier: 50x (difficulty + double score + gamification + streak mode)
+        // Max possible: 10 * 50 = 500 points per correct answer
+        const minPossibleScore = correctAnswers * 0; // At minimum, no points for correct
+        const maxPossibleScore = correctAnswers * 500; // At maximum, 500 points per correct (10 base * 50x multiplier)
+
+        // Score should be within reasonable bounds
+        if (score < minPossibleScore || score > maxPossibleScore) {
+          console.warn(
+              `Score out of bounds: ${score} (correct: ${correctAnswers}, ` +
+              `wrong: ${wrongAnswers}) from user ${userId} in room ${roomId}`,
+          );
+        // Don't reject, but log for review
+        }
+
+        // Log validation for monitoring
+        console.log(
+            `Score validated: userId=${userId}, roomId=${roomId}, ` +
+            `score=${score}, correct=${correctAnswers}, wrong=${wrongAnswers}`,
+        );
+
+        return {
+          success: true,
+          validated: true,
+          score: score,
+          correctAnswers: correctAnswers,
+          wrongAnswers: wrongAnswers,
+        };
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        console.error("Score validation error:", error);
+        throw new HttpsError(
+            "internal",
+            "Failed to validate score",
+        );
+      }
+    },
+);
+
+/**
+ * Scheduled function to cleanup expired and abandoned game rooms
+ * Runs every hour to remove old rooms
+ */
+exports.cleanupExpiredRooms = onSchedule(
+    {
+      schedule: "0 * * * *", // Every hour
+      timeZone: "UTC",
+      maxInstances: 1,
+    },
+    async (event) => {
+      console.log("Starting room cleanup...");
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+
+      let expiredCount = 0;
+      let abandonedCount = 0;
+      let errors = 0;
+
+      try {
+      // Cleanup expired rooms (expired > 1 hour ago)
+        const expiredRooms = await db
+            .collection("game_rooms")
+            .where("expiresAt", "<", oneHourAgo.toISOString())
+            .limit(500) // Process in batches
+            .get();
+
+        const expiredBatch = db.batch();
+        expiredRooms.docs.forEach((doc) => {
+          expiredBatch.delete(doc.ref);
+          expiredCount++;
+        });
+
+        if (expiredCount > 0) {
+          await expiredBatch.commit();
+          console.log(`Deleted ${expiredCount} expired rooms`);
+        }
+
+        // Cleanup abandoned rooms (no activity > 30 minutes, status = waiting)
+        const abandonedRooms = await db
+            .collection("game_rooms")
+            .where("status", "==", "waiting")
+            .where("createdAt", "<", thirtyMinutesAgo.toISOString())
+            .limit(500)
+            .get();
+
+        const abandonedBatch = db.batch();
+        for (const doc of abandonedRooms.docs) {
+          const roomData = doc.data();
+          const players = roomData?.players || [];
+
+          // Check if room has only 1 player (host) and was created > 30 minutes ago
+          if (players.length <= 1) {
+            abandonedBatch.delete(doc.ref);
+            abandonedCount++;
+          }
+        }
+
+        if (abandonedCount > 0) {
+          await abandonedBatch.commit();
+          console.log(`Deleted ${abandonedCount} abandoned rooms`);
+        }
+
+        console.log(`Room cleanup completed: ${expiredCount} expired, ${abandonedCount} abandoned`);
+      } catch (error) {
+        console.error("Error during room cleanup:", error);
+        errors++;
+      }
+
+      // Log statistics
+      console.log(`Cleanup stats: expired=${expiredCount}, abandoned=${abandonedCount}, errors=${errors}`);
+    },
 );
 

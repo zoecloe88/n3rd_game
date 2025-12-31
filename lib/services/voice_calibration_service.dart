@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:n3rd_game/models/voice_profile.dart';
 import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class VoiceCalibrationService extends ChangeNotifier {
   static const String _storageKey = 'voice_profile';
@@ -16,7 +17,12 @@ class VoiceCalibrationService extends ChangeNotifier {
   List<String> _calibrationWords = [];
   final Map<String, List<String>> _calibrationResults =
       {}; // word -> list of recognized pronunciations
+  final Map<String, List<double>> _calibrationConfidences =
+      {}; // word -> list of confidence scores
   bool _firebaseAvailable = false;
+
+  // Cache SharedPreferences instance for better performance
+  SharedPreferences? _prefs;
 
   VoiceProfile? get profile => _profile;
   bool get isCalibrating => _isCalibrating;
@@ -54,6 +60,23 @@ class VoiceCalibrationService extends ChangeNotifier {
     await _loadProfile();
   }
 
+  // Get or initialize SharedPreferences
+  Future<SharedPreferences> _getPrefs() async {
+    if (_prefs != null) return _prefs!;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      return _prefs!;
+    } catch (e) {
+      LoggerService.error(
+        'VoiceCalibrationService: Failed to initialize SharedPreferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      rethrow;
+    }
+  }
+
   Future<void> _loadProfile() async {
     // Try Firestore first
     if (_firebaseAvailable) {
@@ -72,7 +95,12 @@ class VoiceCalibrationService extends ChangeNotifier {
             return;
           }
         } catch (e) {
-          debugPrint('Failed to load voice profile from Firestore: $e');
+          LoggerService.error(
+            'VoiceCalibrationService: Failed to load voice profile from Firestore',
+            error: e,
+            stack: StackTrace.current,
+            fatal: false,
+          );
         }
       }
     }
@@ -83,7 +111,7 @@ class VoiceCalibrationService extends ChangeNotifier {
 
   Future<void> _loadLocal() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       final jsonString = prefs.getString(_storageKey);
       if (jsonString != null) {
         final data = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -91,17 +119,27 @@ class VoiceCalibrationService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to load voice profile from local storage: $e');
+      LoggerService.error(
+        'VoiceCalibrationService: Failed to load voice profile from local storage',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
   Future<void> _saveLocal() async {
     if (_profile == null) return;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setString(_storageKey, jsonEncode(_profile!.toJson()));
     } catch (e) {
-      debugPrint('Failed to save voice profile to local storage: $e');
+      LoggerService.error(
+        'VoiceCalibrationService: Failed to save voice profile to local storage',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -116,7 +154,12 @@ class VoiceCalibrationService extends ChangeNotifier {
           .doc(userId)
           .set(_profile!.toJson(), SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Failed to save voice profile to Firestore: $e');
+      LoggerService.error(
+        'VoiceCalibrationService: Failed to save voice profile to Firestore',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -133,11 +176,9 @@ class VoiceCalibrationService extends ChangeNotifier {
 
     // CRITICAL: Validate pronunciation service is loaded before accessing words
     if (!pronunciationService.isLoaded) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ Warning: Pronunciation service not loaded, using default calibration words',
-        );
-      }
+      LoggerService.warning(
+        'VoiceCalibrationService: Pronunciation service not loaded, using default calibration words',
+      );
       _calibrationWords = ['serendipity', 'ephemeral', 'eloquent'];
     } else {
       // Select 3 random words from dictionary for calibration
@@ -170,6 +211,12 @@ class VoiceCalibrationService extends ChangeNotifier {
         .putIfAbsent(normalizedWord, () => [])
         .add(normalizedRecognized);
 
+    // Store confidence score for weighted accuracy calculation
+    final confidence = recognitionService.confidence;
+    _calibrationConfidences
+        .putIfAbsent(normalizedWord, () => [])
+        .add(confidence);
+
     return true;
   }
 
@@ -197,23 +244,53 @@ class VoiceCalibrationService extends ChangeNotifier {
 
     final userId = _userId ?? 'local_user';
 
-    // Calculate accuracy score (simple: how many words were recognized correctly)
-    int correctRecognitions = 0;
-    int totalRecognitions = 0;
+    // Enhanced accuracy calculation with fuzzy matching and confidence weighting
+    double totalWeightedScore = 0.0;
+    double totalWeight = 0.0;
 
     for (final entry in _calibrationResults.entries) {
       final word = entry.key;
       final recognitions = entry.value;
-      totalRecognitions += recognitions.length;
+      final confidences = _calibrationConfidences[word] ?? [];
 
-      // Check if at least one recognition matches the word
-      if (recognitions.any((r) => r.contains(word) || word.contains(r))) {
-        correctRecognitions++;
+      // Calculate best match score for this word across all samples
+      double bestWordScore = 0.0;
+      double bestWordWeight = 0.0;
+
+      for (int i = 0; i < recognitions.length; i++) {
+        final recognition = recognitions[i];
+        final confidence = i < confidences.length ? confidences[i] : 0.5;
+
+        // Use fuzzy matching (Levenshtein distance) for better accuracy
+        final similarity = _calculateSimilarity(word, recognition);
+
+        // Weight the score by confidence
+        final weightedScore = similarity * confidence;
+        final weight = confidence;
+
+        if (weightedScore > bestWordScore) {
+          bestWordScore = weightedScore;
+          bestWordWeight = weight;
+        }
       }
+
+      // If no confidence data, use simple matching
+      if (bestWordWeight == 0.0) {
+        final hasMatch = recognitions.any((r) {
+          final similarity = _calculateSimilarity(word, r);
+          return similarity > 0.7; // 70% similarity threshold
+        });
+        bestWordScore = hasMatch ? 1.0 : 0.0;
+        bestWordWeight = 1.0;
+      }
+
+      totalWeightedScore += bestWordScore * bestWordWeight;
+      totalWeight += bestWordWeight;
     }
 
-    final accuracyScore = totalRecognitions > 0
-        ? correctRecognitions / _calibrationWords.length
+    // Calculate final accuracy score
+    final accuracyScore = totalWeight > 0
+        ? totalWeightedScore / totalWeight
         : 0.0;
 
     // Create voice profile
@@ -241,6 +318,7 @@ class VoiceCalibrationService extends ChangeNotifier {
     _isCalibrating = false;
     _calibrationStep = 0;
     _calibrationResults.clear();
+    _calibrationConfidences.clear();
     _calibrationWords.clear();
     notifyListeners();
   }
@@ -279,5 +357,61 @@ class VoiceCalibrationService extends ChangeNotifier {
     // Fallback: check if spoken text contains the word or vice versa
     return normalizedSpoken.contains(normalizedWord) ||
         normalizedWord.contains(normalizedSpoken);
+  }
+
+  /// Calculate similarity between two strings using Levenshtein distance
+  double _calculateSimilarity(String a, String b) {
+    if (a.isEmpty && b.isEmpty) return 1.0;
+    if (a.isEmpty || b.isEmpty) return 0.0;
+
+    // Check if one contains the other (exact substring match)
+    if (a.contains(b) || b.contains(a)) {
+      return 0.9; // High score for substring match
+    }
+
+    // Calculate Levenshtein distance
+    final distance = _levenshteinDistance(a, b);
+    final maxLen = a.length > b.length ? a.length : b.length;
+    return 1.0 - (distance / maxLen);
+  }
+
+  /// Calculate Levenshtein distance between two strings
+  int _levenshteinDistance(String a, String b) {
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+
+    final matrix = List.generate(
+      a.length + 1,
+      (i) => List.generate(b.length + 1, (j) => 0),
+    );
+
+    for (int i = 0; i <= a.length; i++) {
+      matrix[i][0] = i;
+    }
+    for (int j = 0; j <= b.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (int i = 1; i <= a.length; i++) {
+      for (int j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        matrix[i][j] = [
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost,
+        ].reduce((a, b) => a < b ? a : b);
+      }
+    }
+
+    return matrix[a.length][b.length];
+  }
+
+  @override
+  void dispose() {
+    // Cancel any ongoing calibration
+    if (_isCalibrating) {
+      cancelCalibration();
+    }
+    super.dispose();
   }
 }

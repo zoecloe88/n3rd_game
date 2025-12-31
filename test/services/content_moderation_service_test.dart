@@ -3,18 +3,33 @@ import 'package:n3rd_game/services/content_moderation_service.dart';
 
 void main() {
   group('ContentModerationService', () {
-    final service = ContentModerationService();
+    late ContentModerationService service;
+
+    setUp(() {
+      service = ContentModerationService();
+    });
+
+    tearDown(() {
+      // ContentModerationService doesn't extend ChangeNotifier, so no dispose needed
+      // This structure is for consistency with other test files
+    });
 
     test('should detect profanity in content', () {
       expect(service.containsProfanity('This is a test'), false);
       expect(service.containsProfanity('This is a damn test'), true);
-      expect(service.containsProfanity('This is a DAMN test'), true); // Case insensitive
+      expect(
+        service.containsProfanity('This is a DAMN test'),
+        true,
+      ); // Case insensitive
     });
 
     test('should sanitize profanity', () {
       final sanitized = service.sanitize('This is a damn test');
       expect(sanitized.contains('damn'), false);
-      expect(sanitized.contains('****'), true); // Should be replaced with asterisks
+      expect(
+        sanitized.contains('****'),
+        true,
+      ); // Should be replaced with asterisks
     });
 
     test('should validate content length', () {
@@ -28,7 +43,7 @@ void main() {
       // Excessive repetition
       expect(service.validateContent('aaaaaa'), isNotNull);
       expect(service.validateContent('test test test'), isNotNull);
-      
+
       // Normal content
       expect(service.validateContent('This is a normal message'), isNull);
     });
@@ -52,7 +67,7 @@ void main() {
         correctAnswers: ['H2O'],
       );
       expect(invalid1, isNotNull);
-      
+
       // Answer not in words list
       final invalid2 = service.validateTriviaContent(
         category: 'Science',
@@ -67,7 +82,7 @@ void main() {
       // Test script injection detection via validateContent
       final scriptContent = '<script>alert("xss")</script>';
       expect(service.validateContent(scriptContent), isNotNull);
-      
+
       // Test javascript: protocol
       final jsContent = 'javascript:alert("xss")';
       expect(service.validateContent(jsContent), isNotNull);
@@ -77,10 +92,9 @@ void main() {
       // Test URL detection via validateContent
       final urlContent = 'Check out https://example.com';
       expect(service.validateContent(urlContent), isNotNull);
-      
+
       // Normal content without URLs should pass
       expect(service.validateContent('This is normal text'), isNull);
     });
   });
 }
-

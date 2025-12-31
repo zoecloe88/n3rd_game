@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/services/game_history_service.dart';
-import 'package:n3rd_game/services/game_service.dart';
+import 'package:n3rd_game/models/game_mode_config.dart';
 import 'package:n3rd_game/models/game_history_entry.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
@@ -10,7 +10,16 @@ import 'package:n3rd_game/widgets/standardized_loading_widget.dart';
 import 'package:n3rd_game/widgets/error_recovery_widget.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_typography.dart';
+import 'package:n3rd_game/theme/app_colors.dart';
+import 'package:n3rd_game/theme/app_radius.dart';
+import 'package:n3rd_game/widgets/app_button.dart';
+import 'package:n3rd_game/widgets/app_text_field.dart';
+import 'package:n3rd_game/widgets/app_card.dart';
+import 'package:n3rd_game/utils/feedback_helper.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/utils/error_handler.dart';
+import 'package:n3rd_game/utils/game_mode_extensions.dart';
 import 'package:intl/intl.dart';
 
 class GameHistoryScreen extends StatefulWidget {
@@ -22,6 +31,9 @@ class GameHistoryScreen extends StatefulWidget {
 
 class _GameHistoryScreenState extends State<GameHistoryScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _minScoreController = TextEditingController();
+  final TextEditingController _maxScoreController = TextEditingController();
+
   List<GameHistoryEntry> _games = [];
   bool _loading = true;
   bool _loadingMore = false;
@@ -41,11 +53,45 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
     super.initState();
     _loadGames();
     _scrollController.addListener(_onScroll);
+    // Initialize controllers with current values
+    _minScoreController.text = _minScore?.toString() ?? '';
+    _maxScoreController.text = _maxScore?.toString() ?? '';
+    // Add listeners to update state
+    _minScoreController.addListener(_onMinScoreChanged);
+    _maxScoreController.addListener(_onMaxScoreChanged);
+  }
+
+  void _onMinScoreChanged() {
+    final value = _minScoreController.text;
+    setState(() {
+      if (value.isEmpty) {
+        _minScore = null;
+      } else {
+        final parsed = int.tryParse(value);
+        // Validate: must be >= 0
+        _minScore = (parsed != null && parsed >= 0) ? parsed : null;
+      }
+    });
+  }
+
+  void _onMaxScoreChanged() {
+    final value = _maxScoreController.text;
+    setState(() {
+      if (value.isEmpty) {
+        _maxScore = null;
+      } else {
+        final parsed = int.tryParse(value);
+        // Validate: must be >= 0
+        _maxScore = (parsed != null && parsed >= 0) ? parsed : null;
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _minScoreController.dispose();
+    _maxScoreController.dispose();
     super.dispose();
   }
 
@@ -72,7 +118,7 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
     });
 
     try {
-      final service = Provider.of<GameHistoryService>(context, listen: false);
+      final service = ProviderHelper.safeGetOrThrow<GameHistoryService>(context, listen: false);
       final games = await service.getGameHistory(
         limit: 20,
         startAfter: _lastDocument,
@@ -98,7 +144,7 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ErrorHandler.getLocalizedErrorMessage(e, context);
         _loading = false;
         _loadingMore = false;
       });
@@ -121,6 +167,7 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       body: VideoBackgroundWidget(
         videoPath: 'assets/statscreen.mp4',
@@ -136,15 +183,47 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
                   children: [
-                    IconButton(
+                    AppButton(
+                      icon: Icons.arrow_back,
                       onPressed: () => NavigationHelper.safePop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      variant: AppButtonVariant.icon,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: colors.onDarkText,
                     ),
                     const Spacer(),
-                    IconButton(
+                    // Sync status indicator
+                    Consumer<GameHistoryService>(
+                      builder: (context, service, _) {
+                        final queueSize = service.retryQueueSize;
+                        if (queueSize > 0) {
+                          return Row(
+                            children: [
+                              Icon(
+                                Icons.sync_problem,
+                                color: colors.warning,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                '$queueSize pending',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: colors.warning,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                            ],
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    AppButton(
+                      icon: Icons.filter_list,
                       onPressed: _showFilters,
-                      icon: const Icon(Icons.filter_list, color: Colors.white),
-                      tooltip: 'Filters',
+                      variant: AppButtonVariant.icon,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: colors.onDarkText,
+                      semanticsLabel: 'Filters',
                     ),
                   ],
                 ),
@@ -173,72 +252,83 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
   }
 
   Widget _buildActiveFilters() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-      color: Colors.black.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          const Text(
-            'Filters:',
-            style: TextStyle(color: Colors.white, fontSize: 12),
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.sm,),
+          color: AppColors.overlayDark.withValues(alpha: 0.3),
+          child: Row(
+            children: [
+              Text(
+                'Filters:',
+                style: AppTypography.labelSmall.copyWith(
+                  color: colors.onDarkText,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    if (_selectedMode != null)
+                      Chip(
+                        label: Text(
+                          _selectedMode!.displayName,
+                          style: AppTypography.labelSmall,
+                        ),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedMode = null;
+                          });
+                          _refreshGames();
+                        },
+                        backgroundColor:
+                            colors.onDarkText.withValues(alpha: 0.2),
+                        deleteIconColor: colors.onDarkText,
+                      ),
+                    if (_startDate != null || _endDate != null)
+                      Chip(
+                        label: Text(
+                          _formatDateRange(),
+                          style: AppTypography.labelSmall,
+                        ),
+                        onDeleted: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                          });
+                          _refreshGames();
+                        },
+                        backgroundColor:
+                            colors.onDarkText.withValues(alpha: 0.2),
+                        deleteIconColor: colors.onDarkText,
+                      ),
+                    if (_minScore != null || _maxScore != null)
+                      Chip(
+                        label: Text(
+                          _formatScoreRange(),
+                          style: AppTypography.labelSmall,
+                        ),
+                        onDeleted: () {
+                          setState(() {
+                            _minScore = null;
+                            _maxScore = null;
+                          });
+                          _refreshGames();
+                        },
+                        backgroundColor:
+                            colors.onDarkText.withValues(alpha: 0.2),
+                        deleteIconColor: colors.onDarkText,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              children: [
-                if (_selectedMode != null)
-                  Chip(
-                    label: Text(
-                      _selectedMode!.toString().split('.').last,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onDeleted: () {
-                      setState(() {
-                        _selectedMode = null;
-                      });
-                      _refreshGames();
-                    },
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    deleteIconColor: Colors.white,
-                  ),
-                if (_startDate != null || _endDate != null)
-                  Chip(
-                    label: Text(
-                      _formatDateRange(),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onDeleted: () {
-                      setState(() {
-                        _startDate = null;
-                        _endDate = null;
-                      });
-                      _refreshGames();
-                    },
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    deleteIconColor: Colors.white,
-                  ),
-                if (_minScore != null || _maxScore != null)
-                  Chip(
-                    label: Text(
-                      _formatScoreRange(),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onDeleted: () {
-                      setState(() {
-                        _minScore = null;
-                        _maxScore = null;
-                      });
-                      _refreshGames();
-                    },
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    deleteIconColor: Colors.white,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -266,7 +356,8 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
 
   Widget _buildContent() {
     if (_loading && _games.isEmpty) {
-      return const StandardizedLoadingWidget(message: 'Loading game history...');
+      return const StandardizedLoadingWidget(
+          message: 'Loading game history...',);
     }
 
     if (_error != null && _games.isEmpty) {
@@ -322,85 +413,93 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
   }
 
   Widget _buildGameCard(GameHistoryEntry game) {
-    final dateFormat = DateFormat('MMM d, y • h:mm a');
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        final dateFormat = DateFormat('MMM d, y • h:mm a');
 
-    return Card(
-      color: Colors.black.withValues(alpha: 0.6),
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: InkWell(
-        onTap: () => _showGameDetails(game),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      game.mode.toString().split('.').last.toUpperCase(),
-                      style: AppTypography.titleLarge.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+        return AppCard.filled(
+          margin: const EdgeInsets.only(bottom: AppSpacing.md),
+          backgroundColor: AppColors.overlayDark.withValues(alpha: 0.6),
+          onTap: () => _showGameDetails(game),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        game.mode.displayName.toUpperCase(),
+                        style: AppTypography.titleLarge.copyWith(
+                          color: colors.onDarkText,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
+                    Text(
+                      dateFormat.format(game.completedAt),
+                      style: AppTypography.labelSmall.copyWith(
+                        color: colors.onDarkText.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    _buildStatChip(
+                        context, 'Score', game.score.toString(), Icons.star,),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildStatChip(context, 'Rounds', game.rounds.toString(),
+                        Icons.repeat,),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildStatChip(
+                      context,
+                      'Accuracy',
+                      '${game.accuracy.toStringAsFixed(1)}%',
+                      Icons.check_circle,
+                    ),
+                  ],
+                ),
+                if (game.durationSeconds > 0) ...[
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
-                    dateFormat.format(game.completedAt),
+                    'Duration: ${_formatDuration(game.durationSeconds)}',
                     style: AppTypography.labelSmall.copyWith(
-                      color: Colors.white70,
+                      color: colors.onDarkText.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  _buildStatChip('Score', game.score.toString(), Icons.star),
-                  const SizedBox(width: AppSpacing.sm),
-                  _buildStatChip('Rounds', game.rounds.toString(), Icons.repeat),
-                  const SizedBox(width: AppSpacing.sm),
-                  _buildStatChip(
-                    'Accuracy',
-                    '${game.accuracy.toStringAsFixed(1)}%',
-                    Icons.check_circle,
-                  ),
-                ],
-              ),
-              if (game.durationSeconds > 0) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Duration: ${_formatDuration(game.durationSeconds)}',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildStatChip(String label, String value, IconData icon) {
+  Widget _buildStatChip(
+      BuildContext context, String label, String value, IconData icon,) {
+    final colors = AppColors.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs,),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: colors.onDarkText.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white70),
-          const SizedBox(width: 4),
+          Icon(icon, size: 14, color: colors.onDarkText.withValues(alpha: 0.7)),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             '$label: $value',
             style: AppTypography.labelSmall.copyWith(
-              color: Colors.white,
-              fontSize: 11,
+              color: colors.onDarkText,
             ),
           ),
         ],
@@ -418,11 +517,11 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
   }
 
   void _showGameDetails(GameHistoryEntry game) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black.withValues(alpha: 0.95),
+    final colors = AppColors.of(context);
+    FeedbackHelper.showBottomSheet(
+      context,
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
+      child: DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
         maxChildSize: 0.95,
@@ -438,30 +537,38 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                   Text(
                     'Game Details',
                     style: AppTypography.headlineMedium.copyWith(
-                      color: Colors.white,
+                      color: colors.onDarkText,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Colors.white),
+                  AppButton(
+                    icon: Icons.close,
+                    onPressed: () => NavigationHelper.safePop(context),
+                    variant: AppButtonVariant.icon,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: colors.onDarkText,
                   ),
                 ],
               ),
-              const Divider(color: Colors.white24),
-              _buildDetailRow('Mode', game.mode.toString().split('.').last),
+              Divider(color: colors.onDarkText.withValues(alpha: 0.24)),
+              _buildDetailRow('Mode', game.mode.displayName),
               if (game.difficulty != null)
                 _buildDetailRow('Difficulty', game.difficulty!),
               _buildDetailRow('Score', game.score.toString()),
               _buildDetailRow('Rounds', game.rounds.toString()),
-              _buildDetailRow('Correct Answers', game.correctAnswers.toString()),
+              _buildDetailRow(
+                  'Correct Answers', game.correctAnswers.toString(),),
               _buildDetailRow('Wrong Answers', game.wrongAnswers.toString()),
-              _buildDetailRow('Accuracy', '${game.accuracy.toStringAsFixed(1)}%'),
+              _buildDetailRow(
+                  'Accuracy', '${game.accuracy.toStringAsFixed(1)}%',),
               if (game.perfectStreak > 0)
-                _buildDetailRow('Perfect Streak', game.perfectStreak.toString()),
+                _buildDetailRow(
+                    'Perfect Streak', game.perfectStreak.toString(),),
               if (game.livesRemaining > 0)
-                _buildDetailRow('Lives Remaining', game.livesRemaining.toString()),
-              _buildDetailRow('Duration', _formatDuration(game.durationSeconds)),
+                _buildDetailRow(
+                    'Lives Remaining', game.livesRemaining.toString(),),
+              _buildDetailRow(
+                  'Duration', _formatDuration(game.durationSeconds),),
               _buildDetailRow(
                 'Completed',
                 DateFormat('MMM d, y • h:mm a').format(game.completedAt),
@@ -471,7 +578,7 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                 Text(
                   'Categories',
                   style: AppTypography.titleLarge.copyWith(
-                    color: Colors.white,
+                    color: colors.onDarkText,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -479,10 +586,13 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                 Wrap(
                   spacing: AppSpacing.sm,
                   children: game.triviaCategories
-                      .map((cat) => Chip(
-                            label: Text(cat, style: const TextStyle(fontSize: 12)),
-                            backgroundColor: Colors.white.withValues(alpha: 0.1),
-                          ),)
+                      .map(
+                        (cat) => Chip(
+                          label: Text(cat, style: AppTypography.labelSmall),
+                          backgroundColor:
+                              colors.onDarkText.withValues(alpha: 0.1),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -494,35 +604,40 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
   }
 
   Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: AppTypography.bodyMedium.copyWith(
-              color: Colors.white70,
-            ),
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: colors.onDarkText.withValues(alpha: 0.7),
+                ),
+              ),
+              Text(
+                value,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: colors.onDarkText,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: AppTypography.bodyMedium.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   void _showFilters() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black.withValues(alpha: 0.95),
+    final colors = AppColors.of(context);
+    FeedbackHelper.showBottomSheet(
+      context,
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
+      child: DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
         maxChildSize: 0.9,
@@ -538,17 +653,20 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                   Text(
                     'Filters',
                     style: AppTypography.headlineMedium.copyWith(
-                      color: Colors.white,
+                      color: colors.onDarkText,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Colors.white),
+                  AppButton(
+                    icon: Icons.close,
+                    onPressed: () => NavigationHelper.safePop(context),
+                    variant: AppButtonVariant.icon,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: colors.onDarkText,
                   ),
                 ],
               ),
-              const Divider(color: Colors.white24),
+              Divider(color: colors.onDarkText.withValues(alpha: 0.24)),
               const SizedBox(height: AppSpacing.md),
               _buildModeFilter(),
               const SizedBox(height: AppSpacing.md),
@@ -559,7 +677,9 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: AppButton(
+                      variant: AppButtonVariant.secondary,
+                      label: 'Clear All',
                       onPressed: () {
                         setState(() {
                           _selectedMode = null;
@@ -568,28 +688,23 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
                           _minScore = null;
                           _maxScore = null;
                         });
-                        Navigator.pop(context);
+                        NavigationHelper.safePop(context);
                         _refreshGames();
                       },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white),
-                      ),
-                      child: const Text('Clear All'),
+                      foregroundColor: colors.onDarkText,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      variant: AppButtonVariant.primary,
+                      label: 'Apply',
                       onPressed: () {
-                        Navigator.pop(context);
+                        NavigationHelper.safePop(context);
                         _refreshGames();
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Apply'),
+                      backgroundColor: AppColors.overlayDark,
+                      foregroundColor: colors.onDarkText,
                     ),
                   ),
                 ],
@@ -602,173 +717,146 @@ class _GameHistoryScreenState extends State<GameHistoryScreen> {
   }
 
   Widget _buildModeFilter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Game Mode',
-          style: AppTypography.titleLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: GameMode.values.map((mode) {
-            final isSelected = _selectedMode == mode;
-            return FilterChip(
-              label: Text(mode.toString().split('.').last),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedMode = selected ? mode : null;
-                });
-              },
-              selectedColor: Colors.white.withValues(alpha: 0.3),
-              checkmarkColor: Colors.white,
-            );
-          }).toList(),
-        ),
-      ],
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Game Mode',
+              style:
+                  AppTypography.titleLarge.copyWith(color: colors.onDarkText),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: GameMode.values.map((mode) {
+                final isSelected = _selectedMode == mode;
+                return FilterChip(
+                  label: Text(mode.displayName),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedMode = selected ? mode : null;
+                    });
+                  },
+                  selectedColor: colors.onDarkText.withValues(alpha: 0.3),
+                  checkmarkColor: colors.onDarkText,
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildDateRangeFilter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Date Range',
-          style: AppTypography.titleLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _startDate ?? DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    setState(() {
-                      _startDate = date;
-                    });
-                  }
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white),
-                ),
-                child: Text(
-                  _startDate == null
-                      ? 'Start Date'
-                      : DateFormat('MMM d, y').format(_startDate!),
-                ),
-              ),
+            Text(
+              'Date Range',
+              style:
+                  AppTypography.titleLarge.copyWith(color: colors.onDarkText),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _endDate ?? DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    setState(() {
-                      _endDate = date;
-                    });
-                  }
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    variant: AppButtonVariant.secondary,
+                    label: _startDate == null
+                        ? 'Start Date'
+                        : DateFormat('MMM d, y').format(_startDate!),
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _startDate = date;
+                        });
+                      }
+                    },
+                    foregroundColor: colors.onDarkText,
+                  ),
                 ),
-                child: Text(
-                  _endDate == null
-                      ? 'End Date'
-                      : DateFormat('MMM d, y').format(_endDate!),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppButton(
+                    variant: AppButtonVariant.secondary,
+                    label: _endDate == null
+                        ? 'End Date'
+                        : DateFormat('MMM d, y').format(_endDate!),
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _endDate ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _endDate = date;
+                        });
+                      }
+                    },
+                    foregroundColor: colors.onDarkText,
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildScoreRangeFilter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Score Range',
-          style: AppTypography.titleLarge.copyWith(color: Colors.white),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
+    return Builder(
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Min Score',
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    _minScore = value.isEmpty ? null : int.tryParse(value);
-                  });
-                },
-                controller: TextEditingController(
-                  text: _minScore?.toString() ?? '',
-                ),
-              ),
+            Text(
+              'Score Range',
+              style:
+                  AppTypography.titleLarge.copyWith(color: colors.onDarkText),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Max Score',
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white),
-                    borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: AppTextField(
+                    controller: _minScoreController,
+                    label: 'Min Score',
+                    leadingIcon: Icons.trending_up,
+                    keyboardType: TextInputType.number,
                   ),
                 ),
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    _maxScore = value.isEmpty ? null : int.tryParse(value);
-                  });
-                },
-                controller: TextEditingController(
-                  text: _maxScore?.toString() ?? '',
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppTextField(
+                    controller: _maxScoreController,
+                    label: 'Max Score',
+                    leadingIcon: Icons.trending_down,
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
-

@@ -30,20 +30,29 @@ void main() {
     });
 
     test('sanitizeEmail validates and sanitizes emails', () {
-      expect(InputSanitizer.sanitizeEmail('test@example.com'), 'test@example.com');
-      expect(InputSanitizer.sanitizeEmail('  TEST@EXAMPLE.COM  '), 'test@example.com');
+      expect(
+        InputSanitizer.sanitizeEmail('test@example.com'),
+        'test@example.com',
+      );
+      expect(
+        InputSanitizer.sanitizeEmail('  TEST@EXAMPLE.COM  '),
+        'test@example.com',
+      );
       expect(InputSanitizer.sanitizeEmail('invalid'), null);
       expect(InputSanitizer.sanitizeEmail(''), null);
     });
 
     test('sanitizeUrl validates URLs', () {
       // HTTPS URLs should always be allowed
-      expect(InputSanitizer.sanitizeUrl('https://example.com'), 'https://example.com');
-      
+      expect(
+        InputSanitizer.sanitizeUrl('https://example.com'),
+        'https://example.com',
+      );
+
       // HTTP URLs should be rejected when AppConfig.enforceHttps is true
       // (AppConfig.enforceHttps is true by default for security)
       expect(InputSanitizer.sanitizeUrl('http://example.com'), null);
-      
+
       // Invalid URLs should be rejected
       expect(InputSanitizer.sanitizeUrl('javascript:alert(1)'), null);
       expect(InputSanitizer.sanitizeUrl('invalid'), null);
@@ -61,4 +70,3 @@ void main() {
     });
   });
 }
-

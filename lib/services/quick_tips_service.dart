@@ -168,10 +168,6 @@ class QuickTipsService {
 
 /// Model for game gems (tips)
 class GameGem {
-  final String title;
-  final String description;
-  final String category;
-  final String points;
 
   GameGem({
     required this.title,
@@ -179,4 +175,8 @@ class GameGem {
     required this.category,
     required this.points,
   });
+  final String title;
+  final String description;
+  final String category;
+  final String points;
 }

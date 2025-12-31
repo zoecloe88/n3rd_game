@@ -40,3 +40,23 @@ echo "   2. Upload all MP4 files from assets/ folder"
 echo "   3. Files will be publicly accessible"
 echo ""
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

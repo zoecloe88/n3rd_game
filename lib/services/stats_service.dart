@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart'
     as firebase_crashlytics;
@@ -9,17 +8,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:n3rd_game/services/achievement_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/utils/firebase_helper.dart';
 import 'package:n3rd_game/config/app_config.dart';
 
 /// Daily statistics for historical tracking
 class DailyStats {
-  final DateTime date;
-  final int gamesPlayed;
-  final int correctAnswers;
-  final int wrongAnswers;
-  final int score;
-  final int highestScore;
-  final Map<String, int> modePlayCounts;
 
   DailyStats({
     required this.date,
@@ -30,20 +23,6 @@ class DailyStats {
     this.highestScore = 0,
     Map<String, int>? modePlayCounts,
   }) : modePlayCounts = modePlayCounts ?? {};
-
-  double get accuracy => correctAnswers + wrongAnswers > 0
-      ? (correctAnswers / (correctAnswers + wrongAnswers)) * 100
-      : 0;
-
-  Map<String, dynamic> toJson() => {
-        'date': date.toIso8601String(),
-        'gamesPlayed': gamesPlayed,
-        'correctAnswers': correctAnswers,
-        'wrongAnswers': wrongAnswers,
-        'score': score,
-        'highestScore': highestScore,
-        'modePlayCounts': modePlayCounts,
-      };
 
   factory DailyStats.fromJson(Map<String, dynamic> json) => DailyStats(
         date: () {
@@ -66,6 +45,27 @@ class DailyStats {
         highestScore: json['highestScore'] ?? 0,
         modePlayCounts: Map<String, int>.from(json['modePlayCounts'] ?? {}),
       );
+  final DateTime date;
+  final int gamesPlayed;
+  final int correctAnswers;
+  final int wrongAnswers;
+  final int score;
+  final int highestScore;
+  final Map<String, int> modePlayCounts;
+
+  double get accuracy => correctAnswers + wrongAnswers > 0
+      ? (correctAnswers / (correctAnswers + wrongAnswers)) * 100
+      : 0;
+
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'gamesPlayed': gamesPlayed,
+        'correctAnswers': correctAnswers,
+        'wrongAnswers': wrongAnswers,
+        'score': score,
+        'highestScore': highestScore,
+        'modePlayCounts': modePlayCounts,
+      };
 
   DailyStats copyWith({
     DateTime? date,
@@ -89,16 +89,6 @@ class DailyStats {
 }
 
 class GameStats {
-  final int totalGamesPlayed;
-  final int totalCorrectAnswers;
-  final int totalWrongAnswers;
-  final int highestScore;
-  final int totalTimeAttackScore;
-  final Map<String, int> modePlayCounts;
-  final List<DailyStats> dailyStats;
-  final int currentStreak;
-  final int longestStreak;
-  final DateTime? lastPlayDate;
 
   GameStats({
     this.totalGamesPlayed = 0,
@@ -113,23 +103,6 @@ class GameStats {
     this.lastPlayDate,
   })  : modePlayCounts = modePlayCounts ?? {},
         dailyStats = dailyStats ?? [];
-
-  double get accuracy => totalCorrectAnswers + totalWrongAnswers > 0
-      ? (totalCorrectAnswers / (totalCorrectAnswers + totalWrongAnswers)) * 100
-      : 0;
-
-  Map<String, dynamic> toJson() => {
-        'totalGamesPlayed': totalGamesPlayed,
-        'totalCorrectAnswers': totalCorrectAnswers,
-        'totalWrongAnswers': totalWrongAnswers,
-        'highestScore': highestScore,
-        'totalTimeAttackScore': totalTimeAttackScore,
-        'modePlayCounts': modePlayCounts,
-        'dailyStats': dailyStats.map((ds) => ds.toJson()).toList(),
-        'currentStreak': currentStreak,
-        'longestStreak': longestStreak,
-        'lastPlayDate': lastPlayDate?.toIso8601String(),
-      };
 
   factory GameStats.fromJson(Map<String, dynamic> json) => GameStats(
         totalGamesPlayed: json['totalGamesPlayed'] ?? 0,
@@ -160,6 +133,33 @@ class GameStats {
               }()
             : null,
       );
+  final int totalGamesPlayed;
+  final int totalCorrectAnswers;
+  final int totalWrongAnswers;
+  final int highestScore;
+  final int totalTimeAttackScore;
+  final Map<String, int> modePlayCounts;
+  final List<DailyStats> dailyStats;
+  final int currentStreak;
+  final int longestStreak;
+  final DateTime? lastPlayDate;
+
+  double get accuracy => totalCorrectAnswers + totalWrongAnswers > 0
+      ? (totalCorrectAnswers / (totalCorrectAnswers + totalWrongAnswers)) * 100
+      : 0;
+
+  Map<String, dynamic> toJson() => {
+        'totalGamesPlayed': totalGamesPlayed,
+        'totalCorrectAnswers': totalCorrectAnswers,
+        'totalWrongAnswers': totalWrongAnswers,
+        'highestScore': highestScore,
+        'totalTimeAttackScore': totalTimeAttackScore,
+        'modePlayCounts': modePlayCounts,
+        'dailyStats': dailyStats.map((ds) => ds.toJson()).toList(),
+        'currentStreak': currentStreak,
+        'longestStreak': longestStreak,
+        'lastPlayDate': lastPlayDate?.toIso8601String(),
+      };
 
   GameStats copyWith({
     int? totalGamesPlayed,
@@ -193,7 +193,8 @@ class StatsService extends ChangeNotifier {
   GameStats _stats = GameStats();
   bool _firebaseAvailable = false;
   bool _isSaving = false; // Mutex to prevent concurrent saves
-  bool _isRecordingGameEnd = false; // Mutex to prevent concurrent recordGameEnd calls
+  bool _isRecordingGameEnd =
+      false; // Mutex to prevent concurrent recordGameEnd calls
   bool _isInitialized = false;
   bool _isInitializing = false; // Mutex to prevent concurrent initialization
 
@@ -203,8 +204,11 @@ class StatsService extends ChangeNotifier {
   // Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestore {
     if (!_firebaseAvailable) return null;
+    if (!FirebaseHelper.isInitialized()) {
+      _firebaseAvailable = false;
+      return null;
+    }
     try {
-      Firebase.app();
       return FirebaseFirestore.instance;
     } catch (e) {
       _firebaseAvailable = false;
@@ -214,8 +218,11 @@ class StatsService extends ChangeNotifier {
 
   // Get current user ID for Firestore
   String? get _userId {
+    if (!FirebaseHelper.isInitialized()) {
+      return null;
+    }
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      return FirebaseHelper.getCurrentUser()?.uid;
     } catch (e) {
       return null;
     }
@@ -232,42 +239,43 @@ class StatsService extends ChangeNotifier {
         Firebase.app();
         _firebaseAvailable = true;
 
-      // Try to load from Firestore if user is logged in (with timeout)
-      final userId = _userId;
-      if (userId != null) {
-        try {
-          const timeoutDuration = Duration(seconds: 10);
-          final doc = await _firestore!
-              .collection('user_stats')
-              .doc(userId)
-              .get()
-              .timeout(
-            timeoutDuration,
-            onTimeout: () {
-              throw TimeoutException(
-                'Firestore load timeout after ${timeoutDuration.inSeconds}s',
-              );
-            },
-          );
-          if (doc.exists && doc.data() != null) {
-            final data = doc.data();
-            if (data != null) {
-              _stats = GameStats.fromJson(data);
+        // Try to load from Firestore if user is logged in (with timeout)
+        final userId = _userId;
+        if (userId != null) {
+          try {
+            const timeoutDuration = Duration(seconds: 10);
+            final doc = await _firestore!
+                .collection('user_stats')
+                .doc(userId)
+                .get()
+                .timeout(
+              timeoutDuration,
+              onTimeout: () {
+                throw TimeoutException(
+                  'Firestore load timeout after ${timeoutDuration.inSeconds}s',
+                );
+              },
+            );
+            if (doc.exists && doc.data() != null) {
+              final data = doc.data();
+              if (data != null) {
+                _stats = GameStats.fromJson(data);
+              }
+              notifyListeners();
+              // Also save to local storage as backup
+              await _saveLocal();
+              return;
             }
-            notifyListeners();
-            // Also save to local storage as backup
-            await _saveLocal();
-            return;
+          } catch (e) {
+            LoggerService.error('Failed to load stats from Firestore',
+                error: e,);
+            // Fall through to local storage
           }
-        } catch (e) {
-          LoggerService.error('Failed to load stats from Firestore', error: e);
-          // Fall through to local storage
         }
+      } catch (e) {
+        _firebaseAvailable = false;
+        LoggerService.warning('Firebase not available for stats', error: e);
       }
-    } catch (e) {
-      _firebaseAvailable = false;
-      LoggerService.warning('Firebase not available for stats', error: e);
-    }
 
       // Fallback to local storage
       final prefs = await SharedPreferences.getInstance();
@@ -305,7 +313,8 @@ class StatsService extends ChangeNotifier {
   }) async {
     // Mutex to prevent concurrent calls
     if (_isRecordingGameEnd) {
-      LoggerService.warning('recordGameEnd already in progress, skipping duplicate call');
+      LoggerService.warning(
+          'recordGameEnd already in progress, skipping duplicate call',);
       return;
     }
     _isRecordingGameEnd = true;
@@ -420,32 +429,41 @@ class StatsService extends ChangeNotifier {
           await firestore.runTransaction((transaction) async {
             final docRef = firestore.collection('user_stats').doc(userId);
             final doc = await transaction.get(docRef);
-            
+
             if (doc.exists) {
               final existingData = doc.data()!;
               final existingStats = GameStats.fromJson(existingData);
-              
+
               // Calculate new values
               final updatedStats = existingStats.copyWith(
                 totalGamesPlayed: existingStats.totalGamesPlayed + 1,
-                totalCorrectAnswers: existingStats.totalCorrectAnswers + correctAnswers,
-                totalWrongAnswers: existingStats.totalWrongAnswers + wrongAnswers,
-                highestScore: score > existingStats.highestScore ? score : existingStats.highestScore,
+                totalCorrectAnswers:
+                    existingStats.totalCorrectAnswers + correctAnswers,
+                totalWrongAnswers:
+                    existingStats.totalWrongAnswers + wrongAnswers,
+                highestScore: score > existingStats.highestScore
+                    ? score
+                    : existingStats.highestScore,
                 modePlayCounts: newModePlayCounts,
                 dailyStats: dailyStatsList,
-                currentStreak: newCurrentStreak.clamp(0, AppConfig.maxStreakDisplay),
-                longestStreak: newLongestStreak.clamp(0, AppConfig.maxStreakDisplay),
+                currentStreak:
+                    newCurrentStreak.clamp(0, AppConfig.maxStreakDisplay),
+                longestStreak:
+                    newLongestStreak.clamp(0, AppConfig.maxStreakDisplay),
                 lastPlayDate: DateTime.now().toUtc(),
               );
-              
-              transaction.set(docRef, updatedStats.toJson(), SetOptions(merge: true));
+
+              transaction.set(
+                  docRef, updatedStats.toJson(), SetOptions(merge: true),);
             } else {
               // Create new document
               transaction.set(docRef, _stats.toJson());
             }
           });
         } catch (e) {
-          LoggerService.error('Failed to save stats with transaction, falling back to local save', error: e);
+          LoggerService.error(
+              'Failed to save stats with transaction, falling back to local save',
+              error: e,);
           // Fall through to local save
         }
       }
@@ -458,7 +476,7 @@ class StatsService extends ChangeNotifier {
         final achievementService = AchievementService();
         final unlocked = await achievementService.checkAchievements(_stats);
         if (unlocked.isNotEmpty) {
-          LoggerService.info('Unlocked ${unlocked.length} achievement(s)');
+          LoggerService.info('Unlocked ${unlocked.length} achievement(s);');
         }
       } catch (e) {
         LoggerService.error('Error checking achievements', error: e);
@@ -554,7 +572,7 @@ class StatsService extends ChangeNotifier {
                 // Wait before retry (exponential backoff)
                 final delayMs = 500 * attempt; // 500ms, 1000ms, 1500ms
                 LoggerService.warning(
-                  'Stats Firestore save failed (attempt $attempt/$maxRetries): $e. Retrying in ${delayMs}ms...',
+                  'Stats Firestore save failed (attempt $attempt/$maxRetries);: $e. Retrying in ${delayMs}ms...',
                   error: e,
                 );
                 await Future.delayed(Duration(milliseconds: delayMs));
@@ -603,7 +621,7 @@ class StatsService extends ChangeNotifier {
       final achievementService = AchievementService();
       final unlocked = await achievementService.checkAchievements(_stats);
       if (unlocked.isNotEmpty) {
-        LoggerService.info('Unlocked ${unlocked.length} achievement(s)');
+        LoggerService.info('Unlocked ${unlocked.length} achievement(s);');
       }
     } catch (e) {
       LoggerService.error('Error checking achievements', error: e);

@@ -23,13 +23,14 @@ void main() async {
   } catch (e) {
     print('❌ Failed to initialize Firebase: $e');
     print('\n💡 Alternative: Use Firebase Console to upload manually:');
-    print('   https://console.firebase.google.com/project/wordn3rd-7bd5d/storage');
+    print(
+        '   https://console.firebase.google.com/project/wordn3rd-7bd5d/storage',);
     exit(1);
   }
 
   final storage = FirebaseStorage.instance;
   final assetsDir = Directory('assets');
-  
+
   if (!assetsDir.existsSync()) {
     print('❌ Assets directory not found!');
     exit(1);
@@ -56,7 +57,7 @@ void main() async {
 
   for (final video in videos) {
     final file = File('${assetsDir.path}/$video');
-    
+
     if (!file.existsSync()) {
       print('⚠️  File not found: $video');
       failCount++;
@@ -67,7 +68,7 @@ void main() async {
       print('📹 Uploading $video...');
       final ref = storage.ref('public/videos/$video');
       await ref.putFile(file);
-      
+
       final url = await ref.getDownloadURL();
       print('   ✅ Uploaded: $url');
       successCount++;
@@ -83,6 +84,22 @@ void main() async {
   print('\n📝 Files are accessible at:');
   print('   gs://wordn3rd-7bd5d.firebasestorage.app/public/videos/[filename]');
   print('\n💡 View in Firebase Console:');
-  print('   https://console.firebase.google.com/project/wordn3rd-7bd5d/storage');
+  print(
+      '   https://console.firebase.google.com/project/wordn3rd-7bd5d/storage',);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

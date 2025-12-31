@@ -99,7 +99,7 @@ If you have questions about this Privacy Policy, please contact us at:
 
 **Email:** support@n3rdtrivia.app
 
-**Address:** [To be provided when business address is established]
+For inquiries regarding this Privacy Policy, please contact us at support@n3rdtrivia.app
 
 ---
 

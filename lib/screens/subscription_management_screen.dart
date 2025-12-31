@@ -1,3 +1,4 @@
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,9 @@ import 'package:n3rd_game/utils/error_handler.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class SubscriptionManagementScreen extends StatefulWidget {
   const SubscriptionManagementScreen({super.key});
@@ -33,10 +37,10 @@ class _SubscriptionManagementScreenState
     // Initialize free tier service to show current status
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<FreeTierService>(context, listen: false).init();
+      ProviderHelper.safeGetOrThrow<FreeTierService>(context, listen: false).init();
 
       // Log subscription screen viewed
-      final analyticsService = Provider.of<AnalyticsService>(
+      final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
         context,
         listen: false,
       );
@@ -46,11 +50,11 @@ class _SubscriptionManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    final subscriptionService = Provider.of<SubscriptionService>(
+    final subscriptionService = ProviderHelper.safeGetOrThrow<SubscriptionService>(
       context,
       listen: false,
     );
-    final freeTierService = Provider.of<FreeTierService>(
+    final freeTierService = ProviderHelper.safeGetOrThrow<FreeTierService>(
       context,
       listen: false,
     );
@@ -77,9 +81,14 @@ class _SubscriptionManagementScreenState
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => NavigationHelper.safePop(context),
+                      Semantics(
+                        label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                        button: true,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => NavigationHelper.safePop(context),
+                          tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -244,20 +253,25 @@ class _SubscriptionManagementScreenState
                                 const SizedBox(height: 16),
                                 SizedBox(
                                   width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      NavigationHelper.safeNavigate(
-                                        context,
-                                        '/family-management',
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.success,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 14,),
+                                  child: Semantics(
+                                    label: 'Manage Family & Friends Group',
+                                    button: true,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        NavigationHelper.safeNavigate(
+                                          context,
+                                          '/family-management',
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.success,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                      ),
+                                      child: const Text('Manage Group'),
                                     ),
-                                    child: const Text('Manage Group'),
                                   ),
                                 ),
                               ],
@@ -267,33 +281,37 @@ class _SubscriptionManagementScreenState
                         ],
 
                         // Restore purchases
-                        TextButton(
-                          onPressed: () async {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Restoring purchases...'),
-                              ),
-                            );
-                            final revenueCatService =
-                                Provider.of<RevenueCatService>(
-                              context,
-                              listen: false,
-                            );
-                            await revenueCatService.restorePurchases();
-                            if (context.mounted) {
+                        Semantics(
+                          label: 'Restore Purchases',
+                          button: true,
+                          child: TextButton(
+                            onPressed: () async {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Purchases restored (if any)'),
+                                  content: Text('Restoring purchases...'),
                                 ),
                               );
-                            }
-                          },
-                          child: Text(
-                            'Restore Purchases',
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.8),
-                              decoration: TextDecoration.underline,
+                              final revenueCatService =
+                                  ProviderHelper.safeGetOrThrow<RevenueCatService>(
+                                context,
+                                listen: false,
+                              );
+                              await revenueCatService.restorePurchases();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Purchases restored (if any)'),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text(
+                              'Restore Purchases',
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.8),
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
                         ),
@@ -538,26 +556,31 @@ class _SubscriptionManagementScreenState
             else
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onTap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isPremium
-                        ? AppColors.success
-                        : tierColors.primaryButton,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                child: Semantics(
+                  label: 'Subscribe to $title',
+                  button: true,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isPremium
+                          ? AppColors.success
+                          : tierColors.primaryButton,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    child: Text('Subscribe', style: AppTypography.labelLarge),
                   ),
-                  child: Text('Subscribe', style: AppTypography.labelLarge),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
   }
+
 
   Widget _buildManageSection() {
     final manageColors = AppColors.of(context);
@@ -611,7 +634,8 @@ class _SubscriptionManagementScreenState
                   if (mounted && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Unable to open subscription management. Please update your payment method in your device settings.'),
+                        content: Text(
+                            'Unable to open subscription management. Please update your payment method in your device settings.',),
                         duration: Duration(seconds: 4),
                       ),
                     );
@@ -621,7 +645,10 @@ class _SubscriptionManagementScreenState
                 if (mounted && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error: ${e.toString()}'),
+                      content: Text(
+                        AppLocalizations.of(context)?.subscriptionError ??
+                            'Subscription operation failed. Please try again.',
+                      ),
                       duration: const Duration(seconds: 3),
                     ),
                   );
@@ -642,9 +669,12 @@ class _SubscriptionManagementScreenState
     required VoidCallback onTap,
   }) {
     final optionColors = AppColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Row(
+    return Semantics(
+      label: '$title. $subtitle',
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
         children: [
           Icon(icon, color: optionColors.primaryText, size: 24),
           const SizedBox(width: 16),
@@ -677,11 +707,12 @@ class _SubscriptionManagementScreenState
           ),
         ],
       ),
+      ),
     );
   }
 
   void _showSubscriptionDialog(String tier) {
-    final analyticsService = Provider.of<AnalyticsService>(
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -706,235 +737,241 @@ class _SubscriptionManagementScreenState
           style: AppTypography.bodyMedium,
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Cancel', style: AppTypography.bodyMedium),
+          Semantics(
+            label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+            button: true,
+            child: TextButton(
+              onPressed: () {
+                if (context.mounted) {
+                  NavigationHelper.safePop(context);
+                }
+              },
+              child: Text('Cancel', style: AppTypography.bodyMedium),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-              if (!context.mounted) return;
-              final revenueCatService = Provider.of<RevenueCatService>(
-                context,
-                listen: false,
-              );
-              try {
-                // Capture BuildContext-dependent objects before ANY async operations
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
+          Semantics(
+            label: 'Continue to Subscribe',
+            button: true,
+            child: ElevatedButton(
+              onPressed: () async {
+                if (context.mounted) {
+                  NavigationHelper.safePop(context);
+                }
+                if (!context.mounted) return;
+                final revenueCatService = ProviderHelper.safeGetOrThrow<RevenueCatService>(
+                  context,
+                  listen: false,
+                );
+                try {
+                  // Capture BuildContext-dependent objects before ANY async operations
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-                final packages = await revenueCatService.getAvailablePackages();
+                  final packages = await revenueCatService.getAvailablePackages();
 
-                if (packages.isEmpty) {
-                  if (mounted) {
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'No subscription packages available. Please try again later.',
+                  if (packages.isEmpty) {
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'No subscription packages available. Please try again later.',
+                          ),
+                          backgroundColor: Colors.orange,
                         ),
-                        backgroundColor: Colors.orange,
+                      );
+                    }
+                    return;
+                  }
+
+                  Package? targetPackage;
+                  if (tier.toLowerCase().contains('family') ||
+                      tier.toLowerCase().contains('friends')) {
+                    targetPackage = packages.firstWhere(
+                      (p) =>
+                          p.identifier.contains('family') ||
+                          p.identifier.contains('friends'),
+                      orElse: () => packages.first,
+                    );
+                  } else if (tier.toLowerCase().contains('basic')) {
+                    targetPackage = packages.firstWhere(
+                      (p) => p.identifier.contains('basic'),
+                      orElse: () => packages.first,
+                    );
+                  } else if (tier.toLowerCase().contains('premium')) {
+                    targetPackage = packages.firstWhere(
+                      (p) => p.identifier.contains('premium'),
+                      orElse: () => packages.first,
+                    );
+                  } else if (packages.isNotEmpty) {
+                    targetPackage = packages.first;
+                  }
+
+                  if (targetPackage != null) {
+                    // Capture BuildContext-dependent objects before ANY async operations
+                    // Note: These are captured before async, but we still need to check context.mounted
+                    // when using context after async operations
+
+                    // Set loading state
+                    if (mounted) {
+                      setState(() {
+                        _isPurchasing = true;
+                        _purchasingTier = tier;
+                      });
+                    }
+
+                    // Capture services after checking mounted, but before async operations
+                    if (!context.mounted) return;
+                    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
+                      context,
+                      listen: false,
+                    );
+                    final subscriptionService = Provider.of<SubscriptionService>(
+                      context,
+                      listen: false,
+                    );
+
+                    // Log funnel step 5: Purchase initiated
+                    await analyticsService.logConversionFunnelStep(
+                      step: 5,
+                      stepName: 'purchase_initiated',
+                      source: 'subscription_screen',
+                      targetTier: tier.toLowerCase(),
+                      additionalData: {'package_id': targetPackage.identifier},
+                    );
+
+                    // Log purchase attempt (no context needed, already captured)
+                    await analyticsService.logPurchaseAttempt(
+                      tier,
+                      targetPackage.identifier,
+                    );
+
+                    try {
+                      final success = await revenueCatService.purchasePackage(
+                        targetPackage,
+                      );
+
+                      // Log funnel step 6: Purchase completed
+                      await analyticsService.logConversionFunnelStep(
+                        step: 6,
+                        stepName:
+                            success ? 'purchase_completed' : 'purchase_failed',
+                        source: 'subscription_screen',
+                        targetTier: tier.toLowerCase(),
+                        additionalData: {
+                          'package_id': targetPackage.identifier,
+                          'success': success,
+                        },
+                      );
+
+                      // Log purchase result
+                      await analyticsService.logPurchase(
+                        tier,
+                        targetPackage.identifier,
+                        success,
+                      );
+
+                      if (success) {
+                        // Sync subscription service after successful purchase
+                        await subscriptionService
+                            .init(); // Reload from RevenueCat/Firestore
+
+                        // If Family & Friends plan, create or initialize group
+                        if (tier.toLowerCase().contains('family') ||
+                            tier.toLowerCase().contains('friends')) {
+                          try {
+                            if (!context.mounted) return;
+                            final familyService = ProviderHelper.safeGetOrThrow<FamilyGroupService>(
+                              context,
+                              listen: false,
+                            );
+                            if (!familyService.isInGroup) {
+                              await familyService.createFamilyGroup();
+                              // Log analytics
+                              await analyticsService.logFamilyGroupEvent(
+                                'family_group_created',
+                                {
+                                  'group_id': familyService.currentGroup?.id,
+                                },
+                              );
+                            }
+                          } catch (e) {
+                            // Log but don't fail - group creation can happen later
+                            LoggerService.debug('Failed to create family group after purchase', error: e);
+                          }
+                        }
+
+                        // Check context.mounted directly (not State.mounted)
+                        if (!context.mounted) return;
+
+                        final successMessage = tier
+                                    .toLowerCase()
+                                    .contains('family') ||
+                                tier.toLowerCase().contains('friends')
+                            ? 'Family & Friends plan purchased! You can now invite up to 3 more members.'
+                            : 'Subscription purchased successfully! Premium features are now available.';
+
+                        ErrorHandler.showSuccess(context, successMessage);
+                      } else {
+                        // Check context.mounted directly (not State.mounted)
+                        if (!context.mounted) return;
+
+                        ErrorHandler.showSnackBar(
+                          context,
+                          'Purchase cancelled or failed. Please try again.',
+                        );
+                      }
+                    } catch (e) {
+                      // Check context.mounted directly (not State.mounted)
+                      if (context.mounted) {
+                        await analyticsService.logError(
+                          'purchase_error',
+                          AppLocalizations.of(context)?.purchaseError ??
+                              'Purchase failed. Please try again.',
+                        );
+
+                        // Check context.mounted again after async operation
+                        if (!context.mounted) return;
+
+                        unawaited(ErrorHandler.showError(
+                          context,
+                          AppLocalizations.of(context)?.purchaseError ??
+                              'Purchase failed. Please try again.',
+                          title: 'Purchase Error',
+                          onRetry: () => _showSubscriptionDialog(tier),
+                        ),);
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isPurchasing = false;
+                          _purchasingTier = null;
+                        });
+                      }
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ErrorHandler.showSnackBar(
+                        context,
+                        'No subscription packages available. Please try again later.',
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error purchasing subscription: $e'),
                       ),
                     );
                   }
-                  return;
                 }
-
-                Package? targetPackage;
-                if (tier.toLowerCase().contains('family') ||
-                    tier.toLowerCase().contains('friends')) {
-                  targetPackage = packages.firstWhere(
-                    (p) =>
-                        p.identifier.contains('family') ||
-                        p.identifier.contains('friends'),
-                    orElse: () => packages.first,
-                  );
-                } else if (tier.toLowerCase().contains('basic')) {
-                  targetPackage = packages.firstWhere(
-                    (p) => p.identifier.contains('basic'),
-                    orElse: () => packages.first,
-                  );
-                } else if (tier.toLowerCase().contains('premium')) {
-                  targetPackage = packages.firstWhere(
-                    (p) => p.identifier.contains('premium'),
-                    orElse: () => packages.first,
-                  );
-                } else if (packages.isNotEmpty) {
-                  targetPackage = packages.first;
-                }
-
-                if (targetPackage != null) {
-                  // Capture BuildContext-dependent objects before ANY async operations
-                  // Note: These are captured before async, but we still need to check context.mounted
-                  // when using context after async operations
-
-                  // Set loading state
-                  if (mounted) {
-                    setState(() {
-                      _isPurchasing = true;
-                      _purchasingTier = tier;
-                    });
-                  }
-
-                  // Capture services after checking mounted, but before async operations
-                  if (!context.mounted) return;
-                  final analyticsService = Provider.of<AnalyticsService>(
-                    context,
-                    listen: false,
-                  );
-                  final subscriptionService = Provider.of<SubscriptionService>(
-                    context,
-                    listen: false,
-                  );
-
-                  // Log funnel step 5: Purchase initiated
-                  await analyticsService.logConversionFunnelStep(
-                    step: 5,
-                    stepName: 'purchase_initiated',
-                    source: 'subscription_screen',
-                    targetTier: tier.toLowerCase(),
-                    additionalData: {'package_id': targetPackage.identifier},
-                  );
-
-                  // Log purchase attempt (no context needed, already captured)
-                  await analyticsService.logPurchaseAttempt(
-                    tier,
-                    targetPackage.identifier,
-                  );
-
-                  try {
-                    final success = await revenueCatService.purchasePackage(
-                      targetPackage,
-                    );
-
-                    // Log funnel step 6: Purchase completed
-                    await analyticsService.logConversionFunnelStep(
-                      step: 6,
-                      stepName:
-                          success ? 'purchase_completed' : 'purchase_failed',
-                      source: 'subscription_screen',
-                      targetTier: tier.toLowerCase(),
-                      additionalData: {
-                        'package_id': targetPackage.identifier,
-                        'success': success,
-                      },
-                    );
-
-                    // Log purchase result
-                    await analyticsService.logPurchase(
-                      tier,
-                      targetPackage.identifier,
-                      success,
-                    );
-
-                    if (success) {
-                      // Sync subscription service after successful purchase
-                      await subscriptionService
-                          .init(); // Reload from RevenueCat/Firestore
-
-                      // If Family & Friends plan, create or initialize group
-                      if (tier.toLowerCase().contains('family') ||
-                          tier.toLowerCase().contains('friends')) {
-                        try {
-                          if (!context.mounted) return;
-                          final familyService = Provider.of<FamilyGroupService>(
-                            context,
-                            listen: false,
-                          );
-                          if (!familyService.isInGroup) {
-                            await familyService.createFamilyGroup();
-                            // Log analytics
-                            await analyticsService.logFamilyGroupEvent(
-                              'family_group_created',
-                              {
-                                'group_id': familyService.currentGroup?.id,
-                              },
-                            );
-                          }
-                        } catch (e) {
-                          // Log but don't fail - group creation can happen later
-                          if (kDebugMode) {
-                            debugPrint(
-                              'Failed to create family group after purchase: $e',
-                            );
-                          }
-                        }
-                      }
-
-                      // Check context.mounted directly (not State.mounted)
-                      if (!context.mounted) return;
-
-                      final successMessage = tier
-                                  .toLowerCase()
-                                  .contains('family') ||
-                              tier.toLowerCase().contains('friends')
-                          ? 'Family & Friends plan purchased! You can now invite up to 3 more members.'
-                          : 'Subscription purchased successfully! Premium features are now available.';
-
-                      ErrorHandler.showSuccess(context, successMessage);
-                    } else {
-                      // Check context.mounted directly (not State.mounted)
-                      if (!context.mounted) return;
-
-                      ErrorHandler.showSnackBar(
-                        context,
-                        'Purchase cancelled or failed. Please try again.',
-                      );
-                    }
-                  } catch (e) {
-                    // Check context.mounted directly (not State.mounted)
-                    if (context.mounted) {
-                      await analyticsService.logError(
-                        'purchase_error',
-                        e.toString(),
-                      );
-
-                      // Check context.mounted again after async operation
-                      if (!context.mounted) return;
-
-                      ErrorHandler.showError(
-                        context,
-                        'An error occurred during purchase: ${e.toString()}',
-                        title: 'Purchase Error',
-                        onRetry: () => _showSubscriptionDialog(tier),
-                      );
-                    }
-                  } finally {
-                    if (mounted) {
-                      setState(() {
-                        _isPurchasing = false;
-                        _purchasingTier = null;
-                      });
-                    }
-                  }
-                } else {
-                  if (context.mounted) {
-                    ErrorHandler.showSnackBar(
-                      context,
-                      'No subscription packages available. Please try again later.',
-                    );
-                  }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error purchasing subscription: $e'),
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.of(context).primaryButton,
-            ),
-            child: Text(
-              'Continue',
-              style: AppTypography.inter(color: Colors.white),
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.of(context).primaryButton,
+              ),
+              child: Text(
+                'Continue',
+                style: AppTypography.inter(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -955,25 +992,32 @@ class _SubscriptionManagementScreenState
           style: AppTypography.bodyMedium,
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Keep Subscription', style: AppTypography.bodyMedium),
+          Semantics(
+            label: 'Keep Subscription',
+            button: true,
+            child: TextButton(
+              onPressed: () {
+                if (context.mounted) {
+                  NavigationHelper.safePop(context);
+                }
+              },
+              child: Text('Keep Subscription', style: AppTypography.bodyMedium),
+            ),
           ),
-          TextButton(
-            onPressed: () async {
+          Semantics(
+            label: 'Cancel Subscription',
+            button: true,
+            child: TextButton(
+              onPressed: () async {
               if (context.mounted) {
-                Navigator.pop(context);
+                NavigationHelper.safePop(context);
               }
               if (!context.mounted) return;
               // Note: RevenueCat doesn't provide a direct cancellation method
               // Users must cancel through App Store (iOS) or Play Store (Android)
               // We can show instructions to the user
               if (context.mounted) {
-                showDialog(
+                unawaited(showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
                     title: Text(
@@ -988,23 +1032,28 @@ class _SubscriptionManagementScreenState
                       style: AppTypography.bodyMedium,
                     ),
                     actions: [
-                      TextButton(
-                        onPressed: () {
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        },
-                        child: Text('Got it', style: AppTypography.bodyMedium),
+                      Semantics(
+                        label: 'Got it',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () {
+                            if (context.mounted) {
+                              NavigationHelper.safePop(context);
+                            }
+                          },
+                          child: Text('Got it', style: AppTypography.bodyMedium),
+                        ),
                       ),
                     ],
                   ),
-                );
+                ),);
               }
             },
             child: Text(
               'Cancel Subscription',
               style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
             ),
+          ),
           ),
         ],
       ),

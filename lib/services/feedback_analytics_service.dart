@@ -1,9 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:n3rd_game/exceptions/app_exceptions.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 /// Service for analyzing feedback data and generating insights
 class FeedbackAnalyticsService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestore;
+
+  /// Get Firestore instance if Firebase is available
+  FirebaseFirestore? get _firestoreInstance {
+    if (_firestore != null) return _firestore;
+    try {
+      Firebase.app(); // Check if Firebase is initialized
+      _firestore = FirebaseFirestore.instance;
+      return _firestore;
+    } catch (e) {
+      LoggerService.debug('Firebase not available for FeedbackAnalyticsService', error: e);
+      return null;
+    }
+  }
 
   /// Get feedback analytics summary
   Future<FeedbackAnalytics> getAnalytics({
@@ -11,7 +26,11 @@ class FeedbackAnalyticsService {
     DateTime? endDate,
   }) async {
     try {
-      Query query = _firestore.collection('feedback');
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
+      Query query = firestore.collection('feedback');
 
       if (startDate != null) {
         query = query.where('createdAt', isGreaterThanOrEqualTo: startDate);
@@ -111,7 +130,7 @@ class FeedbackAnalyticsService {
         commonIssues: commonIssues,
       );
     } catch (e) {
-      debugPrint('Error getting feedback analytics: $e');
+      LoggerService.error('Error getting feedback analytics', error: e);
       return FeedbackAnalytics.empty();
     }
   }
@@ -148,10 +167,14 @@ class FeedbackAnalyticsService {
   /// Get feedback trends over time
   Future<List<FeedbackTrend>> getTrends({int days = 30}) async {
     try {
+      final firestore = _firestoreInstance;
+      if (firestore == null) {
+        throw NetworkException('Firebase not available');
+      }
       final endDate = DateTime.now();
       final startDate = endDate.subtract(Duration(days: days));
 
-      final snapshot = await _firestore
+      final snapshot = await firestore
           .collection('feedback')
           .where('createdAt', isGreaterThanOrEqualTo: startDate)
           .where('createdAt', isLessThanOrEqualTo: endDate)
@@ -189,7 +212,7 @@ class FeedbackAnalyticsService {
 
       return trends.values.toList()..sort((a, b) => a.date.compareTo(b.date));
     } catch (e) {
-      debugPrint('Error getting feedback trends: $e');
+      LoggerService.error('Error getting feedback trends', error: e);
       return [];
     }
   }
@@ -197,19 +220,6 @@ class FeedbackAnalyticsService {
 
 /// Feedback Analytics model
 class FeedbackAnalytics {
-  final int totalFeedback;
-  final int bugs;
-  final int features;
-  final int errors;
-  final int questions;
-  final int highPriority;
-  final int mediumPriority;
-  final int lowPriority;
-  final int resolved;
-  final int newStatus;
-  final int inProgress;
-  final Map<String, int> categoryCounts;
-  final Map<String, int> commonIssues;
 
   FeedbackAnalytics({
     required this.totalFeedback,
@@ -244,15 +254,23 @@ class FeedbackAnalytics {
       commonIssues: {},
     );
   }
+  final int totalFeedback;
+  final int bugs;
+  final int features;
+  final int errors;
+  final int questions;
+  final int highPriority;
+  final int mediumPriority;
+  final int lowPriority;
+  final int resolved;
+  final int newStatus;
+  final int inProgress;
+  final Map<String, int> categoryCounts;
+  final Map<String, int> commonIssues;
 }
 
 /// Feedback Trend model
 class FeedbackTrend {
-  final String date;
-  final int count;
-  final int bugs;
-  final int features;
-  final int errors;
 
   FeedbackTrend({
     required this.date,
@@ -261,4 +279,9 @@ class FeedbackTrend {
     required this.features,
     required this.errors,
   });
+  final String date;
+  final int count;
+  final int bugs;
+  final int features;
+  final int errors;
 }

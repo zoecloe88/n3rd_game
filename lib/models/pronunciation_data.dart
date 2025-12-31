@@ -1,9 +1,4 @@
-class PronunciationData {
-  final String word;
-  final String phonetic; // IPA or phonetic spelling
-  final List<String> alternativePronunciations; // Common variations
-  final List<String> homophones; // Words that sound the same
-  final String? language; // Default: 'en'
+class PronunciationData { // Default: 'en'
 
   PronunciationData({
     required this.word,
@@ -12,14 +7,6 @@ class PronunciationData {
     this.homophones = const [],
     this.language,
   });
-
-  Map<String, dynamic> toJson() => {
-        'word': word.toLowerCase(),
-        'phonetic': phonetic,
-        'alternativePronunciations': alternativePronunciations,
-        'homophones': homophones,
-        'language': language ?? 'en',
-      };
 
   factory PronunciationData.fromJson(Map<String, dynamic> json) {
     final word = json['word'] as String? ?? '';
@@ -43,6 +30,19 @@ class PronunciationData {
       language: json['language'] as String?,
     );
   }
+  final String word;
+  final String phonetic; // IPA or phonetic spelling
+  final List<String> alternativePronunciations; // Common variations
+  final List<String> homophones; // Words that sound the same
+  final String? language;
+
+  Map<String, dynamic> toJson() => {
+        'word': word.toLowerCase(),
+        'phonetic': phonetic,
+        'alternativePronunciations': alternativePronunciations,
+        'homophones': homophones,
+        'language': language ?? 'en',
+      };
 
   /// Check if a spoken word matches this pronunciation
   bool matches(String spokenWord) {

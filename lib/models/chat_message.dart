@@ -1,12 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatMessage {
-  final String id;
-  final String userId;
-  final String userName;
-  final String message;
-  final DateTime timestamp;
-  final String? roomId;
 
   ChatMessage({
     required this.id,
@@ -16,15 +10,6 @@ class ChatMessage {
     required this.timestamp,
     this.roomId,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'userId': userId,
-        'userName': userName,
-        'message': message,
-        'timestamp': timestamp.toIso8601String(),
-        'roomId': roomId,
-      };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
         id: json['id'] as String,
@@ -45,4 +30,19 @@ class ChatMessage {
       roomId: data['roomId'] as String?,
     );
   }
+  final String id;
+  final String userId;
+  final String userName;
+  final String message;
+  final DateTime timestamp;
+  final String? roomId;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'userName': userName,
+        'message': message,
+        'timestamp': timestamp.toIso8601String(),
+        'roomId': roomId,
+      };
 }

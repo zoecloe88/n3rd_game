@@ -3,6 +3,8 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
+import 'package:n3rd_game/services/voice_calibration_service.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class VoiceRecognitionService extends ChangeNotifier {
   stt.SpeechToText? _speech;
@@ -19,45 +21,131 @@ class VoiceRecognitionService extends ChangeNotifier {
   String get lastWords => _lastWords;
   double get confidence => _confidence;
   bool get pushToTalkMode => _pushToTalkMode;
+  bool get isCalibrated => _calibrationService?.isCalibrated ?? false;
 
   PronunciationDictionaryService? _pronunciationService;
+  VoiceCalibrationService? _calibrationService;
 
   void setPronunciationService(PronunciationDictionaryService service) {
     _pronunciationService = service;
   }
 
+  void setVoiceCalibrationService(VoiceCalibrationService service) {
+    _calibrationService = service;
+  }
+
   Future<void> init() async {
-    _speech = stt.SpeechToText();
-
-    // Check availability
-    _isAvailable = await _speech!.initialize(
-      onError: (error) {
-        debugPrint('Speech recognition error: $error');
-        _isListening = false;
+    try {
+      // Validate microphone permission before attempting initialization
+      final micStatus = await Permission.microphone.status;
+      if (micStatus.isPermanentlyDenied) {
+        LoggerService.warning(
+          'VoiceRecognitionService: Microphone permission permanently denied',
+        );
+        _isAvailable = false;
         notifyListeners();
-      },
-      onStatus: (status) {
-        debugPrint('Speech recognition status: $status');
-        if (status == 'done' || status == 'notListening') {
-          _isListening = false;
-          notifyListeners();
-        }
-      },
-    );
+        return;
+      }
 
-    // Request microphone permission
-    await _requestMicrophonePermission();
+      // Create speech instance with null check
+      _speech = stt.SpeechToText();
+      if (_speech == null) {
+        LoggerService.error(
+          'VoiceRecognitionService: Failed to create SpeechToText instance',
+          fatal: false,
+        );
+        _isAvailable = false;
+        notifyListeners();
+        return;
+      }
 
-    // Load preferences
-    await _loadPreferences();
+      // Check availability with comprehensive error handling
+      try {
+        _isAvailable = await _speech!.initialize(
+          onError: (error) {
+            LoggerService.error(
+              'VoiceRecognitionService: Speech recognition error',
+              error: error,
+              fatal: false,
+            );
+            _isListening = false;
+            _isAvailable = false;
+            notifyListeners();
+          },
+          onStatus: (status) {
+            LoggerService.debug('VoiceRecognitionService: Speech recognition status: $status');
+            if (status == 'done' || status == 'notListening') {
+              _isListening = false;
+              notifyListeners();
+            }
+          },
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            LoggerService.warning(
+              'VoiceRecognitionService: Speech recognition initialization timed out',
+            );
+            _isAvailable = false;
+            return false;
+          },
+        );
+      } catch (e) {
+        LoggerService.error(
+          'VoiceRecognitionService: Speech recognition initialization failed',
+          error: e,
+          stack: StackTrace.current,
+          fatal: false,
+        );
+        _isAvailable = false;
+        notifyListeners();
+        return;
+      }
 
-    notifyListeners();
+      // Request microphone permission (non-blocking)
+      await _requestMicrophonePermission();
+
+      // Load preferences
+      await _loadPreferences();
+
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error(
+        'VoiceRecognitionService: Init error',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      _isAvailable = false;
+      _isListening = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _requestMicrophonePermission() async {
-    final status = await Permission.microphone.request();
-    if (status.isDenied) {
-      debugPrint('Microphone permission denied');
+    try {
+      final status = await Permission.microphone.request();
+      if (status.isDenied) {
+        LoggerService.warning(
+          'VoiceRecognitionService: Microphone permission denied',
+        );
+        _isAvailable = false;
+        notifyListeners();
+      } else if (status.isPermanentlyDenied) {
+        LoggerService.warning(
+          'VoiceRecognitionService: Microphone permission permanently denied',
+        );
+        _isAvailable = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      LoggerService.error(
+        'VoiceRecognitionService: Error requesting microphone permission',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      _isAvailable = false;
+      notifyListeners();
     }
   }
 
@@ -68,7 +156,12 @@ class VoiceRecognitionService extends ChangeNotifier {
       _pushToTalkMode = prefs.getBool('stt_push_to_talk') ?? true;
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to load STT preferences: $e');
+      LoggerService.error(
+        'VoiceRecognitionService: Failed to load STT preferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -78,7 +171,12 @@ class VoiceRecognitionService extends ChangeNotifier {
       await prefs.setBool('stt_enabled', _isEnabled);
       await prefs.setBool('stt_push_to_talk', _pushToTalkMode);
     } catch (e) {
-      debugPrint('Failed to save STT preferences: $e');
+      LoggerService.error(
+        'VoiceRecognitionService: Failed to save STT preferences',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
     }
   }
 
@@ -102,8 +200,48 @@ class VoiceRecognitionService extends ChangeNotifier {
 
   /// Start listening (push-to-talk mode)
   Future<void> startListening({Function(String)? onResult}) async {
-    if (!_isAvailable || !_isEnabled || _speech == null) return;
-    if (_isListening) return;
+    // Comprehensive null and availability checks
+    if (_speech == null) {
+      LoggerService.warning(
+        'VoiceRecognitionService: SpeechToText instance is null, cannot start listening',
+      );
+      return;
+    }
+    if (!_isAvailable) {
+      LoggerService.warning(
+        'VoiceRecognitionService: Speech recognition not available',
+      );
+      return;
+    }
+    if (!_isEnabled) {
+      LoggerService.debug('VoiceRecognitionService: Speech recognition not enabled');
+      return;
+    }
+    if (_isListening) {
+      LoggerService.debug('VoiceRecognitionService: Already listening');
+      return;
+    }
+
+    // Validate microphone permission before starting
+    try {
+      final micStatus = await Permission.microphone.status;
+      if (!micStatus.isGranted) {
+        LoggerService.warning(
+          'VoiceRecognitionService: Microphone permission not granted',
+        );
+        _isAvailable = false;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      LoggerService.error(
+        'VoiceRecognitionService: Error checking microphone permission',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
+      return;
+    }
 
     try {
       _isListening = true;
@@ -135,16 +273,34 @@ class VoiceRecognitionService extends ChangeNotifier {
         localeId: 'en_US',
       );
     } catch (e) {
-      debugPrint('Failed to start listening: $e');
+      LoggerService.error(
+        'VoiceRecognitionService: Failed to start listening',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
       _isListening = false;
+      _isAvailable = false;
       notifyListeners();
     }
   }
 
   /// Stop listening
   Future<void> stop() async {
-    if (_speech != null && _isListening) {
+    if (_speech == null) return;
+    if (!_isListening) return;
+
+    try {
       await _speech!.stop();
+      _isListening = false;
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error(
+        'VoiceRecognitionService: Error stopping speech recognition',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
       _isListening = false;
       notifyListeners();
     }
@@ -152,8 +308,21 @@ class VoiceRecognitionService extends ChangeNotifier {
 
   /// Cancel listening
   Future<void> cancel() async {
-    if (_speech != null) {
+    if (_speech == null) return;
+
+    try {
       await _speech!.cancel();
+      _isListening = false;
+      _lastWords = '';
+      _confidence = 0.0;
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error(
+        'VoiceRecognitionService: Error canceling speech recognition',
+        error: e,
+        stack: StackTrace.current,
+        fatal: false,
+      );
       _isListening = false;
       _lastWords = '';
       _confidence = 0.0;
@@ -171,6 +340,15 @@ class VoiceRecognitionService extends ChangeNotifier {
     for (final word in availableWords) {
       if (word.trim().toLowerCase() == normalizedSpoken) {
         return word;
+      }
+    }
+
+    // Try calibration profile matching if available and user is calibrated
+    if (_calibrationService?.isCalibrated == true) {
+      for (final word in availableWords) {
+        if (_calibrationService!.matchesUserPattern(word, normalizedSpoken)) {
+          return word;
+        }
       }
     }
 

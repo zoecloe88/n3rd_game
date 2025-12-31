@@ -9,6 +9,10 @@ void main() {
       selector = TemplateSelector();
     });
 
+    tearDown(() {
+      // Selector doesn't require disposal, but keeping structure consistent
+    });
+
     test('selects template from list', () {
       final templates = [
         TriviaTemplate(
@@ -81,4 +85,3 @@ void main() {
     });
   });
 }
-

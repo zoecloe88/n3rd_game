@@ -10,7 +10,9 @@ import 'package:n3rd_game/services/haptic_service.dart';
 import 'package:n3rd_game/widgets/empty_state_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -45,7 +47,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 
   Future<void> _refreshConversations() async {
-    HapticService().lightImpact();
+    unawaited(HapticService().lightImpact());
     if (!_hasPremium) return;
     try {
       await _messageService.loadConversations();
@@ -58,7 +60,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error refreshing: ${e.toString()}'),
+            content: Text(
+              AppLocalizations.of(context)?.conversationsRefreshError ??
+                  'Failed to refresh conversations. Please try again.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -88,57 +93,56 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: colors.primaryText),
-            onPressed: () {
-              HapticService().lightImpact();
-              NavigationHelper.safePop(context);
-            },
-            tooltip: 'Back',
-          ),
-          title: Text(
-            'Direct Messages',
-            style: AppTypography.headlineLarge.copyWith(
-              color: colors.primaryText,
+          leading: Semantics(
+            label: AppLocalizations.of(context)?.backButton ?? 'Back',
+            button: true,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back, color: colors.primaryText),
+              onPressed: () {
+                HapticService().lightImpact();
+                NavigationHelper.safePop(context);
+              },
+              tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
             ),
           ),
         ),
         body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 64,
-                    color: colors.tertiaryText,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: colors.tertiaryText,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Premium Required',
+                  style: AppTypography.headlineLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.primaryText,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'Premium Required',
-                    style: AppTypography.headlineLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colors.primaryText,
-                    ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Direct messaging is available for premium users only.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: colors.secondaryText,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Direct messaging is available for premium users only.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: colors.secondaryText,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        );
+        ),
+      );
     }
 
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - static background will cover
+      backgroundColor:
+          Colors.black, // Black fallback - static background will cover
       body: BackgroundImageWidget(
         imagePath: 'assets/background n3rd.png',
         child: SafeArea(
@@ -147,13 +151,17 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               AppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () {
-                    HapticService().lightImpact();
-                    NavigationHelper.safePop(context);
-                  },
-                  tooltip: 'Back',
+                leading: Semantics(
+                  label: AppLocalizations.of(context)?.backButton ?? 'Back',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      HapticService().lightImpact();
+                      NavigationHelper.safePop(context);
+                    },
+                    tooltip: AppLocalizations.of(context)?.backButton ?? 'Back',
+                  ),
                 ),
                 title: Text(
                   'Messages',
@@ -163,8 +171,26 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 ),
               ),
               Expanded(
-                child: Consumer<DirectMessageService>(
+                child: Consumer<DirectMessageService?>(
                   builder: (context, messageService, _) {
+                    // Handle null provider gracefully
+                    if (messageService == null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading conversations...',
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.of(context).secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                     final conversations = messageService.conversations;
 
                     if (conversations.isEmpty) {
@@ -176,7 +202,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             height: MediaQuery.of(context).size.height * 0.6,
                             child: EmptyStateWidget(
                               icon: Icons.message_outlined,
-                              title: AppLocalizations.of(context)?.noChatMessages ??
+                              title: AppLocalizations.of(context)
+                                      ?.noChatMessages ??
                                   'No messages yet',
                               description: AppLocalizations.of(context)
                                       ?.noChatMessagesDescription ??
@@ -194,11 +221,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         itemCount: conversations.length,
                         itemBuilder: (context, index) {
                           final conversation = conversations[index];
-                          final authService = Provider.of<AuthService>(
+                          final authService = ProviderHelper.safeGetOrThrow<AuthService>(
                             context,
                             listen: false,
                           );
-                          final currentUserId = authService.currentUser?.uid ?? '';
+                          final currentUserId =
+                              authService.currentUser?.uid ?? '';
                           final otherUserId = conversation.getOtherUserId(
                             currentUserId,
                           );
@@ -222,8 +250,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             ],
           ),
         ),
-        ),
-      );
+      ),
+    );
   }
 
   Widget _buildConversationItem(
@@ -294,7 +322,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ),
                         if (conversation.lastMessage != null)
                           Text(
-                            _formatTime(conversation.lastMessage!.timestamp),
+                            _formatTime(conversation.lastMessage?.timestamp ?? DateTime.now()),
                             style: AppTypography.labelSmall.copyWith(
                               color: itemColors.secondaryText,
                             ),
@@ -304,9 +332,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     const SizedBox(height: 4),
                     if (conversation.lastMessage != null)
                       Text(
-                        conversation.lastMessage!.message,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        conversation.lastMessage?.message ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.visible,
+                        softWrap: true,
                         style: AppTypography.bodyMedium.copyWith(
                           color: itemColors.secondaryText,
                         ),
@@ -379,7 +408,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 ),
               ),
               onTap: () async {
-                Navigator.pop(context);
+                NavigationHelper.safePop(context);
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -388,15 +417,25 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       'Are you sure you want to delete this conversation? All messages will be permanently deleted.',
                     ),
                     actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
+                      Semantics(
+                        label: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () =>
+                              NavigationHelper.safePop(context, false),
+                          child: const Text('Cancel'),
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(color: AppColors.error),
+                      Semantics(
+                        label: 'Delete Conversation',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () =>
+                              NavigationHelper.safePop(context, true),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(color: AppColors.error),
+                          ),
                         ),
                       ),
                     ],
@@ -415,20 +454,24 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       ),
                     );
                   } catch (e) {
-                    if (!mounted) return;
+                    if (!mounted || !context.mounted) return;
+                    final localizations = AppLocalizations.of(context);
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('Error: ${e.toString()}'),
+                        content: Text(
+                          localizations?.messageError ??
+                              'Message operation failed. Please try again.',
+                        ),
                         backgroundColor: AppColors.error,
                       ),
                     );
                   }
                 }
               },
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }

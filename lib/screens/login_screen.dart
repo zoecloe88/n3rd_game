@@ -1,6 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/utils/error_handler.dart';
@@ -10,7 +9,9 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:n3rd_game/widgets/video_background_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
+import 'package:n3rd_game/utils/provider_helper.dart';
 import 'package:flutter/gestures.dart';
+import 'package:n3rd_game/services/logger_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
           };
       }
     });
-    
+
     // Listen for focus changes to track typing state
     _emailFocusNode.addListener(() {
       _updateTypingState();
@@ -70,14 +71,14 @@ class _LoginScreenState extends State<LoginScreen> {
     _displayNameFocusNode.addListener(() {
       _updateTypingState();
     });
-    
+
     // Listen for text changes
     _emailController.addListener(_updateTypingState);
     _passwordController.addListener(_updateTypingState);
     _confirmPasswordController.addListener(_updateTypingState);
     _displayNameController.addListener(_updateTypingState);
   }
-  
+
   void _updateTypingState() {
     final isTyping = _emailFocusNode.hasFocus ||
         _passwordFocusNode.hasFocus ||
@@ -87,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text.isNotEmpty ||
         _confirmPasswordController.text.isNotEmpty ||
         _displayNameController.text.isNotEmpty;
-    
+
     if (_isTyping != isTyping) {
       setState(() {
         _isTyping = isTyping;
@@ -97,6 +98,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    // CRITICAL: Remove listeners before disposing to prevent memory leaks
+    _emailFocusNode.removeListener(_updateTypingState);
+    _passwordFocusNode.removeListener(_updateTypingState);
+    _confirmPasswordFocusNode.removeListener(_updateTypingState);
+    _displayNameFocusNode.removeListener(_updateTypingState);
+
+    // Remove TextEditingController listeners
+    _emailController.removeListener(_updateTypingState);
+    _passwordController.removeListener(_updateTypingState);
+    _confirmPasswordController.removeListener(_updateTypingState);
+    _displayNameController.removeListener(_updateTypingState);
+
+    // Dispose controllers and focus nodes
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -115,8 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
 
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final analyticsService = Provider.of<AnalyticsService>(
+      final authService = ProviderHelper.safeGetOrThrow<AuthService>(context, listen: false);
+    final analyticsService = ProviderHelper.safeGetOrThrow<AnalyticsService>(
       context,
       listen: false,
     );
@@ -147,9 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           } catch (e) {
             // Display name update failed, but sign up succeeded - continue
-            if (kDebugMode) {
-              debugPrint('Display name update failed: $e');
-            }
+            LoggerService.error('Display name update failed', error: e);
           }
         }
       }
@@ -160,28 +172,27 @@ class _LoginScreenState extends State<LoginScreen> {
           // This is a signup - new users should always see onboarding
           // Don't check hasCompletedOnboarding - just redirect to onboarding
           if (mounted && context.mounted) {
-            NavigationHelper.safeNavigate(
+            unawaited(NavigationHelper.safeNavigate(
               context,
               '/onboarding',
               replace: true,
-            );
+            ),);
             return;
           }
         }
 
-        // Existing user or onboarding complete - show word of the day first, then proceed to title
+        // Existing user or onboarding complete - navigate directly to word of the day
         if (mounted && context.mounted) {
-          NavigationHelper.safeNavigate(
+          unawaited(NavigationHelper.safeNavigate(
             context,
-            '/general-transition',
+            '/word-of-day',
             replace: true,
-            arguments: {'routeAfter': '/word-of-day', 'routeArgs': null},
-          );
+          ),);
         }
       }
     } catch (e) {
-      // Log auth failure
-      final errorMessage = e
+      // Log auth failure - use technical error for analytics
+      final errorMessageForAnalytics = e
           .toString()
           .replaceFirst('Exception: ', '')
           .replaceFirst('ValidationException: ', '')
@@ -191,26 +202,28 @@ class _LoginScreenState extends State<LoginScreen> {
         await analyticsService.logLogin(
           'email',
           success: false,
-          error: errorMessage,
+          error: errorMessageForAnalytics,
         );
       } else {
         await analyticsService.logSignup(
           'email',
           success: false,
-          error: errorMessage,
+          error: errorMessageForAnalytics,
         );
       }
 
       // Also log error generically
       await analyticsService.logError(
         _isLogin ? 'login_failed' : 'signup_failed',
-        errorMessage,
+        errorMessageForAnalytics,
       );
 
       if (mounted) {
+        // Show localized error message to user
         ErrorHandler.showSnackBar(
           context,
-          errorMessage,
+          null,
+          error: e,
           backgroundColor: AppColors.error,
         );
       }
@@ -224,8 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.black, // Black fallback - video or static background will cover
-      resizeToAvoidBottomInset: true, // Allow screen to resize when keyboard appears
+      backgroundColor: AppColors
+          .overlayDark, // Black fallback - video or static background will cover
+      resizeToAvoidBottomInset:
+          false, // Prevent video background distortion when keyboard appears
       body: VideoBackgroundWidget(
         videoPath: 'assets/loginscreen.mp4',
         fit: BoxFit.cover, // CSS object-fit: cover equivalent
@@ -243,9 +258,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.xl,
                   ).copyWith(
-                    bottom: keyboardHeight > 0 ? keyboardHeight + AppSpacing.md : AppSpacing.xl,
+                    bottom: keyboardHeight > 0
+                        ? keyboardHeight + AppSpacing.md
+                        : AppSpacing.xl,
                   ),
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -258,349 +276,405 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isLogin ? 'Sign In' : 'Create Account',
                             textAlign: TextAlign.center,
                             style: AppTypography.displayLarge.copyWith(
-                              fontSize: 32,
-                              color: Colors.white, // White text directly on video background
+                              color: AppColors
+                                  .onDarkText, // White text directly on video background
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                         ],
-                      // Display Name field (only for sign up)
-                      if (!_isLogin) ...[
-                        TextFormField(
-                          controller: _displayNameController,
-                          focusNode: _displayNameFocusNode,
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Display Name',
-                            labelStyle: AppTypography.bodyMedium.copyWith(
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                            filled: true,
-                            fillColor: _displayNameFocusNode.hasFocus
-                                ? Colors.white.withValues(alpha: 0.2)
-                                : Colors.white.withValues(alpha: 0.1),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: colors.borderLight,
-                                width: 1,
+                        // Display Name field (only for sign up)
+                        if (!_isLogin) ...[
+                          Semantics(
+                            label: 'Display name',
+                            hint: 'Enter your display name',
+                            textField: true,
+                            child: TextFormField(
+                              controller: _displayNameController,
+                              focusNode: _displayNameFocusNode,
+                              textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) {
+                                FocusScope.of(context)
+                                    .requestFocus(_emailFocusNode);
+                              },
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.onDarkText,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: AppColors.error,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedErrorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: AppColors.error,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (!_isLogin) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter a display name';
-                              }
-                              if (value.length < 2) {
-                                return 'Display name must be at least 2 characters';
-                              }
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                      TextFormField(
-                        controller: _emailController,
-                        focusNode: _emailFocusNode,
-                        keyboardType: TextInputType.emailAddress,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.white,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                          filled: true,
-                          fillColor: _emailFocusNode.hasFocus
-                              ? Colors.white.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: 0.1),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: colors.borderLight),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: AppColors.error,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: AppColors.error,
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
-                        controller: _passwordController,
-                        focusNode: _passwordFocusNode,
-                        obscureText: true,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.white,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                          filled: true,
-                          fillColor: _passwordFocusNode.hasFocus
-                              ? Colors.white.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: 0.1),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: colors.borderLight),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: AppColors.error,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: AppColors.error,
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          // For login, just check minimum length (full validation in AuthService)
-                          if (value.length < 8) {
-                            return 'Password must be at least 8 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      // Confirm Password field (only for sign up)
-                      if (!_isLogin) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          focusNode: _confirmPasswordFocusNode,
-                          obscureText: true,
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: Colors.white,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Confirm Password',
-                            labelStyle: AppTypography.bodyMedium.copyWith(
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                            filled: true,
-                            fillColor: _confirmPasswordFocusNode.hasFocus
-                                ? Colors.white.withValues(alpha: 0.2)
-                                : Colors.white.withValues(alpha: 0.1),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: colors.borderLight,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: AppColors.error,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedErrorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: AppColors.error,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (!_isLogin) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please confirm your password';
-                              }
-                              if (value != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                      // Terms acceptance checkbox (only for sign up)
-                      if (!_isLogin) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _acceptTerms,
-                              onChanged: (value) =>
-                                  setState(() => _acceptTerms = value ?? false),
-                              activeColor: colors.primaryText,
-                              checkColor: Colors.white,
-                            ),
-                            Expanded(
-                              child: RichText(
-                                textAlign: TextAlign.left,
-                                overflow: TextOverflow.visible,
-                                softWrap: true,
-                                maxLines: 3,
-                                text: TextSpan(
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: colors.secondaryText,
-                                  ),
-                                  children: [
-                                    const TextSpan(text: 'I agree to the '),
-                                    TextSpan(
-                                      text: 'Terms of Service',
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: colors.primaryButton,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: colors.primaryButton,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      recognizer: _termsRecognizer,
-                                    ),
-                                    const TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: colors.primaryButton,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: colors.primaryButton,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      recognizer: _privacyRecognizer,
-                                    ),
-                                  ],
+                              decoration: InputDecoration(
+                                labelText: 'Display Name',
+                                labelStyle: AppTypography.bodyMedium.copyWith(
+                                  color:
+                                      AppColors.onDarkText.withValues(alpha: 0.7),
                                 ),
+                              filled: true,
+                              fillColor: _displayNameFocusNode.hasFocus
+                                  ? AppColors.onDarkText.withValues(alpha: 0.2)
+                                  : AppColors.onDarkText.withValues(alpha: 0.1),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: colors.borderLight,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.lg),
-                      SizedBox(
-                        height: 56,
-                        child: Semantics(
-                          label: _isLogin ? 'Sign In' : 'Sign Up',
-                          button: true,
-                          enabled: !_loading && (_isLogin || _acceptTerms),
-                          child: ElevatedButton(
-                            onPressed:
-                                (_loading || (!_isLogin && !_acceptTerms))
-                                    ? null
-                                    : _handleAuth,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colors.primaryButton,
-                              foregroundColor: colors.buttonText,
-                              disabledBackgroundColor: Colors.grey,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.onDarkText,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: _loading
-                                ? SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      color: colors.buttonText,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    _isLogin ? 'Sign In' : 'Sign Up',
-                                    style: AppTypography.labelLarge,
-                                  ),
+                            validator: (value) {
+                              if (!_isLogin) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter a display name';
+                                }
+                                if (value.length < 2) {
+                                  return 'Display name must be at least 2 characters';
+                                }
+                              }
+                              return null;
+                            },
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+                        Semantics(
+                          label: 'Email address',
+                          hint: 'Enter your email address',
+                          textField: true,
+                          child: TextFormField(
+                            controller: _emailController,
+                            focusNode: _emailFocusNode,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) {
+                              FocusScope.of(context)
+                                  .requestFocus(_passwordFocusNode);
+                            },
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.onDarkText,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              labelStyle: AppTypography.bodyMedium.copyWith(
+                                color:
+                                    AppColors.onDarkText.withValues(alpha: 0.7),
+                              ),
+                              filled: true,
+                              fillColor: _emailFocusNode.hasFocus
+                                  ? AppColors.onDarkText.withValues(alpha: 0.2)
+                                  : AppColors.onDarkText.withValues(alpha: 0.1),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: colors.borderLight),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: AppColors.of(context).focus,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Semantics(
-                        label: _isLogin
-                            ? 'Need an account? Sign up'
-                            : 'Have an account? Sign in',
-                        button: true,
-                        child: TextButton(
-                          onPressed: () => setState(() => _isLogin = !_isLogin),
-                          child: Text(
-                            _isLogin
-                                ? 'Need an account? Sign up'
-                                : 'Have an account? Sign in',
+                        const SizedBox(height: AppSpacing.md),
+                        Semantics(
+                          label: 'Password',
+                          hint: 'Enter your password',
+                          textField: true,
+                          child: TextFormField(
+                            controller: _passwordController,
+                            focusNode: _passwordFocusNode,
+                            obscureText: true,
+                            textInputAction: _isLogin
+                                ? TextInputAction.done
+                                : TextInputAction.next,
+                            onFieldSubmitted: (_) {
+                              if (_isLogin) {
+                                _handleAuth();
+                              } else {
+                                FocusScope.of(context)
+                                    .requestFocus(_confirmPasswordFocusNode);
+                              }
+                            },
                             style: AppTypography.bodyMedium.copyWith(
-                              color: colors.secondaryText,
+                              color: AppColors.onDarkText,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: AppTypography.bodyMedium.copyWith(
+                                color:
+                                    AppColors.onDarkText.withValues(alpha: 0.7),
+                              ),
+                              filled: true,
+                              fillColor: _passwordFocusNode.hasFocus
+                                  ? AppColors.onDarkText.withValues(alpha: 0.2)
+                                  : AppColors.onDarkText.withValues(alpha: 0.1),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: colors.borderLight),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: AppColors.of(context).focus,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password';
+                              }
+                              // For login, just check minimum length (full validation in AuthService)
+                              if (value.length < 8) {
+                                return 'Password must be at least 8 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        // Confirm Password field (only for sign up)
+                        if (!_isLogin) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Semantics(
+                            label: 'Confirm password',
+                            hint: 'Re-enter your password',
+                            textField: true,
+                            child: TextFormField(
+                              controller: _confirmPasswordController,
+                              focusNode: _confirmPasswordFocusNode,
+                              obscureText: true,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) {
+                                _handleAuth();
+                              },
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: Colors.white,
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Confirm Password',
+                                labelStyle: AppTypography.bodyMedium.copyWith(
+                                  color:
+                                      AppColors.onDarkText.withValues(alpha: 0.7),
+                                ),
+                                filled: true,
+                                fillColor: _confirmPasswordFocusNode.hasFocus
+                                    ? AppColors.onDarkText.withValues(alpha: 0.2)
+                                    : AppColors.onDarkText.withValues(alpha: 0.1),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: colors.borderLight,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: AppColors.onDarkText,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: AppColors.error,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: AppColors.error,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (!_isLogin) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please confirm your password';
+                                  }
+                                  if (value != _passwordController.text) {
+                                    return 'Passwords do not match';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                        // Terms acceptance checkbox (only for sign up)
+                        if (!_isLogin) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Semantics(
+                                label: 'Accept terms and conditions',
+                                checked: _acceptTerms,
+                                child: Checkbox(
+                                  value: _acceptTerms,
+                                  onChanged: (value) => setState(
+                                      () => _acceptTerms = value ?? false,),
+                                  activeColor: colors.primaryText,
+                                  checkColor: AppColors.onDarkText,
+                                ),
+                              ),
+                              Expanded(
+                                child: RichText(
+                                  textAlign: TextAlign.left,
+                                  overflow: TextOverflow.visible,
+                                  softWrap: true,
+                                  maxLines: 3,
+                                  text: TextSpan(
+                                    style: AppTypography.labelSmall.copyWith(
+                                      color: colors.secondaryText,
+                                    ),
+                                    children: [
+                                      const TextSpan(text: 'I agree to the '),
+                                      TextSpan(
+                                        text: 'Terms of Service',
+                                        style:
+                                            AppTypography.labelSmall.copyWith(
+                                          color: colors.primaryButton,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: colors.primaryButton,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        recognizer: _termsRecognizer,
+                                      ),
+                                      const TextSpan(text: ' and '),
+                                      TextSpan(
+                                        text: 'Privacy Policy',
+                                        style:
+                                            AppTypography.labelSmall.copyWith(
+                                          color: colors.primaryButton,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: colors.primaryButton,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        recognizer: _privacyRecognizer,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                        SizedBox(
+                          height: 56,
+                          child: Semantics(
+                            label: _isLogin ? 'Sign In' : 'Sign Up',
+                            button: true,
+                            enabled: !_loading && (_isLogin || _acceptTerms),
+                            child: ElevatedButton(
+                              onPressed:
+                                  (_loading || (!_isLogin && !_acceptTerms))
+                                      ? null
+                                      : _handleAuth,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colors.primaryButton,
+                                foregroundColor: colors.buttonText,
+                                disabledBackgroundColor: Colors.grey,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _loading
+                                  ? SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: colors.buttonText,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      _isLogin ? 'Sign In' : 'Sign Up',
+                                      style: AppTypography.labelLarge,
+                                    ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.md),
+                        Semantics(
+                          label: _isLogin
+                              ? 'Need an account? Sign up'
+                              : 'Have an account? Sign in',
+                          button: true,
+                          child: TextButton(
+                            onPressed: () =>
+                                setState(() => _isLogin = !_isLogin),
+                            child: Text(
+                              _isLogin
+                                  ? 'Need an account? Sign up'
+                                  : 'Have an account? Sign in',
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: colors.secondaryText,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
             },
           ),
         ),
