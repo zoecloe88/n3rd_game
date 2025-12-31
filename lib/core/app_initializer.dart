@@ -18,6 +18,7 @@ import 'package:n3rd_game/services/voice_recognition_service.dart';
 import 'package:n3rd_game/services/pronunciation_dictionary_service.dart';
 import 'package:n3rd_game/services/voice_calibration_service.dart';
 import 'package:n3rd_game/services/theme_service.dart';
+import 'package:n3rd_game/services/language_service.dart';
 import 'package:n3rd_game/services/settings_service.dart';
 import 'package:n3rd_game/services/learning_service.dart';
 import 'package:n3rd_game/services/offline_service.dart';
@@ -217,6 +218,11 @@ class AppInitializer {
     final themeService = ProviderHelper.safeGet<ThemeService>(context, listen: false);
     if (themeService != null) {
       servicesToInit['ThemeService'] = () => themeService.init();
+    }
+
+    final languageService = ProviderHelper.safeGet<LanguageService>(context, listen: false);
+    if (languageService != null) {
+      servicesToInit['LanguageService'] = () => languageService.init();
     }
 
     final settingsService = ProviderHelper.safeGet<SettingsService>(context, listen: false);

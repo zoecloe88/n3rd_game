@@ -9,6 +9,7 @@ import 'package:n3rd_game/theme/app_shadows.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/widgets/background_image_widget.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 class VoiceCalibrationScreen extends StatefulWidget {
   const VoiceCalibrationScreen({super.key});
@@ -441,12 +442,12 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
 
                                     try {
                                       // Record the sample (word is guaranteed non-null here due to check above)
-                                      calibrationService
+                                      unawaited(calibrationService
                                           .recordCalibrationSample(
                                         word: word,
                                         recognizedText: text,
                                         recognitionService: voiceService,
-                                      );
+                                      ),);
 
                                       // Move to next sample
                                       if (mounted) {
@@ -529,11 +530,11 @@ class _VoiceCalibrationScreenState extends State<VoiceCalibrationScreen> {
                                     });
                                     try {
                                       // Record the sample
-                                      calibrationService.recordCalibrationSample(
+                                      unawaited(calibrationService.recordCalibrationSample(
                                         word: word,
                                         recognizedText: text,
                                         recognitionService: voiceService,
-                                      );
+                                      ),);
                                       // Move to next sample
                                       if (mounted) {
                                         setState(() {

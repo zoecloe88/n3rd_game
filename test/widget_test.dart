@@ -31,7 +31,8 @@ void main() {
 
     // Build the widget with required providers
     // TitleScreen uses SubscriptionService via Consumer widgets
-    subscriptionService = SubscriptionService()..init();
+    subscriptionService = SubscriptionService();
+    await subscriptionService.init();
     analyticsService = AnalyticsService();
 
     await tester.pumpWidget(

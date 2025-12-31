@@ -1222,7 +1222,7 @@ class _GameScreenState extends State<GameScreen>
               if (instruction.showOnce)
                 TextButton(
                   onPressed: () async {
-                    HapticService().lightImpact();
+                    unawaited(HapticService().lightImpact());
                     await GameInstructions.markInstructionShown(
                       instruction.id,
                       dontShowAgain: true,
@@ -1287,7 +1287,7 @@ class _GameScreenState extends State<GameScreen>
             actions: [
               TextButton(
                 onPressed: () async {
-                  HapticService().lightImpact();
+                  unawaited(HapticService().lightImpact());
                   await GameInstructions.markInstructionShown(
                     'double_tap',
                     dontShowAgain: false,
@@ -2058,7 +2058,7 @@ class _GameScreenState extends State<GameScreen>
                         size: 20,
                       ),
                       onPressed: () async {
-                        HapticService().lightImpact();
+                        unawaited(HapticService().lightImpact());
                         if (!mounted) return;
                         // Capture context before async call
                         final capturedContext = context;
@@ -3218,7 +3218,7 @@ class _GameScreenState extends State<GameScreen>
           button: true,
           child: ElevatedButton(
             onPressed: () async {
-              HapticService().lightImpact();
+              unawaited(HapticService().lightImpact());
               if (!isMounted) return;
               // Capture context references before async calls
               final scaffoldMessenger = ScaffoldMessenger.of(capturedContext);
@@ -4315,7 +4315,7 @@ class _GameScreenState extends State<GameScreen>
                           Text(localizations?.googleSearch ?? 'Google Search'),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
-                        HapticService().lightImpact();
+                        unawaited(HapticService().lightImpact());
                         try {
                           final url = Uri.parse(
                             'https://www.google.com/search?q=${Uri.encodeComponent(word)}',
@@ -4413,7 +4413,7 @@ class _GameScreenState extends State<GameScreen>
                           localizations?.dictionaryCom ?? 'Dictionary.com',),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
-                        HapticService().lightImpact();
+                        unawaited(HapticService().lightImpact());
                         try {
                           final url = Uri.parse(
                             'https://www.dictionary.com/browse/${Uri.encodeComponent(word)}',
@@ -4464,7 +4464,7 @@ class _GameScreenState extends State<GameScreen>
                           localizations?.merriamWebster ?? 'Merriam-Webster',),
                       contentPadding: EdgeInsets.zero,
                       onTap: () async {
-                        HapticService().lightImpact();
+                        unawaited(HapticService().lightImpact());
                         try {
                           final url = Uri.parse(
                             'https://www.merriam-webster.com/dictionary/${Uri.encodeComponent(word)}',

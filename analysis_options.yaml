@@ -105,7 +105,7 @@ linter:
     provide_deprecation_message: true
     sort_constructors_first: false  # Disabled to reduce noise
     sort_unnamed_constructors_first: false  # Disabled to reduce noise
-    unawaited_futures: false  # Disabled - intentional fire-and-forget patterns
+    unawaited_futures: true  # Enabled to catch risky async patterns (e.g., LanguageService constructor)
     use_build_context_synchronously: true
     use_key_in_widget_constructors: true
     use_late_for_private_fields_and_variables: true

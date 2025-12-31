@@ -5,12 +5,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LanguageService extends ChangeNotifier {
 
   LanguageService() {
-    _loadLanguage();
+    // Safe default - no async calls in constructor
+    // Language preference will be loaded asynchronously via init()
+    _currentLocale = const Locale('en', '');
   }
   static const String _languageKey = 'app_language_code';
   Locale _currentLocale = const Locale('en', '');
 
   Locale get currentLocale => _currentLocale;
+
+  /// Initialize the service and load language preference
+  /// This should be called via AppInitializer.initializeServices()
+  Future<void> init() async {
+    await _loadLanguage();
+  }
 
   Future<void> _loadLanguage() async {
     final prefs = await SharedPreferences.getInstance();

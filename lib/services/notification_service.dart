@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/unawaited_helper.dart';
 
 /// Service for handling push notifications
 class NotificationService extends ChangeNotifier {
@@ -263,11 +264,11 @@ class NotificationService extends ChangeNotifier {
   Future<void> disableNotifications() async {
     try {
       // Cancel all subscriptions
-      _tokenSubscription?.cancel();
+      unawaited(_tokenSubscription?.cancel());
       _tokenSubscription = null;
-      _foregroundMessageSubscription?.cancel();
+      unawaited(_foregroundMessageSubscription?.cancel());
       _foregroundMessageSubscription = null;
-      _messageOpenedSubscription?.cancel();
+      unawaited(_messageOpenedSubscription?.cancel());
       _messageOpenedSubscription = null;
 
       // Delete FCM token from Firestore
