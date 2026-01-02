@@ -20,6 +20,7 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:n3rd_game/utils/accessibility_helper.dart';
 import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/widgets/upgrade_dialog.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -383,11 +384,7 @@ class _TitleScreenState extends State<TitleScreen> {
                                   if (context.mounted) {
                                     NavigationHelper.safeNavigate(
                                       context,
-                                      '/general-transition',
-                                      arguments: {
-                                        'routeAfter': '/editions-selection',
-                                        'routeArgs': null,
-                                      },
+                                      '/editions-selection',
                                     );
                                   }
                                 }
@@ -638,40 +635,15 @@ class _TitleScreenState extends State<TitleScreen> {
     _trackUpgradeDialogShown(feature);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          '$feature - ${AppLocalizations.of(context)?.premiumFeature ?? 'Premium Feature'}',
-          style: AppTypography.displayMedium.copyWith(fontSize: 20),
-        ),
-        content: Text(message, style: AppTypography.bodyMedium),
-        actions: [
-          TextButton(
-            onPressed: () {
-              HapticService().lightImpact();
-              NavigationHelper.safePop(context);
-            },
-            child: Text(
-              AppLocalizations.of(context)?.cancel ?? 'Cancel',
-              style: AppTypography.labelLarge,
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              HapticService().lightImpact();
-              NavigationHelper.safePop(context);
-              NavigationHelper.safeNavigate(
-                context,
-                '/subscription-management',
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: Text(
-              AppLocalizations.of(context)?.upgrade ?? 'Upgrade',
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.of(context).onDarkText,
-              ),
-            ),
-          ),
+      builder: (context) => UpgradeDialog(
+        title: '$feature - ${AppLocalizations.of(context)?.premiumFeature ?? 'Premium Feature'}',
+        message: message,
+        targetTier: 'premium',
+        source: feature.toLowerCase().replaceAll(' ', '_'),
+        features: [
+          'Unlimited access to $feature',
+          'All premium game modes',
+          'Advanced features',
         ],
       ),
     );
@@ -1144,11 +1116,7 @@ class _TitleScreenState extends State<TitleScreen> {
                                     onPressed: () =>
                                         NavigationHelper.safeNavigate(
                                       context,
-                                      '/general-transition',
-                                      arguments: {
-                                        'routeAfter': '/editions-selection',
-                                        'routeArgs': null,
-                                      },
+                                      '/editions-selection',
                                     ),
                                     isPrimary: false,
                                     backgroundColor: Colors.white,

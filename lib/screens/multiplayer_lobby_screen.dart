@@ -19,6 +19,8 @@ import 'package:n3rd_game/models/friend.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:n3rd_game/services/newsfeed_service.dart';
 import 'package:n3rd_game/services/logger_service.dart';
+import 'package:n3rd_game/widgets/upgrade_dialog.dart';
+import 'package:n3rd_game/utils/subscription_guard.dart';
 
 class MultiplayerLobbyScreen extends StatefulWidget {
   const MultiplayerLobbyScreen({super.key});
@@ -36,6 +38,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   String? _selectedDifficulty;
   List<Friend> _invitedFriends = [];
   final bool _friendsOnly = false;
+  bool _hasProcessedRouteArgs = false;
 
   @override
   void initState() {
@@ -47,19 +50,43 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         context,
         listen: false,
       );
-      if (!subscriptionService.isPremium) {
+      // Use SubscriptionGuard for consistent access checking
+      if (!SubscriptionGuard.canAccessFeature(
+        subscriptionService: subscriptionService,
+        requiresOnlineAccess: true,
+      )) {
         _showUpgradeDialog(context);
         return;
       }
     });
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is MultiplayerMode) {
-      _mode = args;
-    } else if (args is Map<String, dynamic> && args.containsKey('joinRoom')) {
-      // Handle deep link - auto-populate room code and join
-      final roomCode = args['joinRoom'] as String?;
-      if (roomCode != null && roomCode.isNotEmpty) {
-        _roomCodeController.text = roomCode;
+    // Route arguments will be processed in didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Process route arguments only once after widget tree is built
+    if (!_hasProcessedRouteArgs) {
+      _hasProcessedRouteArgs = true;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is MultiplayerMode) {
+        _mode = args;
+      } else if (args is Map<String, dynamic> && args.containsKey('joinRoom')) {
+        // Handle deep link - auto-populate room code and join
+        final roomCode = args['joinRoom'] as String?;
+        if (roomCode != null && roomCode.isNotEmpty) {
+          _roomCodeController.text = roomCode;
+          // Auto-join after short delay
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (mounted) {
+              unawaited(_joinRoom());
+            }
+          });
+        }
+      } else if (args is String && args.isNotEmpty) {
+        // Direct room code as argument
+        _roomCodeController.text = args;
         // Auto-join after short delay
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await Future.delayed(const Duration(milliseconds: 500));
@@ -68,16 +95,6 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           }
         });
       }
-    } else if (args is String && args.isNotEmpty) {
-      // Direct room code as argument
-      _roomCodeController.text = args;
-      // Auto-join after short delay
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          unawaited(_joinRoom());
-        }
-      });
     }
   }
 
@@ -103,40 +120,16 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Multiplayer - Premium Feature'),
-        content: const Text(
-          'Upgrade to Premium to create and join game lobbies!',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              analyticsService.logUpgradeDialogDismissed(
-                source: 'multiplayer',
-                targetTier: 'premium',
-              );
-              NavigationHelper.safePop(dialogContext);
-              NavigationHelper.safePop(dialogContext); // Go back
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              analyticsService.logConversionFunnelStep(
-                step: 3,
-                stepName: 'subscription_screen_opened',
-                source: 'multiplayer',
-                targetTier: 'premium',
-              );
-              NavigationHelper.safePop(dialogContext);
-              NavigationHelper.safePop(dialogContext); // Go back
-              NavigationHelper.safeNavigate(
-                dialogContext,
-                '/subscription-management',
-              );
-            },
-            child: const Text('Upgrade'),
-          ),
+      builder: (dialogContext) => UpgradeDialog(
+        title: 'Multiplayer - Premium Feature',
+        message: 'Upgrade to Premium to create and join game lobbies!',
+        targetTier: 'premium',
+        source: 'multiplayer',
+        features: [
+          'Create and join multiplayer game lobbies',
+          'Battle Royale mode',
+          'Squad Showdown mode',
+          'Team-based gameplay',
         ],
       ),
     );

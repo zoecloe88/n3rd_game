@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/direct_message_service.dart';
 import 'package:n3rd_game/services/auth_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/utils/subscription_guard.dart';
 import 'package:n3rd_game/models/direct_message.dart';
 import 'package:n3rd_game/theme/app_colors.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
@@ -60,7 +61,11 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
       listen: false,
     );
 
-    if (!subscriptionService.hasOnlineAccess) {
+    // Use SubscriptionGuard for consistent access checking
+    if (!SubscriptionGuard.canAccessFeature(
+      subscriptionService: subscriptionService,
+      requiresOnlineAccess: true,
+    )) {
       if (!mounted) return;
       setState(() {
         _hasPremium = false;
@@ -366,8 +371,9 @@ class _DirectMessageScreenState extends State<DirectMessageScreen> {
                 );
                 if (confirmed == true && _otherUserId != null) {
                   if (!context.mounted) return;
-                  final navigator = Navigator.of(context);
-                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.maybeOf(context);
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  if (navigator == null || messenger == null) return;
                   try {
                     final conversationId =
                         _messageService.currentConversationId;

@@ -1,6 +1,5 @@
 import 'dart:async' show StreamSubscription, TimeoutException;
 import 'package:n3rd_game/utils/unawaited_helper.dart';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -16,20 +15,24 @@ import 'package:n3rd_game/services/analytics_service.dart';
 import 'package:n3rd_game/services/friends_service.dart';
 import 'package:n3rd_game/services/notification_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/services/network_service.dart';
 import 'package:n3rd_game/utils/input_sanitizer.dart';
 import 'package:n3rd_game/utils/list_helper.dart';
 import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/firestore_error_handler.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class MultiplayerService extends ChangeNotifier {
   FirebaseFirestore? _firestore;
   FirebaseAuth? _auth;
+  // Keep Connectivity for listener (used in _setupConnectivityListener)
   final Connectivity _connectivity = Connectivity();
   final RateLimiterService _rateLimiter = RateLimiterService();
   final MultiplayerRetryQueue _retryQueue = MultiplayerRetryQueue();
   AnalyticsService? _analyticsService;
   FriendsService? _friendsService;
   NotificationService? _notificationService;
+  NetworkService? _networkService;
 
   /// Get Firestore instance if Firebase is available
   FirebaseFirestore? get _firestoreInstance {
@@ -73,6 +76,10 @@ class MultiplayerService extends ChangeNotifier {
 
   void setNotificationService(NotificationService? service) {
     _notificationService = service;
+  }
+
+  void setNetworkService(NetworkService? service) {
+    _networkService = service;
   }
 
   GameRoom? _currentRoom;
@@ -249,8 +256,10 @@ class MultiplayerService extends ChangeNotifier {
   }
 
   /// Check network connectivity and internet reachability before multiplayer operations
+  /// Uses NetworkService for consistent connectivity checking across the app
   Future<void> _checkConnectivity() async {
-    try {
+    if (_networkService == null) {
+      // Fallback to basic connectivity check if NetworkService not available
       final connectivityResults = await _connectivity.checkConnectivity();
       final isOffline = connectivityResults.contains(ConnectivityResult.none) ||
           connectivityResults.isEmpty;
@@ -259,34 +268,15 @@ class MultiplayerService extends ChangeNotifier {
           'No internet connection. Please check your network and try again.',
         );
       }
+      return;
+    }
 
-      // Additional check: Verify actual internet reachability (not just connection type)
-      // This prevents issues where device is connected to WiFi but has no internet
-      try {
-        final result = await InternetAddress.lookup(
-          'firebase.googleapis.com',
-        ).timeout(const Duration(seconds: 5));
-        if (result.isEmpty || result[0].rawAddress.isEmpty) {
-          throw NetworkException(
-            'Connected to network but no internet access. Please check your connection.',
-          );
-        }
-      } catch (e) {
-        if (e is NetworkException) rethrow;
-        // If DNS lookup fails, we don't have internet
-        throw NetworkException(
-          'No internet access. Please check your connection and try again.',
-        );
-      }
-    } catch (e) {
-      if (e is NetworkException) rethrow;
-      // If connectivity check fails, assume online and continue
-      // (Firestore will handle offline persistence)
-      if (kDebugMode) {
-        debugPrint(
-          'Failed to check connectivity: $e - continuing with operation',
-        );
-      }
+    // Use NetworkService for consistent internet reachability checking
+    final hasInternet = await _networkService!.checkInternetReachability();
+    if (!hasInternet) {
+      throw NetworkException(
+        'No internet access. Please check your connection and try again.',
+      );
     }
   }
 
@@ -311,31 +301,17 @@ class MultiplayerService extends ChangeNotifier {
           );
         }
       } on FirebaseException catch (e) {
-        // CRITICAL: Handle permission-denied errors specifically
         // Don't retry on permission errors - they won't succeed on retry
         if (e.code == 'permission-denied') {
-          LoggerService.error(
-            '$operationName: Permission denied. User may not be authenticated or lacks required permissions. '
-            'Operation: $operationName, Firebase code: ${e.code}, Message: ${e.message ?? 'No message'}',
-            error: e,
-            reason: 'Firestore permission-denied error',
-            fatal: false,
+          // Use centralized error handler which throws appropriate exceptions
+          FirestoreErrorHandler.handleFirestoreError(
+            e,
+            'MultiplayerService',
+            operationName,
           );
-          // Check if user is authenticated
-          final auth = _authInstance;
-      final userId = auth?.currentUser?.uid;
-          if (userId == null) {
-            throw AuthenticationException(
-              'User not authenticated. Please log in to continue.',
-              recoverySuggestion:
-                  'Please sign in to access multiplayer features.',
-            );
-          }
-          throw NetworkException(
-            'Permission denied. You may not have access to this feature.',
-            recoverySuggestion:
-                'Please check your subscription status or contact support if you believe you should have access.',
-          );
+          // Should not reach here, but in case it does:
+          lastError = 'Permission denied';
+          rethrow;
         }
         // For other Firebase errors, log and rethrow
         lastError = 'Firebase error (${e.code}): ${e.message}';

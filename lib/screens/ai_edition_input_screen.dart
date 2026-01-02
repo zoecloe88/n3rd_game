@@ -3,6 +3,7 @@ import 'package:n3rd_game/theme/app_typography.dart';
 import 'package:provider/provider.dart';
 import 'package:n3rd_game/services/ai_edition_service.dart';
 import 'package:n3rd_game/services/subscription_service.dart';
+import 'package:n3rd_game/utils/subscription_guard.dart';
 import 'package:n3rd_game/theme/app_spacing.dart';
 import 'package:n3rd_game/theme/app_radius.dart';
 import 'package:n3rd_game/theme/app_shadows.dart';
@@ -93,7 +94,11 @@ class _AIEditionInputScreenState extends State<AIEditionInputScreen> {
       context,
       listen: false,
     );
-    if (!subscriptionService.hasEditionsAccess) {
+    // Use SubscriptionGuard for consistent access checking
+    if (!SubscriptionGuard.canAccessFeature(
+      subscriptionService: subscriptionService,
+      requiresEditionsAccess: true,
+    )) {
       if (!mounted) return;
       _showUpgradeDialog();
       return;

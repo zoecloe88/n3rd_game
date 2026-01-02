@@ -230,25 +230,15 @@ class DirectMessageService extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        // CRITICAL: Handle Firestore permission errors gracefully
-        if (error is FirebaseException && error.code == 'permission-denied') {
-          LoggerService.error(
-            'DirectMessageService: Permission denied loading conversations. User may not be authenticated or lacks premium access.',
-            error: error,
-            reason: 'Firestore permission-denied error',
-            fatal: false,
-          );
-          // Clear conversations and notify listeners
-          _conversations.clear();
-          notifyListeners();
-        } else {
-          LoggerService.error(
-            'DirectMessageService: Error loading conversations',
-            error: error,
-            reason: 'Firestore stream error',
-            fatal: false,
-          );
-        }
+        FirestoreErrorHandler.handleStreamError(
+          error,
+          'DirectMessageService',
+          'loading conversations',
+          clearData: () {
+            _conversations.clear();
+          },
+          notifyListeners: notifyListeners,
+        );
       },
     );
   }
@@ -303,25 +293,15 @@ class DirectMessageService extends ChangeNotifier {
         _markMessagesAsRead(conversationId);
       },
       onError: (error) {
-        // CRITICAL: Handle Firestore permission errors gracefully
-        if (error is FirebaseException && error.code == 'permission-denied') {
-          LoggerService.error(
-            'DirectMessageService: Permission denied loading messages. User may not be authenticated or lacks premium access.',
-            error: error,
-            reason: 'Firestore permission-denied error',
-            fatal: false,
-          );
-          // Clear messages and notify listeners
-          _messages.clear();
-          notifyListeners();
-        } else {
-          LoggerService.error(
-            'DirectMessageService: Error loading messages',
-            error: error,
-            reason: 'Firestore stream error',
-            fatal: false,
-          );
-        }
+        FirestoreErrorHandler.handleStreamError(
+          error,
+          'DirectMessageService',
+          'loading messages',
+          clearData: () {
+            _messages.clear();
+          },
+          notifyListeners: notifyListeners,
+        );
       },
     );
   }
