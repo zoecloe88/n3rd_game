@@ -39,6 +39,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   List<Friend> _invitedFriends = [];
   final bool _friendsOnly = false;
   bool _hasProcessedRouteArgs = false;
+  bool _hasSubscriptionAccess = false;
 
   @override
   void initState() {
@@ -55,9 +56,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         subscriptionService: subscriptionService,
         requiresOnlineAccess: true,
       )) {
+        _hasSubscriptionAccess = false;
         _showUpgradeDialog(context);
         return;
       }
+      _hasSubscriptionAccess = true;
     });
     // Route arguments will be processed in didChangeDependencies
   }
@@ -72,10 +75,24 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       if (args is MultiplayerMode) {
         _mode = args;
       } else if (args is Map<String, dynamic> && args.containsKey('joinRoom')) {
-        // Handle deep link - auto-populate room code and join
-        final roomCode = args['joinRoom'] as String?;
-        if (roomCode != null && roomCode.isNotEmpty) {
-          _roomCodeController.text = roomCode;
+        // Handle deep link - auto-populate room code and join (only if subscription access granted)
+        if (_hasSubscriptionAccess) {
+          final roomCode = args['joinRoom'] as String?;
+          if (roomCode != null && roomCode.isNotEmpty) {
+            _roomCodeController.text = roomCode;
+            // Auto-join after short delay
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await Future.delayed(const Duration(milliseconds: 500));
+              if (mounted) {
+                unawaited(_joinRoom());
+              }
+            });
+          }
+        }
+      } else if (args is String && args.isNotEmpty) {
+        // Direct room code as argument (only if subscription access granted)
+        if (_hasSubscriptionAccess) {
+          _roomCodeController.text = args;
           // Auto-join after short delay
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             await Future.delayed(const Duration(milliseconds: 500));
@@ -84,16 +101,6 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
             }
           });
         }
-      } else if (args is String && args.isNotEmpty) {
-        // Direct room code as argument
-        _roomCodeController.text = args;
-        // Auto-join after short delay
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (mounted) {
-            unawaited(_joinRoom());
-          }
-        });
       }
     }
   }
@@ -120,7 +127,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => UpgradeDialog(
+      builder: (dialogContext) => const UpgradeDialog(
         title: 'Multiplayer - Premium Feature',
         message: 'Upgrade to Premium to create and join game lobbies!',
         targetTier: 'premium',
@@ -132,7 +139,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           'Team-based gameplay',
         ],
       ),
-    );
+    ).then((_) {
+      // Navigate back after dialog is dismissed
+      if (!mounted || !context.mounted) return;
+      NavigationHelper.safePop(context);
+    });
   }
 
   MultiplayerMode? _mode;

@@ -544,12 +544,20 @@ class GameHistoryService extends ChangeNotifier {
         stack: stackTrace,
       );
 
-      // Use centralized error handler
-      FirestoreErrorHandler.handleFirestoreError(
-        e,
-        'GameHistoryService',
-        'loading game history',
-      );
+      // Use centralized error handler (will throw, so catch to allow fallback)
+      try {
+        FirestoreErrorHandler.handleFirestoreError(
+          e,
+          'GameHistoryService',
+          'loading game history',
+        );
+      } catch (handledError) {
+        // Error was handled/logged by FirestoreErrorHandler, now fallback to cached games
+        LoggerService.warning(
+          'GameHistoryService: Falling back to cached games due to error',
+          error: handledError,
+        );
+      }
 
       // Fallback to cached games
       return _applyFilters(_cachedGames,

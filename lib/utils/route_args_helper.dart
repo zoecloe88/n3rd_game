@@ -45,7 +45,7 @@ class RouteArgsHelper {
   /// Check if route arguments match a specific type
   ///
   /// [context] - BuildContext
-  /// [type] - Type to check (e.g., Map<String, dynamic>)
+  /// [T] - Type to check (e.g., `Map<String, dynamic>`)
   ///
   /// Returns true if arguments match the type
   static bool hasArgumentsOfType<T>(BuildContext context) {

@@ -106,7 +106,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
                 'Upgrade to access online multiplayer features!',
         targetTier: 'premium',
         source: 'multiplayer_game',
-        features: [
+        features: const [
           'Real-time multiplayer gameplay',
           'Battle Royale and Squad Showdown modes',
           'Play with friends and family',
@@ -115,7 +115,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       ),
     ).then((_) {
       // Navigate back after dialog is dismissed
-      NavigationHelper.safePop(context);
+      if (mounted) {
+        NavigationHelper.safePop(context);
+      }
     });
   }
 

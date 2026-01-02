@@ -90,7 +90,6 @@ class ServiceRegistry {
       ChangeNotifierProvider<ChallengeService>(create: (_) => ChallengeService()),
       Provider(create: (_) => DailyChallengeLeaderboardService()),
       ChangeNotifierProvider<TextToSpeechService>(create: (_) => TextToSpeechService()),
-      ChangeNotifierProvider<VoiceRecognitionService>(create: (_) => VoiceRecognitionService()),
       ChangeNotifierProvider<PronunciationDictionaryService>(create: (_) => PronunciationDictionaryService()),
       ChangeNotifierProvider<VoiceCalibrationService>(create: (_) => VoiceCalibrationService()),
       ChangeNotifierProvider<ThemeService>(create: (_) => ThemeService()),

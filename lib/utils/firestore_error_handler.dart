@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/services/daily_challenge_leaderboard_service.dart' show SubmissionResponse, SubmissionResult;
 import 'package:n3rd_game/exceptions/app_exceptions.dart';
