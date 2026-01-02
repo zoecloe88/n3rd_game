@@ -13,9 +13,8 @@ import 'package:n3rd_game/utils/input_sanitizer.dart';
 import 'package:n3rd_game/utils/game_mode_extensions.dart';
 import 'package:n3rd_game/services/game_history/game_history_retry_queue.dart';
 import 'package:n3rd_game/services/game_history/game_history_statistics.dart';
-import 'package:n3rd_game/exceptions/app_exceptions.dart';
-import 'package:n3rd_game/exceptions/error_codes.dart';
 import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/firestore_error_handler.dart';
 
 /// Service for managing game history records
 ///
@@ -227,23 +226,15 @@ class GameHistoryService extends ChangeNotifier {
         onError: (error) {
           if (_disposed) return;
 
-          if (error is FirebaseException && error.code == 'permission-denied') {
-            LoggerService.error(
-              'GameHistoryService: Permission denied accessing game history. User may not be authenticated or lacks required permissions.',
-              error: error,
-              reason: 'Firestore permission-denied error',
-              fatal: false,
-            );
-            _cachedGames.clear();
-            notifyListeners();
-          } else {
-            LoggerService.error(
-              'GameHistoryService: Error listening to game history',
-              error: error,
-              reason: 'Firestore stream error',
-              fatal: false,
-            );
-          }
+          FirestoreErrorHandler.handleStreamError(
+            error,
+            'GameHistoryService',
+            'accessing game history',
+            clearData: () {
+              _cachedGames.clear();
+            },
+            notifyListeners: notifyListeners,
+          );
         },
       );
     } catch (e, stackTrace) {
@@ -553,34 +544,18 @@ class GameHistoryService extends ChangeNotifier {
         stack: stackTrace,
       );
 
-      // Throw specific exception with error code
-      if (e is FirebaseException) {
-        if (e.code == 'permission-denied') {
-          throw PermissionException(
-            'Permission denied accessing game history',
-            errorCode: ErrorCode.systemPermissionDenied,
-            recoverySuggestion:
-                'Please check your account permissions and try again.',
-          );
-        } else if (e.code == 'unavailable') {
-          throw NetworkException(
-            'Game history service is currently unavailable',
-            errorCode: ErrorCode.networkServerError,
-            recoverySuggestion:
-                'Please check your connection and try again later.',
-          );
-        } else if (e.code == 'deadline-exceeded' || e.code == 'aborted') {
-          throw NetworkException(
-            'Request timed out while fetching game history',
-            errorCode: ErrorCode.networkTimeout,
-            recoverySuggestion: 'Please check your connection and try again.',
-          );
-        }
-      } else if (e is TimeoutException) {
-        throw NetworkException(
-          'Request timed out while fetching game history',
-          errorCode: ErrorCode.networkTimeout,
-          recoverySuggestion: 'Please check your connection and try again.',
+      // Use centralized error handler (will throw, so catch to allow fallback)
+      try {
+        FirestoreErrorHandler.handleFirestoreError(
+          e,
+          'GameHistoryService',
+          'loading game history',
+        );
+      } catch (handledError) {
+        // Error was handled/logged by FirestoreErrorHandler, now fallback to cached games
+        LoggerService.warning(
+          'GameHistoryService: Falling back to cached games due to error',
+          error: handledError,
         );
       }
 
@@ -700,15 +675,13 @@ class GameHistoryService extends ChangeNotifier {
       );
       return true;
     } catch (e) {
-      if (e is FirebaseException) {
-        if (e.code == 'permission-denied') {
-          LoggerService.error(
-            'Permission denied deleting game history',
-            error: e,
-          );
-        } else {
-          LoggerService.error('Error deleting game', error: e);
-        }
+      // Use centralized error handler for logging
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        FirestoreErrorHandler.handlePermissionDenied(
+          e,
+          'GameHistoryService',
+          customMessage: 'Permission denied deleting game history',
+        );
       } else {
         LoggerService.error('Error deleting game', error: e);
       }

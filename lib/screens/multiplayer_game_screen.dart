@@ -28,7 +28,9 @@ import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/feedback_helper.dart';
 import 'package:n3rd_game/utils/list_helper.dart';
+import 'package:n3rd_game/widgets/upgrade_dialog.dart';
 import 'package:n3rd_game/utils/provider_helper.dart';
+import 'package:n3rd_game/utils/subscription_guard.dart';
 import 'package:n3rd_game/widgets/app_button.dart';
 import 'package:n3rd_game/widgets/app_text_field.dart';
 import 'package:n3rd_game/widgets/app_card.dart';
@@ -67,7 +69,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
         context,
         listen: false,
       );
-      if (!subscriptionService.hasOnlineAccess) {
+      // Use SubscriptionGuard for consistent access checking
+      if (!SubscriptionGuard.canAccessFeature(
+        subscriptionService: subscriptionService,
+        requiresOnlineAccess: true,
+      )) {
         // User doesn't have online access - show upgrade dialog and navigate back
         _showUpgradeDialogAndNavigateBack();
         return;
@@ -89,51 +95,30 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen>
       targetTier: 'premium',
     );
 
+    final localizations = AppLocalizations.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        final localizations = AppLocalizations.of(dialogContext);
-        return AlertDialog(
-          title: Text(localizations?.premiumFeature ?? 'Premium Feature'),
-          content: Text(
-            localizations?.premiumFeatureDescription ??
-                'Multiplayer games are available for Premium subscribers. '
-                    'Upgrade to access online multiplayer features!',
-          ),
-          actions: [
-            AppButton.text(
-              label: localizations?.cancel ?? 'Cancel',
-              onPressed: () {
-                analyticsService.logUpgradeDialogDismissed(
-                  source: 'multiplayer_game',
-                  targetTier: 'premium',
-                );
-                NavigationHelper.safePop(dialogContext);
-                NavigationHelper.safePop(context); // Go back to previous screen
-              },
-            ),
-            AppButton.primary(
-              label: localizations?.upgradeToPremium ?? 'Upgrade to Premium',
-              onPressed: () {
-                analyticsService.logConversionFunnelStep(
-                  step: 3,
-                  stepName: 'subscription_screen_opened',
-                  source: 'multiplayer_game',
-                  targetTier: 'premium',
-                );
-                NavigationHelper.safePop(dialogContext);
-                NavigationHelper.safePop(context); // Go back
-                NavigationHelper.safeNavigate(
-                  context,
-                  '/subscription-management',
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
+      builder: (dialogContext) => UpgradeDialog(
+        title: localizations?.premiumFeature ?? 'Premium Feature',
+        message: localizations?.premiumFeatureDescription ??
+            'Multiplayer games are available for Premium subscribers. '
+                'Upgrade to access online multiplayer features!',
+        targetTier: 'premium',
+        source: 'multiplayer_game',
+        features: const [
+          'Real-time multiplayer gameplay',
+          'Battle Royale and Squad Showdown modes',
+          'Play with friends and family',
+          'Competitive leaderboards',
+        ],
+      ),
+    ).then((_) {
+      // Navigate back after dialog is dismissed
+      if (mounted) {
+        NavigationHelper.safePop(context);
+      }
+    });
   }
 
   /// Load pending submission from persistent storage

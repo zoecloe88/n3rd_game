@@ -9,6 +9,7 @@ import 'package:n3rd_game/exceptions/app_exceptions.dart';
 import 'package:n3rd_game/services/logger_service.dart';
 import 'package:n3rd_game/utils/list_helper.dart';
 import 'package:n3rd_game/utils/firebase_helper.dart';
+import 'package:n3rd_game/utils/firestore_error_handler.dart';
 
 class FriendsService extends ChangeNotifier {
   FirebaseFirestore? get _firestore {
@@ -126,26 +127,16 @@ class FriendsService extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        // CRITICAL: Handle Firestore permission errors gracefully
-        if (error is FirebaseException && error.code == 'permission-denied') {
-          LoggerService.error(
-            'FriendsService: Permission denied loading friends. User may not be authenticated or lacks required permissions.',
-            error: error,
-            reason: 'Firestore permission-denied error',
-            fatal: false,
-          );
-          // Clear friends and notify listeners
-          _friends.clear();
-          _hasMore = false;
-          notifyListeners();
-        } else {
-          LoggerService.error(
-            'FriendsService: Error loading friends',
-            error: error,
-            reason: 'Firestore stream error',
-            fatal: false,
-          );
-        }
+        FirestoreErrorHandler.handleStreamError(
+          error,
+          'FriendsService',
+          'loading friends',
+          clearData: () {
+            _friends.clear();
+            _hasMore = false;
+          },
+          notifyListeners: notifyListeners,
+        );
       },
     );
   }
@@ -244,25 +235,15 @@ class FriendsService extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        // CRITICAL: Handle Firestore permission errors gracefully
-        if (error is FirebaseException && error.code == 'permission-denied') {
-          LoggerService.error(
-            'FriendsService: Permission denied loading friend requests. User may not be authenticated or lacks required permissions.',
-            error: error,
-            reason: 'Firestore permission-denied error',
-            fatal: false,
-          );
-          // Clear requests and notify listeners
-          _pendingRequests.clear();
-          notifyListeners();
-        } else {
-          LoggerService.error(
-            'FriendsService: Error loading friend requests',
-            error: error,
-            reason: 'Firestore stream error',
-            fatal: false,
-          );
-        }
+        FirestoreErrorHandler.handleStreamError(
+          error,
+          'FriendsService',
+          'loading friend requests',
+          clearData: () {
+            _pendingRequests.clear();
+          },
+          notifyListeners: notifyListeners,
+        );
       },
     );
   }

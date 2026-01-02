@@ -90,14 +90,12 @@ class ServiceRegistry {
       ChangeNotifierProvider<ChallengeService>(create: (_) => ChallengeService()),
       Provider(create: (_) => DailyChallengeLeaderboardService()),
       ChangeNotifierProvider<TextToSpeechService>(create: (_) => TextToSpeechService()),
-      ChangeNotifierProvider<VoiceRecognitionService>(create: (_) => VoiceRecognitionService()),
       ChangeNotifierProvider<PronunciationDictionaryService>(create: (_) => PronunciationDictionaryService()),
       ChangeNotifierProvider<VoiceCalibrationService>(create: (_) => VoiceCalibrationService()),
       ChangeNotifierProvider<ThemeService>(create: (_) => ThemeService()),
       ChangeNotifierProvider<LanguageService>(create: (_) => LanguageService()),
       ChangeNotifierProvider<SettingsService>(create: (_) => SettingsService()),
       ChangeNotifierProvider<LearningService>(create: (_) => LearningService()),
-      ChangeNotifierProvider<OfflineService>(create: (_) => OfflineService()),
       ChangeNotifierProvider<AccessibilityService>(create: (_) => AccessibilityService()),
       ChangeNotifierProvider<FreeTierService>(create: (_) => FreeTierService()),
       ChangeNotifierProvider<SoundService>(create: (_) => SoundService()),
@@ -228,7 +226,8 @@ class ServiceRegistry {
         },
       ),
       // Wire NetworkService to OfflineService
-      ProxyProvider<NetworkService, OfflineService>(
+      ChangeNotifierProxyProvider<NetworkService, OfflineService>(
+        create: (_) => OfflineService(),
         update: (_, network, previous) {
           previous?.setNetworkService(network);
           return previous ?? OfflineService();
@@ -236,7 +235,8 @@ class ServiceRegistry {
         },
       ),
       // Wire VoiceCalibrationService to VoiceRecognitionService
-      ProxyProvider<VoiceCalibrationService, VoiceRecognitionService>(
+      ChangeNotifierProxyProvider<VoiceCalibrationService, VoiceRecognitionService>(
+        create: (_) => VoiceRecognitionService(),
         update: (_, calibration, voiceService) {
           voiceService?.setVoiceCalibrationService(calibration);
           return voiceService ?? VoiceRecognitionService();
@@ -262,20 +262,31 @@ class ServiceRegistry {
       return previous;
     }
 
-    // Check if templates are initialized
-    if (!templates.EditionTriviaTemplates.isInitialized) {
-      final error = templates.EditionTriviaTemplates.lastValidationError ??
-          'Unknown error';
+    // Check if templates are initialized - wrap in try-catch to handle deferred library not loaded yet
+    bool templatesNotInitialized = false;
+    String? templateError;
+    try {
+      templatesNotInitialized = !templates.EditionTriviaTemplates.isInitialized;
+      if (templatesNotInitialized) {
+        templateError = templates.EditionTriviaTemplates.lastValidationError ?? 'Unknown error';
+      }
+    } catch (e) {
+      // Deferred library not loaded yet - this is expected during provider creation
+      // Proceed directly to creating service, which will handle uninitialized state gracefully
+      templatesNotInitialized = false; // Treat as initialized to skip the error path
+    }
+
+    if (templatesNotInitialized) {
       final errorMessage = 'TriviaGeneratorService initialization failed: '
           'Trivia templates were not initialized successfully. '
-          'Error details: $error.';
+          'Error details: $templateError.';
 
       LoggerService.error('CRITICAL: $errorMessage');
 
       // Log to analytics
       try {
         analytics.logServiceInitializationFailure(
-            'TriviaGeneratorService', error,);
+            'TriviaGeneratorService', templateError ?? 'Unknown error',);
       } catch (e) {
         // Ignore analytics errors
       }

@@ -19,6 +19,7 @@ import 'package:n3rd_game/utils/feedback_helper.dart';
 import 'package:n3rd_game/l10n/app_localizations.dart';
 import 'package:n3rd_game/utils/navigation_helper.dart';
 import 'package:n3rd_game/utils/responsive_helper.dart';
+import 'package:n3rd_game/utils/subscription_guard.dart';
 
 class DailyChallengesScreen extends StatefulWidget {
   const DailyChallengesScreen({super.key});
@@ -67,8 +68,11 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
     // Use Consumer to listen for subscription state changes
     return Consumer<SubscriptionService>(
       builder: (context, subscriptionService, _) {
-        // Check if user has online access (Base or Premium)
-        if (!subscriptionService.hasOnlineAccess) {
+        // Check if user has online access using SubscriptionGuard
+        if (!SubscriptionGuard.canAccessFeature(
+          subscriptionService: subscriptionService,
+          requiresOnlineAccess: true,
+        )) {
           return Scaffold(
             backgroundColor: Colors.black,
             body: BackgroundImageWidget(
@@ -143,7 +147,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                   child: SafeArea(
                     child: Column(
                       children: [
-                        // Back button only (header moved to bottom)
+                        // Header with back button only
                         Padding(
                           padding: const EdgeInsets.all(AppSpacing.md),
                           child: Row(
@@ -210,9 +214,10 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                                     const SizedBox(height: 16),
                                   Text(
                                     'Complete challenges to earn rewards!',
+                                    textAlign: TextAlign.center,
                                     style: AppTypography.bodyMedium.copyWith(
-                                      color: colors.onDarkText
-                                          .withValues(alpha: 0.8),
+                                      color: colors.onDarkText,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(height: AppSpacing.md),
@@ -291,7 +296,7 @@ class _DailyChallengesScreenState extends State<DailyChallengesScreen>
                     Text(
                       challenge.description,
                       style: AppTypography.bodyMedium.copyWith(
-                        color: colors.onDarkText.withValues(alpha: 0.8),
+                        color: colors.onDarkText,
                       ),
                     ),
                   ],
